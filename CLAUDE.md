@@ -1,6 +1,6 @@
 # K7 智能小车主板 — RK3576 项目文档
 
-> **最后更新**: 2026-07-08（清理资料目录 + 完善本地资源索引）
+> **最后更新**: 2026-07-19（添加摄像头 Windows SDK + 完善资料索引）
 > **板卡型号**: KICKPI K7 V2.0
 > **主控芯片**: Rockchip RK3576
 > **项目用途**: 智能小车主控 — 运行 Ubuntu + ROS2，负责路径规划、深度图计算、上位机通信、底层 STM32 驱动
@@ -344,11 +344,68 @@ D:\BaiduNetdiskDownload\RK3576\
         ├── win_x64_UartDebugTool\                  ← MobaXterm 串口调试
         ├── win_x64_QtScrcpy\                       ← 屏幕投屏工具
         └── win_x64_RKDevInfoWriteTool\             ← MAC/SN 写入工具
+│
+└── camera windows sdk\                         ← USB 摄像头 PC 端 SDK
+    ├── TXY_Win-SDK开发文档.docx                    ← 开发文档
+    └── USBCamera_SDK/DirectShow/                  ← DirectShow SDK（含头文件、库、示例）
 ```
 
 ---
 
-## 7. 资源链接
+## 7. USB 摄像头 Windows SDK
+
+> `camera windows sdk/` — 用于在 Windows PC 端开发和测试 USB 摄像头的接入代码，运行在 x86/x64 Windows 上，不在 K7 上使用。
+
+### SDK 概览
+
+| 项目 | 说明 |
+|------|------|
+| **厂商** | TXY（图新源？） |
+| **SDK 类型** | Microsoft DirectShow |
+| **总大小** | ~267 MB |
+| **适用范围** | Windows（x86 / x64） |
+| **在项目中的作用** | PC 端验证摄像头参数、调试图像质量、开发图像采集逻辑，确认无误后移植到 K7 (Linux/V4L2) |
+
+### SDK 目录结构
+
+```
+camera windows sdk/
+├── TXY_Win-SDK开发文档.docx           ← 摄像头 SDK 开发文档（Word）
+└── USBCamera_SDK/
+    └── DirectShow/
+        ├── Include/                  ← C/C++ 头文件（DirectShow API）
+        ├── Lib/
+        │   ├── x64/                  ← 64 位静态库
+        │   └── x86/                  ← 32 位静态库
+        ├── Samples/
+        │   ├── C++/DirectShow/       ← C++ 示例（BaseClasses / Filters / Players）
+        │   └── VB Samples/           ← VB 示例（Builder / Editing / Player / WebDVD）
+        ├── Documentation/            ← DirectShow API 文档（.chm）
+        └── Utilities/                ← 开发工具（GraphEdit 等）
+```
+
+### 核心库文件（Lib/）
+
+| 库文件 | 用途 |
+|--------|------|
+| `strmiids.lib` / `amstrmid.lib` | DirectShow 核心接口 |
+| `quartz.lib` | Filter Graph Manager |
+| `dmoguids.lib` / `msdmo.lib` | DMO (DirectX Media Objects) |
+| `ksproxy.lib` / `ksuser.lib` | 内核流（Kernel Streaming）代理 |
+
+### 与 K7 的关系
+
+| 阶段 | 平台 | 说明 |
+|------|------|------|
+| **PC 端开发/调试** | Windows | 用此 SDK 在 VS 中运行摄像头，测试分辨率、帧率、曝光等参数 |
+| **K7 端运行** | Linux (Ubuntu 24.04) | 不使用此 SDK，使用 **V4L2 + OpenCV** 或 **GStreamer** 捕获摄像头 |
+| **移植流程** | — | PC 端验证参数 → 确认摄像头型号 → 在 K7 上用 V4L2 打开同款摄像头 |
+
+> **注意**：此 SDK 为 **Windows DirectShow** 专用，不能直接在 K7 (ARM64 Linux) 上编译或运行。它是 PC 端的开发辅助工具。
+
+---
+
+## 8. 资源链接
 
 ### 官网
 
@@ -366,11 +423,12 @@ D:\BaiduNetdiskDownload\RK3576\
 - ✅ YOLOv5 Linux demo（含模型库和测试视频）
 - ✅ ARM64 交叉编译工具链 (GCC 10.3)
 - ✅ Windows 烧录/调试全套工具
+- ✅ USB 摄像头 Windows SDK（DirectShow，含文档和示例）
 - ⚠️ Rockchip SDK 暂不开放，定制需联系 KICKPI 技术支持
 
 ---
 
-## 8. 待确认 / 待完善事项
+## 9. 待确认 / 待完善事项
 
 ### 硬件相关
 - [x] **K7 板的具体版本** → V2.0，对应原理图 `K7_V2.0_20250716_SCH.pdf`
@@ -397,7 +455,7 @@ D:\BaiduNetdiskDownload\RK3576\
 
 ---
 
-## 9. 关键驱动和软件依赖
+## 10. 关键驱动和软件依赖
 
 ### 基础开发环境
 
