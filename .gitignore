@@ -1,0 +1,22 @@
+# 磁盘镜像
+*.img
+
+# Windows 开发工具（烧录、驱动等）
+rk3576_data/5-DevelopmentTool/
+
+# ARM64 交叉编译工具链（可单独下载）
+rk3576_data/3-SoftwareData/GCC_Cross_toolchains/
+
+# 超过 GitHub 100MB 限制的大文件
+rk3576_data/3-SoftwareData/RKNPU/rknn-toolkit2.zip
+rk3576_data/3-SoftwareData/RKNPU/rknpu2.zip
+rk3576_data/3-SoftwareData/Linux_rknn_yolov5/rknn_model_zoo.tar.gz
+
+# 临时调试文件
+msg.txt
+err_msg.txt
+
+# 系统/编辑器生成文件
+__pycache__/
+*.pyc
+.vscode-server/

@@ -1,0 +1,76 @@
+----------------------------------------------------------------------
+2026年4月13日更新内容：
+	1.update rknpu v0.9.8
+	2.boot force no sleep
+	
+更新文件：
+update-rk3576-kickpi-k7-android-multi-202604111721.img
+----------------------------------------------------------------------
+2025年12月10日更新内容：
+1. add SD burn success work led always bright
+
+更新文件：
+	update-rk3576-kickpi-k7-linux-debian-multi-20251209-185038.img
+	update-rk3576-kickpi-k7-linux-ubuntu-multi-20251209-191847.img
+	update-rk3576-kickpi-k7c-linux-debian-multi-20251209-193035.img
+	update-rk3576-kickpi-k7c-linux-ubuntu-multi-20251209-193634.img
+	update-rk3576-kickpi-k7s-linux-debian-20251210-094620.img
+	update-rk3576-kickpi-k7s-linux-ubuntu-20251210-095456.img
+	
+----------------------------------------------------------------------
+2025年10月20日更新内容：
+1. del etc/fstab oem userdata
+2. add kernel TUN
+3. add K7 V2.0 cam imx415 config
+4. fix dp hdmi uboot logo
+5. add libjpeg62-turbo_1.5.1-2_arm64.deb
+6. 添加SD卡启动引导
+
+
+更新文件：
+	update-rk3576-kickpi-k7-linux-debian-multi-20251020-143217.img
+	update-rk3576-kickpi-k7-linux-ubuntu-multi-20251020-144401.img
+----------------------------------------------------------------------
+2025年07月29日更新内容：
+1. Armbian 烧录后跳过手动配置，默认kickpi配置
+
+更新文件：
+	Armbian-unofficial_25.08.0-trunk_Kickpi-k7_noble_vendor_6.1.115.img
+	Armbian-unofficial_25.08.0-trunk_Kickpi-k7_noble_vendor_6.1.115_gnome_desktop.img
+
+
+----------------------------------------------------------------------
+2025年07月23日更新内容：
+1.添加MAE0621A适配
+2.添加skw6621s适配
+3.Ubuntu默认安装busybox
+4.修改USB xhci可能卡死的情况
+5.添加CH341驱动
+更新文件：
+	update-rk3576-kickpi-k7-linux-ubuntu-multi-20250723-101252.img
+	update-rk3576-kickpi-k7-linux-debian-multi-20250723-150054.img
+
+----------------------------------------------------------------------
+2025年07月22日更新内容：
+1.add BootonApp config
+2.修改USB xhci可能卡死的情况
+3.添加skw6621s适配
+4.添加exfat ntfs文件系统支持
+5.修改编译otg java版本问题
+6.添加root权限
+7.添加串口节点权限
+8.添加CH341驱动
+9.添加双以太网支持
+10.添加MAE0621A适配
+更新文件：
+	update-rk3576-kickpi-k7-android-multi-202507221411.img
+
+----------------------------------------------------------------------
+2025年05月29日更新内容：
+1.增加自动识别屏功能，不接屏默认显示HDMI
+更新文件：
+	update-rk3576-kickpi-k7-android-multi-202505291812.img
+	update-rk3576-kickpi-k7-linux-debian-multi-20250529-191045.img
+	update-rk3576-kickpi-k7-linux-ubuntu-multi-20250529-184505.img
+
+
