@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>k7_camera</name>
+  <version>0.1.0</version>
+  <description>LRCP 2MV 双目相机包：左右图拆分（splitter）节点、双目标定文件、相机 launch（Phase 3）</description>
+  <maintainer email="user@todo.todo">k7</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>usb_cam</depend>
+  <depend>stereo_image_proc</depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

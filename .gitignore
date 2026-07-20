@@ -16,6 +16,18 @@ rk3576_data/3-SoftwareData/Linux_rknn_yolov5/rknn_model_zoo.tar.gz
 msg.txt
 err_msg.txt
 
+# USB 摄像头 Windows SDK（PC端调试用，不在 K7 上运行）
+camera_windows_sdk/
+
+# STM32 资料：Keil 源码目录（容量大，参考用，不进入 git）
+stm32_data/firmware/
+
+# wheeltec ROS2 参考源码（第三方参考代码，46MB，只读不修改）
+ROS2_src/wheeltec_ros2/
+
+# STM32 Keil 编译产物
+**/OBJ/
+
 # 系统/编辑器生成文件
 __pycache__/
 *.pyc

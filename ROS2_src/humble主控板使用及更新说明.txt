@@ -1,0 +1,28 @@
+支持ROS2-Humble的ROS主控有：
+鲁班猫、树莓派4B
+
+DDS版本默认为：Fast DDS
+
+
+2023.06.27 更新内容：适配深度+RGB相机，增加色块跟随、RTAB建图功能。
+2023.09.22 更新内容：增加kcf跟随功能，增加imu-filter-madgwick功能包，针对imu原始数据进行滤波使用；修改原始imu话题为 /imu/data_raw；修改镭神雷达多角度屏蔽方式，启动功能包为lslidar_driver。
+
+更新说明：从06.27版本更新至09.22版本需要
+
+1、安装imu-filter-node功能包，安装指令为
+sudo apt install ros-humble-imu-filter-madgwick
+2、替换usb_cam-ros2、turn_on_wheeltec_robot、wheeltec_robot_rtab、wheeltec_lidar_ros2功能包。
+
+2024.09更新
+更新内容为：
+1、增加多机编队功能wheeltec_multi；
+2、增加ORB视觉建图功能，源码存放在wheeltec_robot_slam功能包中；
+3、增加多点导航功能包nav2_waypoint_cycle，功能集成在wheeltec_nav2.launch.py文件中
+4、新增传感器支持：元生惯导、GPS定位模块----增加H3imu相关功能包，在turn_on_wheeltec_robot增加启动替换文件，同时更新wheeltec_udev规则文件----增加G60、G70相关功能包，同时更新wheeltec_udev规则文件
+5、更新navigation2-humble，改为最新版，同时更新下载二进制文件：sudo apt install ros-humbnle-nav2*
+6、修改wheeltec_nav2功能包：----增加mppi导航算法，针对阿克曼、差速、麦轮车型增加导航参数文件；----完善导航参数文件中文注释----修改wheeltec_nav2.launch文件内容，改为直接调用二进制导航功能包文件，增加多点导航节点
+7、更新wheeltec_mic功能包的导航启动文件
+8、更新wheeltec_robot_kcf源码：增加速度限幅；
+9、针对以上内容更新常用指令文档；
+10、更新wheeltec_rviz2功能包，增加orb_rviz配置文件；
+11、将鲁班猫1S、Orin系列主控更新9102驱动为最新版。

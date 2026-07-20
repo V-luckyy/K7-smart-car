@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<!--
+  K7 智能小车 URDF（两轮差速，C50X 底盘）
+  几何依据：轮距 0.329m、轮径 0.125m（C50X 官方参数，见 CLAUDE.md 13.1）
+  base_footprint → base_link 的静态 TF 在 launch 中发布（沿用 wheeltec 惯例，z = 轮半径 0.0625）
+  注意：车体尺寸/相机位置为近似值，仅用于可视化与 TF；里程计由 STM32 固件正运动学给出，不依赖本文件。
+        装车后请实测修正 base_link 尺寸与 camera_link 位置。
+-->
+<robot name="k7_robot">
+
+  <!-- ================= 底盘主体 ================= -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.30 0.24 0.08"/></geometry>
+      <material name="grey"><color rgba="0.5 0.5 0.5 1.0"/></material>
+    </visual>
+  </link>
+
+  <!-- ================= 驱动轮（连续关节） ================= -->
+  <link name="left_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <geometry><cylinder radius="0.0625" length="0.03"/></geometry>
+      <material name="black"><color rgba="0.1 0.1 0.1 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_wheel_link"/>
+    <origin xyz="0 0.1645 -0.0625" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="right_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <geometry><cylinder radius="0.0625" length="0.03"/></geometry>
+      <material name="black"><color rgba="0.1 0.1 0.1 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_wheel_link"/>
+    <origin xyz="0 -0.1645 -0.0625" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- ================= 后部万向轮（从动） ================= -->
+  <link name="caster_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.03"/></geometry>
+      <material name="dark_grey"><color rgba="0.3 0.3 0.3 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="caster_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="caster_link"/>
+    <origin xyz="-0.13 0 -0.0325" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ================= 双目相机 ================= -->
+  <!-- 近似位置：base_link 顶部前缘，装车后实测修正 -->
+  <link name="camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.06 0.04 0.02"/></geometry>
+      <material name="blue"><color rgba="0.1 0.1 0.6 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0.14 0 0.06" rpy="0 0 0"/>
+  </joint>
+
+  <!-- 左右目光学坐标系（ROS 惯例：z 朝前、x 朝右、y 朝下），基线 20mm 居中 -->
+  <link name="camera_left_optical_frame"/>
+  <joint name="camera_left_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_left_optical_frame"/>
+    <origin xyz="0 0.01 0" rpy="-1.5707963 0 -1.5707963"/>
+  </joint>
+
+  <link name="camera_right_optical_frame"/>
+  <joint name="camera_right_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_right_optical_frame"/>
+    <origin xyz="0 -0.01 0" rpy="-1.5707963 0 -1.5707963"/>
+  </joint>
+
+</robot>

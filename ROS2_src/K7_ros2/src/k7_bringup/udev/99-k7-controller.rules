@@ -1,0 +1,3 @@
+# C50X 底盘 STM32（CH9102F USB 转串口）→ 固定别名 /dev/k7_controller
+# 重新插拔 USB 后生效；检查：ls -l /dev/k7_controller
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", SYMLINK+="k7_controller", MODE="0666"

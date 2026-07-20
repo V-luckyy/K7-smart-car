@@ -1,6 +1,6 @@
 # K7 智能小车主板 — RK3576 项目文档
 
-> **最后更新**: 2026-07-19（添加摄像头 Windows SDK + 完善资料索引）
+> **最后更新**: 2026-07-20（确认 STM32 C50X 底盘：USB 串口直连定案，通信/供电/IMU 等待确认项清零，见第 13 节）
 > **板卡型号**: KICKPI K7 V2.0
 > **主控芯片**: Rockchip RK3576
 > **项目用途**: 智能小车主控 — 运行 Ubuntu + ROS2，负责路径规划、深度图计算、上位机通信、底层 STM32 驱动
@@ -100,12 +100,9 @@ K7 的 MIPI CSI 可以拆分为 **2×2-Lane** 模式，接入两个摄像头作�
 | **GPIO** | ×22 |
 | **PDM** | ×1 |
 
-### 与 STM32 通信方案（待确认）
+### 与 STM32 通信方案（已确认 2026-07-20）
 
-推荐方案（按优先级）：
-1. **UART（串口）** — 最简单可靠，双向通信
-2. **CAN / CAN-FD** — 工业级抗干扰好，适合电机控制
-3. **SPI** — 高速但占线多
+**定案：USB 转串口**。C50X 底盘主板自带 CH9102F USB 转串口芯片，K7 用 USB 线直连（K7 端 `/dev/ttyUSB*`，115200 8N1），无需电平转换、不占用 40-Pin 原生 UART。协议与 wheeltec 11/24 字节帧逐字节一致，详见第 13 节。
 
 ---
 
@@ -273,12 +270,12 @@ SD 卡作为安装介质，**会覆盖 eMMC**。
 │  │  │  - 视觉 SLAM 加速               │  │    │
 │  │  └────────────────────────────────┘  │    │
 │  │  MIPI CSI ── 双目摄像头输入          │    │
-│  │  UART/CAN ── STM32 底层通信          │    │
+│  │  USB串口(CH9102F) ── STM32 底层通信   │    │
 │  └──────────────────────────────────────┘    │
 └─────────────────┬───────────────────────────┘
-                  │ UART / CAN
+                  │ USB（CH9102F 转串口）
 ┌─────────────────┴───────────────────────────┐
-│             STM32 底层驱动板                  │
+│        STM32 底层驱动板 (C50X 底盘)           │
 │         - 电机控制 (PID)                      │
 │         - 编码器读取                           │
 │         - IMU 传感器读取                       │
@@ -297,6 +294,10 @@ D:\BaiduNetdiskDownload\RK3576\
 ├── K7\                                          ← 原始资料
 │   ├── 原理图\  (V1.1 / V2.0 / V2.1)
 │   └── 机械图\  (PCB尺寸图 / DXF)
+│
+├── ROS2_src\                                    ← 小车 ROS2 源码
+│   └── wheeltec_ros2/                           ← 参考代码（基于普通小车，非 K7 专用）
+│       └── src/  (21 个功能包)
 │
 └── rk3576_data\                                 ← 从 kickpi 网盘下载的资料（已清理无关内容）
     ├── 0-Specifications\
@@ -348,6 +349,15 @@ D:\BaiduNetdiskDownload\RK3576\
 └── camera windows sdk\                         ← USB 摄像头 PC 端 SDK
     ├── TXY_Win-SDK开发文档.docx                    ← 开发文档
     └── USBCamera_SDK/DirectShow/                  ← DirectShow SDK（含头文件、库、示例）
+│
+└── stm32_data\                                 ← STM32 C50X 底盘参考资料
+    ├── README.md                                  ← 速查文档
+    ├── 原理图/  (V1.0 原理图 + 资源分配)
+    ├── 手册/  (STM32F407 + MPU6050 datasheet)
+    ├── 固件架构/  (工程结构 + 固件架构 md)
+    ├── 协议参考/  (data_task.h + uartx_callback.h)
+    ├── 源码工程使用指南.pdf
+    └── firmware/  (完整 STM32 源码, .gitignore 已排除)
 ```
 
 ---
@@ -403,9 +413,64 @@ camera windows sdk/
 
 > **注意**：此 SDK 为 **Windows DirectShow** 专用，不能直接在 K7 (ARM64 Linux) 上编译或运行。它是 PC 端的开发辅助工具。
 
+## 8. ROS2 参考源码（wheeltec）
+
+> `ROS2_src/wheeltec_ros2/` — 从普通小车项目（支持鲁班猫/树莓派4B）获取的 ROS2 Humble 源码，作为本项目 ROS2 架构的参考。**不是 K7 专用代码**，需要对照改造。
+
+### 目录结构
+
+```
+ROS2_src/
+└── wheeltec_ros2/            ← 参考源码（46 MB，21 个包）
+    └── src/
+        ├── turn_on_wheeltec_robot/  ⭐ 核心启动/上下电/STM32 通信协议
+        ├── wheeltec_robot_msg/      ⭐ 自定义消息定义（IMU/编码器/底盘）
+        ├── wheeltec_robot_urdf/     ⭐ 小车 URDF 模型（含 STL）
+        ├── usb_cam-ros2/            ✅ USB 摄像头 ROS2 驱动
+        ├── wheeltec_robot_nav2/     ✅ Nav2 路径规划参数配置
+        ├── wheeltec_lidar_ros2/     ✅ 激光雷达驱动
+        ├── wheeltec_imu/            ✅ IMU 驱动
+        ├── wheeltec_gps/            ✅ GPS 驱动
+        ├── web_video_server-ros2/   ✅ Web 视频推流
+        ├── aruco_ros-humble-devel/  ✅ ARUCO 码定位
+        ├── wheeltec_robot_keyboard/ ✅ 键盘控制
+        ├── wheeltec_joy/            ✅ 手柄控制
+        ├── wheeltec_robot_rrt2/     ✅ RRT 路径规划
+        ├── wheeltec_robot_rtab/     ✅ RTAB-Map 视觉建图
+        ├── wheeltec_robot_kcf/      ✅ KCF 目标跟踪
+        ├── simple_follower_ros2/    ✅ 色块/目标跟随
+        ├── wheeltec_rviz2/          ✅ RViz2 可视化配置
+        ├── wheeltec_multi/          ✅ 多机编队
+        ├── nav2_waypoint_cycle/     ✅ 多点导航
+        ├── auto_recharge_ros2/      ✅ 自动回充
+        └── depend/                  ✅ 依赖安装脚本
+```
+
+### 各包分类说明
+
+| 分类 | 包 | 说明 |
+|------|----|------|
+| **核心协议** | `turn_on_wheeltec_robot`, `wheeltec_robot_msg` | 上下电、STM32 串口协议、自定义消息格式 — 架构参考重点 |
+| **传感器驱动** | `wheeltec_imu`, `wheeltec_gps`, `wheeltec_lidar_ros2`, `usb_cam-ros2` | 各传感器 ROS2 驱动封装 |
+| **导航规划** | `wheeltec_robot_nav2`, `wheeltec_robot_rrt2`, `nav2_waypoint_cycle` | Nav2 配置、路径规划算法 |
+| **视觉/建图** | `wheeltec_robot_rtab`, `aruco_ros-humble-devel`, `simple_follower_ros2`, `wheeltec_robot_kcf` | 视觉 SLAM、ARUCO 码、目标跟随 |
+| **控制/交互** | `wheeltec_robot_keyboard`, `wheeltec_joy`, `wheeltec_rviz2` | 键盘/手柄控制、可视化 |
+| **其他** | `wheeltec_multi`, `auto_recharge_ros2`, `web_video_server-ros2` | 多机、回充、视频推流 |
+
+### 后续规划（已定案 2026-07-20）
+
+本项目 ROS2 代码放在 `ROS2_src/K7_ros2/`（colcon 工作区），ROS2 版本定为 **Jazzy**（匹配 Ubuntu 24.04）：
+
+```
+RK3576/
+└── ROS2_src/
+    ├── wheeltec_ros2/   ← 参考代码（不修改）
+    └── K7_ros2/         ← 本项目自有代码（colcon 工作区）
+```
+
 ---
 
-## 8. 资源链接
+## 9. 资源链接
 
 ### 官网
 
@@ -424,38 +489,39 @@ camera windows sdk/
 - ✅ ARM64 交叉编译工具链 (GCC 10.3)
 - ✅ Windows 烧录/调试全套工具
 - ✅ USB 摄像头 Windows SDK（DirectShow，含文档和示例）
+- ✅ STM32 C50X 底盘资料（V1.0 原理图、F407+MPU6050 手册、固件架构文档、协议参考）
 - ⚠️ Rockchip SDK 暂不开放，定制需联系 KICKPI 技术支持
 
 ---
 
-## 9. 待确认 / 待完善事项
+## 10. 待确认 / 待完善事项
 
 ### 硬件相关
 - [x] **K7 板的具体版本** → V2.0，对应原理图 `K7_V2.0_20250716_SCH.pdf`
 - [ ] **MIPI CSI 20-Pin FPC 线序定义** → 查本地原理图 `K7_V2.0_20250716_SCH.pdf` 的摄像头部分
 - [ ] **双目摄像头型号**（IMX415 已适配 V2.0，但需确认左右摄像头如何接入 — 1×4-Lane 还是 2×2-Lane？）
-- [ ] **供电方案**（电池电压？12V 输入？DC 口还是 40Pin 供电？）
+- [x] **供电方案** → 双电池独立供电（2026-07-20 确认）：K7 一块电池（插电自启），底盘+STM32 一块电池，两板经 USB 线共地。底盘电池推断 6S（标称 ~22.2V，20V 低压截止，待实物确认）
 - [ ] **M.2 NVMe SSD 是否需要**（日志/地图数据存储？）
 
 ### 通信相关
-- [ ] **与 STM32 的通信协议** — UART 串口（简单）还是 CAN 总线（抗干扰）？波特率？数据帧格式？
-- [ ] **STM32 板的具体型号、接口定义、通信协议文档**
+- [x] **与 STM32 的通信协议** → USB 转串口（CH9102F），115200 8N1；与 wheeltec 11/24 字节帧逐字节一致，上行 20Hz（2026-07-20 确认，详见第 13 节）
+- [x] **STM32 板的具体型号、接口定义、通信协议文档** → WHEELTEC C50X 底盘（C50C 主控 V1.0，STM32F407VET6），资料与固件源码在 `stm32_data/`
 - [ ] **上位机通信方式** — WiFi / 以太网 / 4G/5G？MAVLink 协议 or 自定义 ROS2 topic？
 - [ ] **双以太网口的用途分配** — 哪个接上位机？哪个留作调试？
 
 ### 传感器相关
-- [ ] **IMU 型号及安装位置**（板载？STM32 外挂？型号如 MPU6050/ICM20948？）
-- [ ] **是否需要其他传感器**（超声波、ToF、激光雷达？）
+- [x] **IMU 型号及安装位置** → MPU6050（±2g / ±500dps），板载于 C50C 主控，原始值随 24 字节帧上报，换算系数与 wheeltec ROS 端匹配
+- [ ] **是否需要其他传感器**（超声波、ToF、激光雷达？）— 注：C50X 板载红外测距×3 但固件未采集上报，见第 13.3 节
 
 ### 软件相关
-- [ ] **ROS2 版本** — Humble（Ubuntu 22.04） vs Jazzy（Ubuntu 24.04）。板子官方支持 Ubuntu 24.04，建议 Jazzy
+- [x] **ROS2 版本** → **Jazzy**（2026-07-20 定案，匹配 Ubuntu 24.04；wheeltec 参考代码是 Humble，移植时注意 API 差异）
 - [ ] **NPU 推理方案** — YOLOv5 demo 已就绪，确认具体检测目标（行人/车道线/障碍物？）
 - [ ] **深度图算法** — Stereo SGBM？还是基于学习的深度估计？
 - [ ] **启动方式** — eMMC 直接启动 or SD 卡启动？
 
 ---
 
-## 10. 关键驱动和软件依赖
+## 11. 关键驱动和软件依赖
 
 ### 基础开发环境
 
@@ -497,25 +563,29 @@ camera windows sdk/
 
 ---
 
-## 11. KICKPI 官方文档开发速查
+## 12. KICKPI 官方文档开发速查
 
 > 以下信息提取自 [KICKPI 官方文档](https://doc.kickpi.cn)，适用于 K7 (RK3576) 实际开发时的快速参考。
 
-### 11.1 UART（与 STM32 通信）
+### 12.1 UART（与 STM32 通信）
 
 | 项目 | 值 |
 |------|-----|
 | 可用 UART 数 | 5 路（GPIO 扩展）+ 1 路 DEBUG |
 | 设备节点 | `/dev/ttyS*`（16550A 驱动） |
 | 示例引脚 | UART8 TX=Pin19, RX=Pin17 |
-| 电压域 | **1.8V**（⚠️ STM32 是 3.3V，需电平转换模块） |
+| 电压域 | **1.8V**（原生 UART 备用参考，见下方警告） |
 | 测试命令 | `stty -F /dev/ttyS5 ispeed 115200 ospeed 115200 cs8` |
 | 收发测试 | `echo "test" > /dev/ttyS5` / `cat /dev/ttyS5` |
 | DTS 使能 | `&uartX { status = "okay"; };` |
 
-> **关键警告**：STM32F103VET6 是 3.3V 电平，K7 UART 是 1.8V，**直连会烧毁 K7**。必须使用 1.8V↔3.3V 电平转换模块（如 TXS0108E 或分压电路）。
+> **方案已变更（2026-07-20）**：与 STM32 的通信已改用 **USB 转串口**（C50X 主板自带 CH9102F，K7 端 `/dev/ttyUSB*`），原生 UART 不再使用，本小节仅作备用参考。
+>
+> ⚠️ **若未来改用原生 UART 直连**：STM32F407 是 3.3V 电平，K7 UART 是 1.8V，**直连会烧毁 K7**，必须加 1.8V↔3.3V 电平转换模块（如 TXS0108E）。
+>
+> **实测（2026-07-20）**：官方 Ubuntu 镜像已使能 `/dev/ttyS4`、`/dev/ttyS6`、`/dev/ttyS8`（16550A），但 dmesg 显示 `base_baud = 11718` 异常偏低，原生 UART 时钟受限，能否稳定跑到 115200 存疑——这也是优先 USB 串口方案的原因之一。
 
-### 11.2 DTS 设备树
+### 12.2 DTS 设备树
 
 | 项目 | 值 |
 |------|-----|
@@ -524,7 +594,7 @@ camera windows sdk/
 | 使能外设通用方法 | 在 DTS 中设 `status = "okay"` |
 | 编译方式 | SDK 内 `./build.sh kernel` 或 `./build.sh kernel_multi_dtb` |
 
-### 11.3 NPU 开发 (RKNN)
+### 12.3 NPU 开发 (RKNN)
 
 | 项目 | 值 |
 |------|-----|
@@ -547,7 +617,7 @@ PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
 
 > **注意**：rknn_server、librknnrt.so、rknn-toolkit2 三者版本必须一致。
 
-### 11.4 SDK 编译
+### 12.4 SDK 编译
 
 | 项目 | 值 |
 |------|-----|
@@ -559,7 +629,7 @@ PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
 | 编译产物 | `output/` 目录下 |
 | 内核版本 | 6.1 |
 
-### 11.5 USB 摄像头（LRCP 2MV）
+### 12.5 USB 摄像头（LRCP 2MV）
 
 | 项目 | 值 |
 |------|-----|
@@ -568,6 +638,48 @@ PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
 | 最大分辨率 | MJPG 3840×1080 @ 30fps（左右 1920×1080 并排） |
 | 未压缩格式 | YUYV 最大 640×480 @ 30fps |
 | K7 端 Linux API | V4L2 + OpenCV（`cv2.VideoCapture(73)`） |
+| 实测参数（2026-07-20） | 200 万像素；5V / 180mA（功率 1.8W）；曝光时间 35ms；默认 20~30fps，支持锁 30fps |
+| 双目基线 | **约 20mm（±1mm）**（两镜头间距，双目标定外参初始值） |
+
+---
+
+## 13. STM32 C50X 底盘（已确认信息，2026-07-20）
+
+> 资料来源：`stm32_data/`（原理图、固件架构文档、协议头文件、完整 Keil 源码 `firmware/STM32F407VET6_src/`）。以下结论均已对照固件源码核实。
+
+### 13.1 基本信息
+
+| 项目 | 值 |
+|------|-----|
+| 底盘 | WHEELTEC C50X，C50C 主控 V1.0 |
+| 主控 MCU | **STM32F407VET6**（早期误记为 F103，以实物资料为准） |
+| 构型 | 两轮差速（Keil 工程含 Akm/Diff/Mec/4WD/Omni 五个 target，本车用 Diff_Car） |
+| 电机驱动 | D50A（BTN7971 双路） |
+| 编码器 | GMR 500 线 × 4 倍频；减速比 27 或 51（主板电位器档位决定，上电实测确认） |
+| 轮距 / 轮径 | 0.329 m / 0.125 m |
+| IMU | MPU6050（I2C，±2g / ±500dps），板载 |
+| 电池 | 推断 6S 锂电（标称 ~22.2V）：20V 低压截止电机禁能、18~20V 蜂鸣报警；ADC 11:1 分压 |
+| 供电/开机 | 双电池独立供电（K7 一块、底盘一块）；K7 插电自启，底盘按键开机；两板经 USB 线共地 |
+
+### 13.2 通信（与 wheeltec ROS2 协议逐字节一致）
+
+| 项目 | 值 |
+|------|-----|
+| 物理链路 | K7 USB Host → CH9102F → USART3（PC10/PC11），K7 端 `/dev/ttyUSB*`，**无需电平转换** |
+| 串口参数 | 115200 8N1 |
+| 下行帧（K7→STM32） | 11 字节：`0x7B + mode + 预留 + Vx/Vy/Vz(int16 大端 ×1000) + BCC + 0x7D` |
+| 上行帧（STM32→K7） | 24 字节：`0x7B + 状态 + 三向速度×6 + 加速度×6 + 陀螺仪×6 + 电压×2 + BCC + 0x7D`，20Hz |
+| BCC 校验 | 含帧头逐字节异或（两端一致） |
+| 速度上报 | 固件已做正运动学，上报**整车速度**（mm/s）而非原始编码器计数——ROS 端无需关心减速比 |
+| IMU 数据 | MPU6050 原始值（仅减零偏），换算系数与 wheeltec ROS 端（÷1671.84 / ×0.00026644）匹配 |
+
+### 13.3 关键注意点（固件源码核实）
+
+- ⚠️ **断链不停车**：固件的命令丢失保护（1 秒无指令清零速度）被 `SecurityLevel` 默认关闭，断链后小车保持最后速度继续跑。**K7 端 ROS 层必须自行实现 cmd_vel 看门狗**。
+- **自动回充完整支持**：`0x7C…0x7F` 8 字节回充帧 + 4 路充电桩红外对接信号；低电压且对准时允许自动回充。
+- **红外测距×3 数据不上行**：固件没有红外测距采集代码，24 字节帧也无此字段。当前无法通过串口获取，避障只能依赖深度相机（如需启用须改固件）。
+- 固件上报的 IMU 坐标轴已做 ROS 坐标系变换（X/Y 互换取负），ROS 端按 wheeltec 原逻辑解析即可。
+- 电机失能（FlagStop=1）时 gyro Z 强制上报 0。
 
 ---
 
