@@ -495,4 +495,80 @@ camera windows sdk/
 
 ---
 
+---
+
+## 11. KICKPI 官方文档开发速查
+
+> 以下信息提取自 [KICKPI 官方文档](https://doc.kickpi.cn)，适用于 K7 (RK3576) 实际开发时的快速参考。
+
+### 11.1 UART（与 STM32 通信）
+
+| 项目 | 值 |
+|------|-----|
+| 可用 UART 数 | 5 路（GPIO 扩展）+ 1 路 DEBUG |
+| 设备节点 | `/dev/ttyS*`（16550A 驱动） |
+| 示例引脚 | UART8 TX=Pin19, RX=Pin17 |
+| 电压域 | **1.8V**（⚠️ STM32 是 3.3V，需电平转换模块） |
+| 测试命令 | `stty -F /dev/ttyS5 ispeed 115200 ospeed 115200 cs8` |
+| 收发测试 | `echo "test" > /dev/ttyS5` / `cat /dev/ttyS5` |
+| DTS 使能 | `&uartX { status = "okay"; };` |
+
+> **关键警告**：STM32F103VET6 是 3.3V 电平，K7 UART 是 1.8V，**直连会烧毁 K7**。必须使用 1.8V↔3.3V 电平转换模块（如 TXS0108E 或分压电路）。
+
+### 11.2 DTS 设备树
+
+| 项目 | 值 |
+|------|-----|
+| 主 DTS 文件 | `kernel-6.1/arch/arm64/boot/dts/rockchip/rk3576-kickpi-k7-linux.dts` |
+| SDK 根目录下路径 | 同上，相对 SDK 根目录 |
+| 使能外设通用方法 | 在 DTS 中设 `status = "okay"` |
+| 编译方式 | SDK 内 `./build.sh kernel` 或 `./build.sh kernel_multi_dtb` |
+
+### 11.3 NPU 开发 (RKNN)
+
+| 项目 | 值 |
+|------|-----|
+| NPU 算力 | **6 TOPS**（INT4/INT8/INT16/FP16） |
+| PC 端模型转换 | `pip install rknn-toolkit2` → `from rknn.api import RKNN` |
+| 板端运行时 | `librknnrt.so`（C API: `rknn_init` → `rknn_run` → `rknn_outputs_get`） |
+| 板端服务 | `restart_rknn.sh` 启动 `rknn_server` |
+| 板端 Python | RKNN Toolkit Lite2（轻量 Python 推理） |
+| 示例仓库 | [rknn-toolkit2](https://github.com/airockchip/rknn-toolkit2) / [rknn_model_zoo](https://github.com/airockchip/rknn_model_zoo) |
+| 交叉编译脚本 | `./build-linux.sh -t rk3576 -a aarch64 -d yolov5` |
+
+**NPU 开发流程：**
+
+```
+PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
+        ↓ scp 拷贝到板子
+板端：rknn_init(model) → rknn_run() → rknn_outputs_get()
+        或 Python: RKNNLite.load() → infer()
+```
+
+> **注意**：rknn_server、librknnrt.so、rknn-toolkit2 三者版本必须一致。
+
+### 11.4 SDK 编译
+
+| 项目 | 值 |
+|------|-----|
+| SDK 获取 | **源码不公开**，联系 KICKPI 官方获取 |
+| 编译主机 | Ubuntu 22.04 x86_64，RAM ≥ 32GB，磁盘 ≥ 500GB |
+| K7 Ubuntu 配置 | `./build.sh lunch` → 选 `rockchip_rk3576_kickpi_k7_ubuntu_defconfig` |
+| 全量编译 | `./build.sh` |
+| 单独编译 kernel | `./build.sh kernel` |
+| 编译产物 | `output/` 目录下 |
+| 内核版本 | 6.1 |
+
+### 11.5 USB 摄像头（LRCP 2MV）
+
+| 项目 | 值 |
+|------|-----|
+| 型号 | LRCP 2MV（双镜头双目 USB 摄像头） |
+| K7 设备节点 | `/dev/video73`（可能变化，查 `v4l2-ctl --list-devices`） |
+| 最大分辨率 | MJPG 3840×1080 @ 30fps（左右 1920×1080 并排） |
+| 未压缩格式 | YUYV 最大 640×480 @ 30fps |
+| K7 端 Linux API | V4L2 + OpenCV（`cv2.VideoCapture(73)`） |
+
+---
+
 > **提示**：每次对该项目有新的了解、决策或变更时，请更新此文档。尤其是待确认事项部分，确认一项就划掉一项。
