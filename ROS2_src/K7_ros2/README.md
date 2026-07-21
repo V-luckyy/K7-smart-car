@@ -1,6 +1,6 @@
 # K7_ros2 — K7 智能小车 ROS2 (Jazzy) 工作区
 
-> 架构方案见 `C:\Users\Luca\.claude\plans\buzzing-strolling-starfish.md`，硬件事实见仓库根目录 `CLAUDE.md` 第 13 节。
+> 架构方案见仓库根目录 `docs/K7_开发架构方案.md`，硬件事实见 `../../CLAUDE.md` 第 13 节。
 
 ## 包结构
 
@@ -17,7 +17,7 @@
 一键脚本（推荐）——检测并安装 ROS2 Jazzy（已装则跳过）→ apt 安装全部项目依赖 → 配置 `~/.bashrc` 自动 source：
 
 ```bash
-cd ~/code/K7_ros2
+cd ~/Code/K7_ros2
 ./setup_env.sh
 ```
 
@@ -27,7 +27,7 @@ cd ~/code/K7_ros2
 ## 构建（K7 上执行）
 
 ```bash
-cd ~/K7_ros2
+cd ~/Code/K7_ros2
 colcon build --symlink-install
 source install/setup.bash
 ```
@@ -35,7 +35,7 @@ source install/setup.bash
 ## udev 规则（K7 上执行一次）
 
 ```bash
-cd ~/K7_ros2/src/k7_bringup/udev
+cd ~/Code/K7_ros2/src/k7_bringup/udev
 ./k7_udev.sh        # 安装规则并重新加载，之后重新插拔 USB
 ls -l /dev/k7_controller   # 应指向 ttyUSB*
 ```
@@ -46,7 +46,7 @@ ls -l /dev/k7_controller   # 应指向 ttyUSB*
 
 ```bash
 # Windows Git Bash 下（在本仓库根目录执行）：
-scp -r ROS2_src/K7_ros2/ kickpi@<K7_IP>:~/code/
+scp -r ROS2_src/K7_ros2/ kickpi@<K7_IP>:~/Code/
 # K7 上重新构建（必要时先删 build/ install/ log/）
 ```
 
