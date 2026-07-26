@@ -24,7 +24,18 @@ cd ~/Code/K7_ros2
 > 网络慢可先把 apt 源换成国内镜像（如清华源）再运行。
 > 也可以用 rosdep 按 package.xml 自动装：`rosdep install --from-paths src -y --ignore-src`
 
-## 构建（K7 上执行）
+## 摄像头测试（在 K7 上执行）
+
+`k7_camera/scripts/camera_server.py` 是从板子 `~/Videos/camera_server.py` 同步进来的**独立调试脚本**，用于在 PC 浏览器里查看 LRCP 2MV 画面，**不是项目正式功能节点**。
+
+```bash
+cd ~/Code/K7_ros2/src/k7_camera
+python3 scripts/camera_server.py
+```
+
+然后在 PC 浏览器打开 `http://192.168.10.2:8888/`（替换成实际 K7 IP），即可看到 3840×1080 的左右并排双目画面。
+
+> 注意：它直接打开 `/dev/video73`；后续 Phase 3 会用 `usb_cam` + splitter 节点走标准 ROS 图像话题。
 
 ```bash
 cd ~/Code/K7_ros2
