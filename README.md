@@ -127,7 +127,8 @@ VSCode Remote-SSH 用于板上编译调试；较大改动回本仓库提交，�
 ## 协作规范
 
 ```bash
-# 拉取 → 修改 → 提交 → 推送
+# 第一次下载 → 拉取 → 修改 → 提交 → 推送
+git clone https://github.com/V-luckyy/K7-smart-car.git 
 git pull
 git add .
 git commit -m "feat: 描述改动"
