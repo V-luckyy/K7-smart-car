@@ -34,6 +34,8 @@ fi
 echo "[2/3] 安装项目依赖 ..."
 sudo apt install -y \
   python3-colcon-common-extensions \
+  python3-numpy \
+  python3-scipy \
   v4l-utils \
   ros-jazzy-usb-cam \
   ros-jazzy-stereo-image-proc \

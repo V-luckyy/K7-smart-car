@@ -45,6 +45,7 @@ K7-smart-car/
             ├── k7_bringup/     # C++ 串口底盘节点（含看门狗）+ EKF/IMU + udev
             ├── k7_camera/      # Python 双目 splitter + 标定
             ├── k7_description/ # URDF 机器人模型
+            ├── k7_mpc/         # 番外线：MPC 避障实车验证（仿真 V1 控制器移植）
             ├── k7_nav/         # [Phase 4] Nav2 导航参数
             └── k7_npu/         # [Phase 5] RKNN 检测节点
 ```
@@ -60,6 +61,7 @@ K7-smart-car/
 | 3 | 双目摄像头+深度图 | ✅ splitter 已写，待标定 |
 | 4 | 自主导航（Nav2） | ⬜ 待硬件到位 |
 | 5 | NPU 推理（YOLOv5） | ⬜ 待转换 .rknn 模型 |
+| 番外 | MPC 实车验证（k7_mpc，V1 控制器） | ✅ 包已搭建，待 K7 编译 + 红外固件扩展 |
 
 ---
 

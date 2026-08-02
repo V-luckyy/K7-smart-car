@@ -9,6 +9,7 @@
 | `k7_bringup` | ament_cmake (C++) | STM32 串口底盘节点（移植自 wheeltec，含 cmd_vel 看门狗）+ EKF/Madgwick 配置 + udev 规则 + 核心 launch |
 | `k7_description` | ament_cmake | 小车 URDF（两轮差速 + 万向轮 + 双目相机 frame） |
 | `k7_camera` | ament_python | LRCP 2MV 双目 splitter + 标定文件 + 相机 launch（Phase 3） |
+| `k7_mpc` | ament_python | 番外线：MPC 避障实车验证（仿真 five_version_progressive_r04_with_pid V1 控制器移植，odom + 3 路红外 Range → `/cmd_vel_mpc`） |
 
 `k7_nav`（Phase 4）、`k7_npu`（Phase 5）届时再建。
 
