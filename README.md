@@ -32,6 +32,7 @@ K7-smart-car/
 ├── K7/                     # K7 板原理图+机械图 (V1.1/V2.0/V2.1)
 ├── rk3576_data/            # KICKPI 开发资料（规格书/NPU工具链/数据手册）
 ├── stm32_data/             # C50X 底盘资料（原理图/芯片手册/固件架构/协议头文件）
+├── sensor_data/            # 传感器资料（GY-53 VL53L0X 红外测距手册；第三方示例已 gitignore）
 ├── camera_windows_sdk/     # USB 摄像头 PC SDK（.gitignore 已排除）
 │
 ├── STM32F407VET6_src/      # STM32 完整 Keil 工程（FreeRTOS, DIFF_CAR 两轮差速）
@@ -159,6 +160,7 @@ git push
 | rknn-toolkit2.zip / rknpu2.zip / rknn_model_zoo.tar.gz | NPU 大文件（> 100 MB） |
 | `camera_windows_sdk/` | USB 摄像头 PC SDK |
 | `ROS2_src/wheeltec_ros2/` | 第三方 ROS2 参考代码 |
+| `sensor_data/*/STM32/`、`sensor_data/*/pc软件/` | GY-53 第三方示例工程与上位机 |
 | `**/OBJ/` | STM32 Keil 编译产物 |
 
 ---

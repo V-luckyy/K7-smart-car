@@ -42,7 +42,7 @@ COLLISION_CENTER_DIST = R_ROBOT + SIM_OBS_RADIUS
 SAFE_CENTER_DIST = 1.10
 
 # Three ideal ray sensors: front, left 45 degrees, right 45 degrees.
-SENSOR_MAX_RANGE = 1.2  # 实车标定 TODO：按红外 datasheet 量程填写（仿真值 3.0）
+SENSOR_MAX_RANGE = 1.2  # GY-53(VL53L0X) 默认高精度模式 0~1.2m；若固件改长距离模式(0~2m)需同步改这里（仿真原值 3.0）
 SENSOR_ANGLE_OFFSETS = {
     "front": 0.0,
     "left45": np.pi / 4.0,

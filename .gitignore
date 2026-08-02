@@ -25,6 +25,10 @@ ROS2_src/wheeltec_ros2/
 # STM32 Keil 编译产物
 **/OBJ/
 
+# GY-53 传感器第三方示例工程与上位机（只保留 PDF 手册入库）
+sensor_data/*/STM32/
+sensor_data/*/pc软件/
+
 # 系统/编辑器生成文件
 __pycache__/
 *.pyc
