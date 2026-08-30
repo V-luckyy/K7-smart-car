@@ -60,7 +60,7 @@ HAZARD_FILTER_ALPHA = 0.65
 # Baseline horizons. V1 and V2 use these fixed values. V3-V5 may select their
 # NP/NC from their version configuration, but share the same MPC implementation.
 BASE_NP = 40
-BASE_NC = 6
+BASE_NC = 4  # 实车 K7 SLSQP 求解 110~357ms 超 70ms 预算，缩短控制时域提速（仿真值 6）
 
 # Vehicle command bounds and reference values.
 V_REF = 0.22

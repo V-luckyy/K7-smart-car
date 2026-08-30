@@ -21,6 +21,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(turtlesim REQUIRED)
+find_package(k7_msgs REQUIRED)
 
 # wjwwood serial 库（MIT）已 vendor 到 third_party/serial，不再依赖系统 serial 包
 add_library(k7_serial_lib STATIC
@@ -36,7 +37,7 @@ add_executable(k7_serial_node src/k7_serial_node.cpp src/Quaternion_Solution.cpp
 target_include_directories(k7_serial_node PRIVATE include)
 ament_target_dependencies(k7_serial_node
   rclcpp std_msgs sensor_msgs nav_msgs geometry_msgs
-  tf2 tf2_ros tf2_geometry_msgs turtlesim
+  tf2 tf2_ros tf2_geometry_msgs turtlesim k7_msgs
 )
 target_link_libraries(k7_serial_node k7_serial_lib)
 

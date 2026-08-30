@@ -11,8 +11,5 @@ PATH_A = 1.2
 # ---- 话题 ----
 ODOM_TOPIC = "/odom_combined"          # EKF 融合里程计（nav_msgs/Odometry）
 CMD_TOPIC = "/cmd_vel_mpc"             # 输出给 twist_mux（geometry_msgs/Twist）
-IR_TOPICS = {                          # 3 路红外（sensor_msgs/Range）
-    "front": "/ir_sensor/front",
-    "left45": "/ir_sensor/left45",
-    "right45": "/ir_sensor/right45",
-}
+IR_TOPIC = "/ir_distances"             # 3 路红外单话题（k7_msgs/IrDistances）
+IR_NAMES = ("front", "left45", "right45")  # 字段名与 IrDistances.msg 一致

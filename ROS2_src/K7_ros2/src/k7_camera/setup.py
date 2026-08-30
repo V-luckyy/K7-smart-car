@@ -1,3 +1,5 @@
+import glob
+
 from setuptools import setup
 
 package_name = 'k7_camera'
@@ -9,7 +11,8 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        # TODO(Phase 3): 加入 launch/ 与 config/（标定 yaml）的 data_files
+        # 标定 yaml 装到 share/k7_camera/config/，splitter 节点从这里读 camera_info
+        ('share/' + package_name + '/config', glob.glob('config/*.yaml')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -20,7 +23,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            # TODO(Phase 3): 'stereo_splitter = k7_camera.stereo_splitter_node:main',
+            'stereo_splitter = k7_camera.stereo_splitter_node:main',
         ],
     },
 )
