@@ -27,7 +27,7 @@ from . import mpc_config
 from .mpc_lib.common_config import DT_CONTROL, FINISH_INDEX_MARGIN, SENSOR_MAX_RANGE
 from .mpc_lib.mpc_core import ProgressiveMPC
 from .mpc_lib.path_model import generate_eight_path, wrap_angle
-from .mpc_lib.version_config import VERSION
+from .mpc_lib.version_config import DEFAULT_VERSION, VERSIONS
 
 
 def _yaw_from_quaternion(q):
@@ -40,6 +40,8 @@ def _yaw_from_quaternion(q):
 
 LOG_HEADER = [
     "tick", "ros_time_ns",
+    # 路径对齐常量（每行恒定，绘图脚本用它把参考 8 字重建到 odom 系）
+    "origin_x", "origin_y", "origin_theta", "ref_theta0", "path_a",
     "odom_x", "odom_y", "odom_theta",
     "path_x", "path_y", "path_theta", "ref_idx",
     "front", "left45", "right45", "d_min",
@@ -55,7 +57,17 @@ class MpcNode(Node):
         super().__init__("k7_mpc_node")
         self.reference = generate_eight_path(a=mpc_config.PATH_A)
         self.ref_theta0 = float(self.reference[2][0])
-        self.controller = ProgressiveMPC(VERSION)
+
+        # MPC 版本选择：默认 V5（全自适应 + CBF 安全滤波），launch 可传 version:=V1 回退
+        self.declare_parameter("version", DEFAULT_VERSION)
+        version_key = str(self.get_parameter("version").value).upper()
+        if version_key not in VERSIONS:
+            self.get_logger().warn(
+                f"未知 MPC 版本 '{version_key}'，回退到 V1。可用版本：{sorted(VERSIONS)}"
+            )
+            version_key = "V1"
+        self.version = VERSIONS[version_key]
+        self.controller = ProgressiveMPC(self.version)
 
         self.odom = None       # 最新里程计位姿 (x, y, theta)
         self.origin = None     # 首帧位姿 (x0, y0, theta0)，用于路径对齐
@@ -75,7 +87,7 @@ class MpcNode(Node):
         self._init_log()
 
         self.get_logger().info(
-            f"MPC 节点已启动：版本 {VERSION['key']}（{VERSION['name']}），"
+            f"MPC 节点已启动：版本 {self.version['key']}（{self.version['name']}），"
             f"路径幅度 A={mpc_config.PATH_A} m，控制周期 {DT_CONTROL * 1000:.0f} ms；"
             "等待首帧 /odom_combined 以对准路径起点……"
         )
@@ -104,6 +116,8 @@ class MpcNode(Node):
             self._log_writer.writerow([
                 self.tick_count,
                 self.get_clock().now().nanoseconds,
+                self.origin[0], self.origin[1], self.origin[2],
+                self.ref_theta0, mpc_config.PATH_A,
                 self.odom[0], self.odom[1], self.odom[2],
                 x, y, theta,
                 self.controller.last_ref_idx,

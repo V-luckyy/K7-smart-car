@@ -737,7 +737,7 @@ K7SerialNode::K7SerialNode():rclcpp::Node ("k7_serial_node")
   //The private_nh.param() entry parameter corresponds to the initial value of the name of the parameter variable on the parameter server
   //private_nh.param()入口参数分别对应：参数服务器上的名称  参数变量名  初始值
   
-  this->declare_parameter<int>("serial_baud_rate");
+  this->declare_parameter<int>("serial_baud_rate", 115200); // 波特率默认值（launch 里也会显式传入）
   this->declare_parameter<std::string>("usart_port_name", "/dev/k7_controller"); //K7: fixed by udev rule //K7：由udev规则固定的串口设备名
   this->declare_parameter<std::string>("odom_frame_id", "odom");
   this->declare_parameter<std::string>("robot_frame_id", "base_footprint");

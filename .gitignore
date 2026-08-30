@@ -41,4 +41,5 @@ sensor_data/*/pc软件/
 __pycache__/
 *.pyc
 .vscode-server/
+.vscode/
 .claude/

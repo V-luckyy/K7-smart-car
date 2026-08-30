@@ -42,7 +42,7 @@ COLLISION_CENTER_DIST = R_ROBOT + SIM_OBS_RADIUS
 SAFE_CENTER_DIST = 1.10
 
 # Three ideal ray sensors: front, left 45 degrees, right 45 degrees.
-SENSOR_MAX_RANGE = 1.2  # GY-53(VL53L0X) 默认高精度模式 0~1.2m；若固件改长距离模式(0~2m)需同步改这里（仿真原值 3.0）
+SENSOR_MAX_RANGE = 1.0  # GY-53 避障有效量程按 1.0m 处理（2026-08-30 定；原 1.2）；实测无遮挡读数 2.48m 视为畅通（仿真原值 3.0）
 SENSOR_ANGLE_OFFSETS = {
     "front": 0.0,
     "left45": np.pi / 4.0,
@@ -73,7 +73,8 @@ OMEGA_MAX = 0.8
 DV_MAX = 0.08
 DOMEGA_MAX = 0.25
 
-# Fixed tracking and control weights inherited from the selected current V1.
+# Fixed tracking and control weights inherited from V1 baseline; V5 overrides the
+# two obstacle weights (W_OBS_WARN/W_OBS_SAFE) at runtime via dynamic_weight_map.
 W_TRACK = 8.0
 W_HEADING = 1.0
 W_OBS_WARN = 0.50

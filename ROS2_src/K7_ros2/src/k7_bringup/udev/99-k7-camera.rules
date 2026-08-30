@@ -1,0 +1,5 @@
+# LRCP 2MV 双目 USB 摄像头 → 固定别名 /dev/k7_camera（采集节点，ATTR{index}=="0"）
+# 用法：先 lsusb / udevadm info 拿到相机 VID:PID 填到下面两处，再执行 ./k7_udev.sh
+# 检查：ls -l /dev/k7_camera   （应指向 video73 之类）
+# MODE="0666"：允许所有用户直接打开，避免权限问题
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="<VID>", ATTRS{idProduct}=="<PID>", ATTR{index}=="0", SYMLINK+="k7_camera", MODE="0666"

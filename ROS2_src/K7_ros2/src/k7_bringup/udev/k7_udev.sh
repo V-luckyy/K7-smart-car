@@ -4,7 +4,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 sudo cp "${SCRIPT_DIR}/99-k7-controller.rules" /etc/udev/rules.d/
+sudo cp "${SCRIPT_DIR}/99-k7-camera.rules" /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
-echo "完成。重新插拔 STM32 的 USB 线后检查：ls -l /dev/k7_controller"
+echo "完成。重新插拔 USB 后检查：ls -l /dev/k7_controller /dev/k7_camera"

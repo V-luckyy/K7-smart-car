@@ -33,6 +33,8 @@ class StereoSplitter(Node):
                                'file://' + os.path.join(pkg_dir, 'config', 'left.yaml'))
         self.declare_parameter('right_info_url',
                                'file://' + os.path.join(pkg_dir, 'config', 'right.yaml'))
+        left_url = self.get_parameter('left_info_url').value
+        right_url = self.get_parameter('right_info_url').value
 
         input_topic = self.get_parameter('input_topic').value
         self.left_frame_id = self.get_parameter('left_frame_id').value
@@ -40,11 +42,16 @@ class StereoSplitter(Node):
 
         self.bridge = CvBridge()
 
-        # camera_info 加载器（首次 getCameraInfo() 时才真正读 yaml）
-        self.left_cinfo = CameraInfoManager(
-            self, 'left_camera', self.get_parameter('left_info_url').value)
-        self.right_cinfo = CameraInfoManager(
-            self, 'right_camera', self.get_parameter('right_info_url').value)
+        # camera_info 加载器：显式 loadCameraInfo()；注意部分版本成功时返回 None，
+        # 不能用返回值判成败，失败会在 getCameraInfo() 时才抛异常
+        self.left_cinfo = CameraInfoManager(self, 'left_camera', url=left_url)
+        self.right_cinfo = CameraInfoManager(self, 'right_camera', url=right_url)
+        for side, mgr, url in (('左', self.left_cinfo, left_url),
+                               ('右', self.right_cinfo, right_url)):
+            try:
+                mgr.loadCameraInfo()
+            except Exception as exc:
+                self.get_logger().error(f'{side}相机标定加载失败：{url}（{exc}）')
 
         # ---- 发布左右图 + camera_info ----
         self.left_img_pub = self.create_publisher(Image, '/camera/left/image_raw', 10)
@@ -59,7 +66,8 @@ class StereoSplitter(Node):
 
     def _img_cb(self, msg):
         try:
-            frame = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
+            # usb_cam(mjpeg2rgb) 输出 rgb8，直接按 rgb8 处理避免 rgb8→bgr8 逐像素转换
+            frame = self.bridge.imgmsg_to_cv2(msg, 'rgb8')
         except Exception as exc:
             self.get_logger().error(f'图像转换失败：{exc}')
             return
@@ -69,9 +77,9 @@ class StereoSplitter(Node):
         left = frame[:, :half]
         right = frame[:, half:]
 
-        # 左右图（复用输入 header，frame_id 换成各自光学 frame）
-        left_msg = self.bridge.cv2_to_imgmsg(left, 'bgr8')
-        right_msg = self.bridge.cv2_to_imgmsg(right, 'bgr8')
+        # 左右图（复用输入 header，frame_id 换成各自光学 frame；rgb8 直传）
+        left_msg = self.bridge.cv2_to_imgmsg(left, 'rgb8')
+        right_msg = self.bridge.cv2_to_imgmsg(right, 'rgb8')
         left_msg.header = msg.header
         right_msg.header = msg.header
         left_msg.header.frame_id = self.left_frame_id

@@ -1,0 +1,17 @@
+# usb_cam 参数（LRCP 2MV 双目）
+# 用法：ros2 run usb_cam usb_cam_node_exe --ros-args --params-file <本文件>
+# 关键点：
+#   - pixel_format: mjpeg2rgb  摄像头发 MJPG，驱动软解为 RGB（3840×1080 下软解 ~5-9Hz，
+#                               建议先用 1920×1080 跑通深度再上全分辨率）
+#   - image_raw.enable_pub_plugins: []  关闭压缩/等传输插件（compressed/theora/zstd），
+#                               省掉 RGB→JPEG 重编码的 CPU 开销
+#   - video_device 可换成 /dev/k7_camera（需先填好 udev 规则的 VID/PID）
+usb_cam:
+  ros__parameters:
+    video_device: /dev/video73
+    image_width: 1920
+    image_height: 1080
+    framerate: 30.0
+    pixel_format: mjpeg2rgb
+    image_raw.enable_pub_plugins: []
+    camera_name: usb_cam
