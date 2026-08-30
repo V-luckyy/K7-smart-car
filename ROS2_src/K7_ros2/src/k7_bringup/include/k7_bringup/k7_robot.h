@@ -47,6 +47,8 @@
 #include <std_msgs/msg/u_int8.hpp>
 #include <turtlesim/srv/spawn.hpp>
 
+#include "k7_msgs/msg/ir_distances.hpp"
+
 using namespace std;
 
 #define RESET   string("\033[0m")
@@ -213,6 +215,7 @@ class K7SerialNode : public rclcpp::Node
         rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_publisher;       
         rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr voltage_publisher;        
         rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher;
+        rclcpp::Publisher<k7_msgs::msg::IrDistances>::SharedPtr ir_distances_publisher; //红外测距单话题发布者
 
 		//回充相关发布者
 		rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr Charging_publisher;
@@ -251,6 +254,7 @@ class K7SerialNode : public rclcpp::Node
         //Read motion chassis speed, IMU, power supply voltage data from serial port (ttyUSB)
         bool Get_Sensor_Data();   
 		bool Get_Sensor_Data_New();
+		void Publish_IrDistances(); //Pub the 3-way IR distance topic //发布三路红外测距话题
         unsigned char Check_Sum(unsigned char Count_Number,unsigned char mode); //BBC check function //BBC校验函数
         unsigned char Check_Sum_AutoCharge(unsigned char Count_Number,unsigned char mode); //BBC check function //BBC校验函数
         short IMU_Trans(uint8_t Data_High,uint8_t Data_Low);  //IMU data conversion read //IMU数据转化读取
@@ -267,6 +271,17 @@ class K7SerialNode : public rclcpp::Node
         Vel_Pos_Data Robot_Pos;    //The position of the robot //机器人的位置
         Vel_Pos_Data Robot_Vel;    //The speed of the robot //机器人的速度
         MPU6050_DATA Mpu6050_Data; //IMU data //IMU数据
+
+        //三帧状态机解析器（方案 B：按帧头/帧长/帧尾/BCC 显式分帧，不靠数据字节猜帧头）
+        uint8_t parse_state_ = 0;      // 0=等帧头, 1=主帧(24B), 2=测距帧(19B), 3=回充帧(8B)
+        uint8_t parse_expected_ = 0;   // 当前帧总长
+        uint8_t parse_idx_ = 0;        // 已收集字节数
+        uint8_t parse_buf_[RECEIVE_DATA_SIZE]; // 帧缓冲（最长 24B，覆盖三种帧）
+
+        //三路红外距离（米），由 0xFA 测距帧解析
+        float ir_dist_front_ = 0.0f;
+        float ir_dist_left45_ = 0.0f;
+        float ir_dist_right45_ = 0.0f;
 
 		int8_t AutoRecharge=0;
         float Power_voltage;       //Power supply voltage //电源电压

@@ -24,6 +24,7 @@ rclcpp::Node::SharedPtr node_handle = nullptr;
 //自动回充使用相关变量
 bool check_AutoCharge_data = false;
 bool charge_set_state = false;
+bool check_ranger_data = false; //红外测距帧接收成功标志位
 /**************************************
 Date: January 28, 2021
 Function: The main function, ROS initialization, creates the Robot_control object through the Turn_on_robot class and automatically calls the constructor initialization
@@ -222,6 +223,22 @@ void K7SerialNode::Publish_Voltage()
 }
 
 ////////// 回充发布与回调 ////////
+/**************************************
+Date: August 23, 2026
+Function: Publish the 3-way IR distance topic (front / left45 / right45, meters)
+功能: 发布三路红外测距话题(前 / 左45° / 右45°，米)
+***************************************/
+void K7SerialNode::Publish_IrDistances()
+{
+    k7_msgs::msg::IrDistances msg;
+    msg.header.stamp = this->now();
+    msg.header.frame_id = robot_frame_id;
+    msg.front  = ir_dist_front_;
+    msg.left45 = ir_dist_left45_;
+    msg.right45 = ir_dist_right45_;
+    ir_distances_publisher->publish(msg);
+}
+
 /**************************************
 Date: January 17, 2022
 Function: Pub the topic whether the robot finds the infrared signal (charging station)
@@ -537,124 +554,106 @@ Function: Read and verify the data sent by the lower computer frame by frame thr
 bool K7SerialNode::Get_Sensor_Data_New()
 {
   short transition_16=0; //Intermediate variable //中间变量
-  //uint8_t i=0;
-  uint8_t check=0,check2=0, error=1,error2=1,Receive_Data_Pr[1]; //Temporary variable to save the data of the lower machine //临时变量，保存下位机数据
-  static int count,count2; //Static variable for counting //静态变量，用于计数
-  Stm32_Serial.read(Receive_Data_Pr,sizeof(Receive_Data_Pr)); //Read the data sent by the lower computer through the serial port //通过串口读取下位机发送过来的数据
+  uint8_t b=0, check=0, k=0, frame_type=0;
 
-  /*//View the received raw data directly and debug it for use//直接查看接收到的原始数据，调试使用
-  ROS_INFO("%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x",
-  Receive_Data_Pr[0],Receive_Data_Pr[1],Receive_Data_Pr[2],Receive_Data_Pr[3],Receive_Data_Pr[4],Receive_Data_Pr[5],Receive_Data_Pr[6],Receive_Data_Pr[7],
-  Receive_Data_Pr[8],Receive_Data_Pr[9],Receive_Data_Pr[10],Receive_Data_Pr[11],Receive_Data_Pr[12],Receive_Data_Pr[13],Receive_Data_Pr[14],Receive_Data_Pr[15],
-  Receive_Data_Pr[16],Receive_Data_Pr[17],Receive_Data_Pr[18],Receive_Data_Pr[19],Receive_Data_Pr[20],Receive_Data_Pr[21],Receive_Data_Pr[22],Receive_Data_Pr[23]);
-  */  
+  if(Stm32_Serial.read(&b,1)!=1) return false; //读1字节，无数据/超时则返回
 
-  Receive_Data.rx[count] = Receive_Data_Pr[0]; //Fill the array with serial data //串口数据填入数组
-  Receive_AutoCharge_Data.rx[count2] = Receive_Data_Pr[0];
-
-  Receive_Data.Frame_Header = Receive_Data.rx[0]; //The first part of the data is the frame header 0X7B //数据的第一位是帧头0X7B
-  Receive_Data.Frame_Tail = Receive_Data.rx[23];  //The last bit of data is frame tail 0X7D //数据的最后一位是帧尾0X7D
-
-  //接收到自动回充数据的帧头、上一个数据是24字节的帧尾，表明自动回充数据开始到来
-  if((Receive_Data_Pr[0] == AutoCharge_HEADER )||count2>0)
-    count2++;
-  else
-    count2=0; 
-
-  if(Receive_Data_Pr[0] == FRAME_HEADER || count>0) //Ensure that the first data in the array is FRAME_HEADER //确保数组第一个数据为FRAME_HEADER
-    count++;
-  else 
-  	count=0;
-
-  //自动回充数据处理
-  if(count2 == AutoCharge_DATA_SIZE)
+  //等帧头：只认 0x7B(主帧)/0xFA(测距帧)/0x7C(回充帧)，其余丢弃（字节级重同步）
+  if(parse_state_==0)
   {
-    count2=0;
-    if(Receive_AutoCharge_Data.rx[AutoCharge_DATA_SIZE-1]==AutoCharge_TAIL) //确认帧尾   
-    {
-      check2 =  Check_Sum_AutoCharge(6,0);//校验位计算    
-      if(check2 == Receive_AutoCharge_Data.rx[AutoCharge_DATA_SIZE-2]) //校验正确
-      {
-        error2=0;
-      }
-      if(error2 == 0)  //校验正确开始赋值
-      {
-        transition_16 = 0;
-        transition_16   |=  Receive_AutoCharge_Data.rx[1]<<8;
-        transition_16   |=  Receive_AutoCharge_Data.rx[2]; 
-        Charging_Current = transition_16/1000+(transition_16 % 1000)*0.001; //充电电流 
-        
-        Red =  Receive_AutoCharge_Data.rx[3];    //红外接受状态
-        Charging = Receive_AutoCharge_Data.rx[4];//小车充电状态
+    if(b==FRAME_HEADER)          { parse_state_=1; parse_expected_=RECEIVE_DATA_SIZE; }
+    else if(b==Distance_HEADER)  { parse_state_=2; parse_expected_=Distance_DATA_size; }
+    else if(b==AutoCharge_HEADER){ parse_state_=3; parse_expected_=AutoCharge_DATA_SIZE; }
+    else return false; //非帧头，丢弃
 
-        charge_set_state = Receive_AutoCharge_Data.rx[5];
-
-        check_AutoCharge_data = true; //数据成功接收标志位
-      }
-    }
+    parse_idx_=1;
+    parse_buf_[0]=b;
+    return false; //帧头已存，等后续字节
   }
 
-  if(count == 24) //Verify the length of the packet //验证数据包的长度
+  //收集帧体
+  parse_buf_[parse_idx_++]=b;
+  if(parse_idx_<parse_expected_) return false; //未收满
+
+  //收满一帧：记帧型，复位状态机，再校验分发
+  frame_type=parse_state_;
+  parse_state_=0;
+  parse_expected_=0;
+  parse_idx_=0;
+
+  if(frame_type==1) //主帧 24B 0x7B..0x7D
   {
-    count=0;  //Prepare for the serial port data to be refill into the array //为串口数据重新填入数组做准备
-    if(Receive_Data.Frame_Tail == FRAME_TAIL) //Verify the frame tail of the packet //验证数据包的帧尾
-    {
-      check=Check_Sum(22,READ_DATA_CHECK);  //BCC check passes or two packets are interlaced //BCC校验通过或者两组数据包交错
+    if(parse_buf_[RECEIVE_DATA_SIZE-1]!=FRAME_TAIL) return false;
+    check=0; for(k=0;k<22;k++) check^=parse_buf_[k];
+    if(check!=parse_buf_[22]) return false;
 
-      if(check == Receive_Data.rx[22])  
-      {
-        error=0;  //XOR bit check successful //异或位校验成功
-      }
-      if(error == 0)
-      {
-        /*//Check receive_data.rx for debugging use //查看Receive_Data.rx，调试使用 
-        ROS_INFO("%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x-%x",
-        Receive_Data.rx[0],Receive_Data.rx[1],Receive_Data.rx[2],Receive_Data.rx[3],Receive_Data.rx[4],Receive_Data.rx[5],Receive_Data.rx[6],Receive_Data.rx[7],
-        Receive_Data.rx[8],Receive_Data.rx[9],Receive_Data.rx[10],Receive_Data.rx[11],Receive_Data.rx[12],Receive_Data.rx[13],Receive_Data.rx[14],Receive_Data.rx[15],
-        Receive_Data.rx[16],Receive_Data.rx[17],Receive_Data.rx[18],Receive_Data.rx[19],Receive_Data.rx[20],Receive_Data.rx[21],Receive_Data.rx[22],Receive_Data.rx[23]); 
-        */
+    memcpy(Receive_Data.rx,parse_buf_,RECEIVE_DATA_SIZE);
+    Receive_Data.Frame_Header=Receive_Data.rx[0];
+    Receive_Data.Frame_Tail=Receive_Data.rx[RECEIVE_DATA_SIZE-1];
+    Receive_Data.Flag_Stop=Receive_Data.rx[1];
 
-        Receive_Data.Flag_Stop=Receive_Data.rx[1]; //set aside //预留位
-        Robot_Vel.X = Odom_Trans(Receive_Data.rx[2],Receive_Data.rx[3]); //Get the speed of the moving chassis in the X direction //获取运动底盘X方向速度
-          
-        Robot_Vel.Y = Odom_Trans(Receive_Data.rx[4],Receive_Data.rx[5]); //Get the speed of the moving chassis in the Y direction, The Y speed is only valid in the omnidirectional mobile robot chassis
-                                                                          //获取运动底盘Y方向速度，Y速度仅在全向移动机器人底盘有效
-        Robot_Vel.Z = Odom_Trans(Receive_Data.rx[6],Receive_Data.rx[7]); //Get the speed of the moving chassis in the Z direction //获取运动底盘Z方向速度   
-          
-        //MPU6050 stands for IMU only and does not refer to a specific model. It can be either MPU6050 or MPU9250
-        //Mpu6050仅代表IMU，不指代特定型号，既可以是MPU6050也可以是MPU9250
-        Mpu6050_Data.accele_x_data = IMU_Trans(Receive_Data.rx[8],Receive_Data.rx[9]);   //Get the X-axis acceleration of the IMU     //获取IMU的X轴加速度  
-        Mpu6050_Data.accele_y_data = IMU_Trans(Receive_Data.rx[10],Receive_Data.rx[11]); //Get the Y-axis acceleration of the IMU     //获取IMU的Y轴加速度
-        Mpu6050_Data.accele_z_data = IMU_Trans(Receive_Data.rx[12],Receive_Data.rx[13]); //Get the Z-axis acceleration of the IMU     //获取IMU的Z轴加速度
-        Mpu6050_Data.gyros_x_data = IMU_Trans(Receive_Data.rx[14],Receive_Data.rx[15]);  //Get the X-axis angular velocity of the IMU //获取IMU的X轴角速度  
-        Mpu6050_Data.gyros_y_data = IMU_Trans(Receive_Data.rx[16],Receive_Data.rx[17]);  //Get the Y-axis angular velocity of the IMU //获取IMU的Y轴角速度  
-        Mpu6050_Data.gyros_z_data = IMU_Trans(Receive_Data.rx[18],Receive_Data.rx[19]);  //Get the Z-axis angular velocity of the IMU //获取IMU的Z轴角速度  
-        //Linear acceleration unit conversion is related to the range of IMU initialization of STM32, where the range is ±2g=19.6m/s^2
-        //线性加速度单位转化，和STM32的IMU初始化的时候的量程有关,这里量程±2g=19.6m/s^2
-        Mpu6050.linear_acceleration.x = Mpu6050_Data.accele_x_data / ACCEl_RATIO;
-        Mpu6050.linear_acceleration.y = Mpu6050_Data.accele_y_data / ACCEl_RATIO;
-        Mpu6050.linear_acceleration.z = Mpu6050_Data.accele_z_data / ACCEl_RATIO;
-        //The gyroscope unit conversion is related to the range of STM32's IMU when initialized. Here, the range of IMU's gyroscope is ±500°/s
-        //Because the robot generally has a slow Z-axis speed, reducing the range can improve the accuracy
-        //陀螺仪单位转化，和STM32的IMU初始化的时候的量程有关，这里IMU的陀螺仪的量程是±500°/s
-        //因为机器人一般Z轴速度不快，降低量程可以提高精度
-        Mpu6050.angular_velocity.x =  Mpu6050_Data.gyros_x_data * GYROSCOPE_RATIO;
-        Mpu6050.angular_velocity.y =  Mpu6050_Data.gyros_y_data * GYROSCOPE_RATIO;
-        Mpu6050.angular_velocity.z =  Mpu6050_Data.gyros_z_data * GYROSCOPE_RATIO;
+    Robot_Vel.X = Odom_Trans(Receive_Data.rx[2],Receive_Data.rx[3]);
+    Robot_Vel.Y = Odom_Trans(Receive_Data.rx[4],Receive_Data.rx[5]);
+    Robot_Vel.Z = Odom_Trans(Receive_Data.rx[6],Receive_Data.rx[7]);
 
-        //Get the battery voltage
-        //获取电池电压
-        transition_16 = 0;
-        transition_16 |=  Receive_Data.rx[20]<<8;
-        transition_16 |=  Receive_Data.rx[21];  
-        Power_voltage = transition_16/1000+(transition_16 % 1000)*0.001; //Unit conversion millivolt(mv)->volt(v) //单位转换毫伏(mv)->伏(v)
-          
-        return true;
-      }
-    }
+    Mpu6050_Data.accele_x_data = IMU_Trans(Receive_Data.rx[8],Receive_Data.rx[9]);
+    Mpu6050_Data.accele_y_data = IMU_Trans(Receive_Data.rx[10],Receive_Data.rx[11]);
+    Mpu6050_Data.accele_z_data = IMU_Trans(Receive_Data.rx[12],Receive_Data.rx[13]);
+    Mpu6050_Data.gyros_x_data = IMU_Trans(Receive_Data.rx[14],Receive_Data.rx[15]);
+    Mpu6050_Data.gyros_y_data = IMU_Trans(Receive_Data.rx[16],Receive_Data.rx[17]);
+    Mpu6050_Data.gyros_z_data = IMU_Trans(Receive_Data.rx[18],Receive_Data.rx[19]);
+
+    Mpu6050.linear_acceleration.x = Mpu6050_Data.accele_x_data / ACCEl_RATIO;
+    Mpu6050.linear_acceleration.y = Mpu6050_Data.accele_y_data / ACCEl_RATIO;
+    Mpu6050.linear_acceleration.z = Mpu6050_Data.accele_z_data / ACCEl_RATIO;
+    Mpu6050.angular_velocity.x =  Mpu6050_Data.gyros_x_data * GYROSCOPE_RATIO;
+    Mpu6050.angular_velocity.y =  Mpu6050_Data.gyros_y_data * GYROSCOPE_RATIO;
+    Mpu6050.angular_velocity.z =  Mpu6050_Data.gyros_z_data * GYROSCOPE_RATIO;
+
+    transition_16 = 0;
+    transition_16 |=  Receive_Data.rx[20]<<8;
+    transition_16 |=  Receive_Data.rx[21];
+    Power_voltage = transition_16/1000+(transition_16 % 1000)*0.001;
+
+    return true;
   }
+
+  if(frame_type==2) //测距帧 19B 0xFA..0xFC
+  {
+    if(parse_buf_[Distance_DATA_size-1]!=Distance_TAIL) return false;
+    check=0; for(k=0;k<17;k++) check^=parse_buf_[k];
+    if(check!=parse_buf_[17]) return false;
+
+    //rangerA=front[1:2], rangerB=left45[3:4], rangerC=right45[5:6]，int16 大端 mm→m
+    ir_dist_front_  = (float)(short)((parse_buf_[1]<<8)|parse_buf_[2]) / 1000.0f;
+    ir_dist_left45_ = (float)(short)((parse_buf_[3]<<8)|parse_buf_[4]) / 1000.0f;
+    ir_dist_right45_= (float)(short)((parse_buf_[5]<<8)|parse_buf_[6]) / 1000.0f;
+
+    check_ranger_data = true; //由 Control() 发布 /ir_distances
+    return false;
+  }
+
+  if(frame_type==3) //回充帧 8B 0x7C..0x7F
+  {
+    if(parse_buf_[AutoCharge_DATA_SIZE-1]!=AutoCharge_TAIL) return false;
+    check=0; for(k=0;k<6;k++) check^=parse_buf_[k];
+    if(check!=parse_buf_[6]) return false;
+
+    transition_16 = 0;
+    transition_16 |=  parse_buf_[1]<<8;
+    transition_16 |=  parse_buf_[2];
+    Charging_Current = transition_16/1000+(transition_16 % 1000)*0.001;
+    Red =  parse_buf_[3];
+    Charging = parse_buf_[4];
+    charge_set_state = parse_buf_[5];
+    check_AutoCharge_data = true;
+
+    return false;
+  }
+
   return false;
 }
+
 /**************************************
 Date: January 28, 2021
 Function: Loop access to the lower computer data and issue topics
@@ -699,6 +698,13 @@ void K7SerialNode::Control()
       Publish_RED();       //Pub the topic whether the robot finds the infrared signal (charging station) //发布机器人是否寻找到红外信号(充电桩)的话题
       Publish_ChargingCurrent(); //Pub the charging current topic //发布充电电流话题
       check_AutoCharge_data = false;
+    }
+
+    //红外测距话题
+    if(check_ranger_data)
+    {
+      Publish_IrDistances();
+      check_ranger_data = false;
     }
 
     rclcpp::spin_some(this->get_node_base_interface());   //The loop waits for the callback function //循环等待回调函数
@@ -747,6 +753,7 @@ K7SerialNode::K7SerialNode():rclcpp::Node ("k7_serial_node")
 
   odom_publisher = create_publisher<nav_msgs::msg::Odometry>("odom", 2);//Create the odometer topic publisher //创建里程计话题发布者
   imu_publisher = create_publisher<sensor_msgs::msg::Imu>("imu/data_raw", 2); //Create an IMU topic publisher //创建IMU话题发布者
+  ir_distances_publisher = create_publisher<k7_msgs::msg::IrDistances>("ir_distances", 10); //红外测距单话题发布者
   voltage_publisher = create_publisher<std_msgs::msg::Float32>("PowerVoltage", 1);//Create a battery-voltage topic publisher //创建电池电压话题发布者
 
   //回充发布者

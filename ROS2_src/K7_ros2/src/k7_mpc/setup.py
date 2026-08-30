@@ -1,29 +1,29 @@
-import glob
+from glob import glob
 
 from setuptools import setup
 
-package_name = 'k7_camera'
+package_name = 'k7_mpc'
 
 setup(
     name=package_name,
     version='0.1.0',
-    packages=[package_name],
+    packages=[package_name, package_name + '.mpc_lib'],
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        # 标定 yaml 装到 share/k7_camera/config/，splitter 节点从这里读 camera_info
-        ('share/' + package_name + '/config', glob.glob('config/*.yaml')),
+        ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='k7',
     maintainer_email='user@todo.todo',
-    description='LRCP 2MV 双目相机：splitter + 标定 + launch',
+    description='MPC 避障实车验证包（仿真 five_version_progressive_r04_with_pid 移植，番外线）',
     license='MIT',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'stereo_splitter = k7_camera.stereo_splitter_node:main',
+            'mpc_node = k7_mpc.mpc_node:main',
+            'fake_ir_publisher = k7_mpc.fake_ir_publisher:main',
         ],
     },
 )

@@ -1,0 +1,20 @@
+# k7_bringup/config/twist_mux.yaml
+# 多路速度指令仲裁（twist_mux）：数字越大优先级越高（0~255）。
+# 输出话题 cmd_vel_out 由 launch remap 到 /cmd_vel（底盘订阅）。
+# timeout：某路超过该秒数无消息则视为失效（不参与仲裁），避免断链残留速度。
+twist_mux:
+  ros__parameters:
+    use_stamped: false
+    topics:
+      joy:
+        topic: cmd_vel_joy
+        timeout: 0.5
+        priority: 100
+      keyboard:
+        topic: cmd_vel_key
+        timeout: 0.5
+        priority: 80
+      mpc:
+        topic: cmd_vel_mpc
+        timeout: 0.5
+        priority: 50

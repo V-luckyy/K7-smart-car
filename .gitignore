@@ -16,6 +16,11 @@ rk3576_data/3-SoftwareData/Linux_rknn_yolov5/rknn_model_zoo.tar.gz
 msg.txt
 err_msg.txt
 
+# 标定图片与 MPC 运行日志（数据文件，不入库）
+calibration_images/
+calibration_images.zip
+mpc_*.csv
+
 # USB 摄像头 Windows SDK（PC端调试用，不在 K7 上运行）
 camera_windows_sdk/
 
@@ -24,6 +29,13 @@ ROS2_src/wheeltec_ros2/
 
 # STM32 Keil 编译产物
 **/OBJ/
+
+# 番外线：GY53-PWM 测距固件（完整 Keil 工程，体积大，不入库）
+WHEELTEC_C50X_2026.05.29_GY53_PWM/
+
+# GY-53 传感器第三方示例工程与上位机（只保留 PDF 手册入库）
+sensor_data/*/STM32/
+sensor_data/*/pc软件/
 
 # 系统/编辑器生成文件
 __pycache__/

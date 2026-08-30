@@ -32,6 +32,7 @@ K7-smart-car/
 ├── K7/                     # K7 板原理图+机械图 (V1.1/V2.0/V2.1)
 ├── rk3576_data/            # KICKPI 开发资料（规格书/NPU工具链/数据手册）
 ├── stm32_data/             # C50X 底盘资料（原理图/芯片手册/固件架构/协议头文件）
+├── sensor_data/            # 传感器资料（GY-53 VL53L0X 红外测距手册；第三方示例已 gitignore）
 ├── camera_windows_sdk/     # USB 摄像头 PC SDK（.gitignore 已排除）
 │
 ├── STM32F407VET6_src/      # STM32 完整 Keil 工程（FreeRTOS, DIFF_CAR 两轮差速）
@@ -45,6 +46,7 @@ K7-smart-car/
             ├── k7_bringup/     # C++ 串口底盘节点（含看门狗）+ EKF/IMU + udev
             ├── k7_camera/      # Python 双目 splitter + 标定
             ├── k7_description/ # URDF 机器人模型
+            ├── k7_mpc/         # 番外线：MPC 避障实车验证（仿真 V1 控制器移植）
             ├── k7_nav/         # [Phase 4] Nav2 导航参数
             └── k7_npu/         # [Phase 5] RKNN 检测节点
 ```
@@ -60,6 +62,7 @@ K7-smart-car/
 | 3 | 双目摄像头+深度图 | ✅ splitter 已写，待标定 |
 | 4 | 自主导航（Nav2） | ⬜ 待硬件到位 |
 | 5 | NPU 推理（YOLOv5） | ⬜ 待转换 .rknn 模型 |
+| 番外 | MPC 实车验证（k7_mpc，V1 控制器） | ✅ 包已搭建，待 K7 编译 + 红外固件扩展 |
 
 ---
 
@@ -114,10 +117,11 @@ ros2 launch k7_bringup k7_core.launch.py
 
 ```bash
 # Windows 端（Git Bash / PowerShell）—— 在仓库根目录：
-scp -r ROS2_src/K7_ros2/ kickpi@<K7_IP>:~/
+# 源路径末尾不带斜杠，才会生成 ~/Code/K7_ros2/ 工作区根目录
+scp -r ROS2_src/K7_ros2 kickpi@<K7_IP>:~/Code/
 
-# K7 端 —— 重新构建（必要时先删 build/ install/ log/）：
-cd ~/K7_ros2 && colcon build --symlink-install
+# K7 端 —— 重新构建（在含 src/ 的工作区根目录下执行）
+cd ~/Code/K7_ros2 && colcon build --symlink-install
 ```
 
 VSCode Remote-SSH 用于板上编译调试；较大改动回本仓库提交，避免代码在 K7 和 Windows 之间漂移。
@@ -134,6 +138,18 @@ git add .
 git commit -m "feat: 描述改动"
 git push
 ```
+
+**拉取某个分支**（例如 `feat/k7-mpc`）：
+
+```bash
+git fetch                      # 拉取远程所有分支信息
+git checkout feat/k7-mpc       # 切到目标分支（本地没有时会自动跟踪远程）
+git pull                       # 拉最新
+```
+
+- 本地没有该分支：`git checkout -b feat/k7-mpc origin/feat/k7-mpc`
+- 全新只克隆某分支：`git clone -b feat/k7-mpc <仓库地址>`
+- 查看所有分支：`git branch -a`
 
 **Commit 格式**：`<类型>: <简述>`，类型：`docs` / `feat` / `fix` / `refactor` / `chore`
 
@@ -157,6 +173,7 @@ git push
 | rknn-toolkit2.zip / rknpu2.zip / rknn_model_zoo.tar.gz | NPU 大文件（> 100 MB） |
 | `camera_windows_sdk/` | USB 摄像头 PC SDK |
 | `ROS2_src/wheeltec_ros2/` | 第三方 ROS2 参考代码 |
+| `sensor_data/*/STM32/`、`sensor_data/*/pc软件/` | GY-53 第三方示例工程与上位机 |
 | `**/OBJ/` | STM32 Keil 编译产物 |
 
 ---

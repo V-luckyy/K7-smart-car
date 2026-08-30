@@ -1,18 +1,16 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>k7_camera</name>
+  <name>k7_mpc</name>
   <version>0.1.0</version>
-  <description>LRCP 2MV 双目相机包：左右图拆分（splitter）节点、双目标定文件、相机 launch（Phase 3）</description>
+  <description>MPC 避障实车验证（番外线）：仿真工程 five_version_progressive_r04_with_pid 的 V1 控制器移植，odom + 3 路红外(/ir_distances) → /cmd_vel_mpc</description>
   <maintainer email="user@todo.todo">k7</maintainer>
   <license>MIT</license>
 
   <depend>rclpy</depend>
-  <depend>sensor_msgs</depend>
-  <depend>cv_bridge</depend>
-  <depend>camera_info_manager</depend>
-  <depend>usb_cam</depend>
-  <depend>stereo_image_proc</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>k7_msgs</depend>
 
   <export>
     <build_type>ament_python</build_type>
