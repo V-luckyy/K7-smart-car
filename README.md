@@ -117,10 +117,11 @@ ros2 launch k7_bringup k7_core.launch.py
 
 ```bash
 # Windows 端（Git Bash / PowerShell）—— 在仓库根目录：
-scp -r ROS2_src/K7_ros2/ kickpi@<K7_IP>:~/
+# 源路径末尾不带斜杠，才会生成 ~/Code/K7_ros2/ 工作区根目录
+scp -r ROS2_src/K7_ros2 kickpi@<K7_IP>:~/Code/
 
-# K7 端 —— 重新构建（必要时先删 build/ install/ log/）：
-cd ~/K7_ros2 && colcon build --symlink-install
+# K7 端 —— 重新构建（在含 src/ 的工作区根目录下执行）
+cd ~/Code/K7_ros2 && colcon build --symlink-install
 ```
 
 VSCode Remote-SSH 用于板上编译调试；较大改动回本仓库提交，避免代码在 K7 和 Windows 之间漂移。
@@ -137,6 +138,18 @@ git add .
 git commit -m "feat: 描述改动"
 git push
 ```
+
+**拉取某个分支**（例如 `feat/k7-mpc`）：
+
+```bash
+git fetch                      # 拉取远程所有分支信息
+git checkout feat/k7-mpc       # 切到目标分支（本地没有时会自动跟踪远程）
+git pull                       # 拉最新
+```
+
+- 本地没有该分支：`git checkout -b feat/k7-mpc origin/feat/k7-mpc`
+- 全新只克隆某分支：`git clone -b feat/k7-mpc <仓库地址>`
+- 查看所有分支：`git branch -a`
 
 **Commit 格式**：`<类型>: <简述>`，类型：`docs` / `feat` / `fix` / `refactor` / `chore`
 
