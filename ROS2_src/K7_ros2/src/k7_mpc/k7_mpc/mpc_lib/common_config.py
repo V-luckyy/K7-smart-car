@@ -42,7 +42,7 @@ COLLISION_CENTER_DIST = R_ROBOT + SIM_OBS_RADIUS
 SAFE_CENTER_DIST = 1.10
 
 # Three ideal ray sensors: front, left 45 degrees, right 45 degrees.
-SENSOR_MAX_RANGE = 1.0  # GY-53 避障有效量程按 1.0m 处理（2026-08-30 定；原 1.2）；实测无遮挡读数 2.48m 视为畅通（仿真原值 3.0）
+SENSOR_MAX_RANGE = 0.6  # GY-53 避障有效量程 0.6m（2026-08-31 缩小避障范围）；无遮挡读数 2.48m 视为畅通（仿真原值 3.0）
 SENSOR_ANGLE_OFFSETS = {
     "front": 0.0,
     "left45": np.pi / 4.0,
@@ -68,14 +68,14 @@ V_PATH_PROGRESS = 0.18
 V_MIN = 0.08
 V_MAX = 0.30  # 实车保守限幅（仿真值 0.42），验证稳定后逐步放开
 OMEGA_REF = 0.0
-OMEGA_MIN = -0.8  # 实车保守限幅（仿真值 ±1.2）
+OMEGA_MIN = -0.8  # 实车保守限幅（仿真值 ±1.2）；0.5 对 8 字弯道不够（饱和 75%），恢复 0.8
 OMEGA_MAX = 0.8
 DV_MAX = 0.08
-DOMEGA_MAX = 0.25
+DOMEGA_MAX = 0.15  # 2026-08-31 平滑角速度变化，抑制 bang-bang 震荡
 
 # Fixed tracking and control weights inherited from V1 baseline; V5 overrides the
 # two obstacle weights (W_OBS_WARN/W_OBS_SAFE) at runtime via dynamic_weight_map.
-W_TRACK = 8.0
+W_TRACK = 4.0  # 2026-08-31 降低跟踪增益，减少过冲
 W_HEADING = 1.0
 W_OBS_WARN = 0.50
 W_OBS_SAFE = 45.0

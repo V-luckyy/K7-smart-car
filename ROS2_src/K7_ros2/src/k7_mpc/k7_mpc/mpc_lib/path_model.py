@@ -36,6 +36,25 @@ def generate_eight_path(a=None, points=None, cycles=None):
     return x, y, theta, s
 
 
+def generate_circle_path(radius, points=None, cycles=None):
+    """圆形参考路径（逆时针），与 generate_eight_path 返回同构 (x, y, theta, s)。
+
+    测避障用：曲率恒定（=1/radius），没有 8 字的中心尖弯，车更容易稳定跟随。
+    """
+    radius = float(radius)
+    points = PATH_POINTS if points is None else int(points)
+    cycles = PATH_CYCLES if cycles is None else int(cycles)
+    t = np.linspace(0.0, 2.0 * np.pi * cycles, points)
+    x = radius * (np.cos(t) - 1.0)   # 起点平移到 (0,0)，与 _to_path_frame 对齐变换一致（8 字起点也在原点）
+    y = radius * np.sin(t)
+    dx = -radius * np.sin(t)
+    dy = radius * np.cos(t)
+    theta = np.unwrap(np.arctan2(dy, dx))
+    ds = np.hypot(np.diff(x), np.diff(y))
+    s = np.r_[0.0, np.cumsum(ds)]
+    return x, y, theta, s
+
+
 def nearest_forward_index(x, y, ref_x, ref_y, last_idx):
     start = int(max(0, last_idx))
     end = min(len(ref_x) - 1, start + REFERENCE_SEARCH_WINDOW)

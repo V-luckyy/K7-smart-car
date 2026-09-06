@@ -42,6 +42,7 @@ from .common_config import (
     W_OBS_SAFE,
     W_OBS_WARN,
     W_OMEGA,
+    W_SIDE_LOCK,
     W_SPEED,
     W_TERMINAL,
     W_TRACK,
@@ -77,6 +78,35 @@ def obstacle_cost(px, py, hazard_points, obs_warn_weight, obs_safe_weight):
             ratio = (POINT_WARNING_DIST - distance) / (POINT_WARNING_DIST - POINT_SAFE_DIST)
             total += obs_warn_weight * ratio * ratio
     return float(total)
+
+
+def obstacle_cost_grad(px, py, hazard_points, obs_warn_weight, obs_safe_weight):
+    """obstacle_cost 对 (px, py) 的解析梯度（区域边界处不连续，属测度零集合）。"""
+    gx = 0.0
+    gy = 0.0
+    for item in hazard_points or []:
+        point = np.asarray(item["point"], dtype=float)
+        dx = px - point[0]
+        dy = py - point[1]
+        distance = float(np.hypot(dx, dy))
+        if distance < 1e-9:
+            continue
+        ddx = dx / distance
+        ddy = dy / distance
+        if distance <= POINT_COLLISION_DIST:
+            ratio = (POINT_COLLISION_DIST - distance) / max(POINT_COLLISION_DIST, 1e-9)
+            d_cost_d_dist = 2e6 * ratio * (-1.0 / POINT_COLLISION_DIST)
+        elif distance < POINT_SAFE_DIST:
+            ratio = (POINT_SAFE_DIST - distance) / (POINT_SAFE_DIST - POINT_COLLISION_DIST)
+            d_cost_d_dist = 2.0 * obs_safe_weight * ratio * (-1.0 / (POINT_SAFE_DIST - POINT_COLLISION_DIST))
+        elif distance < POINT_WARNING_DIST:
+            ratio = (POINT_WARNING_DIST - distance) / (POINT_WARNING_DIST - POINT_SAFE_DIST)
+            d_cost_d_dist = 2.0 * obs_warn_weight * ratio * (-1.0 / (POINT_WARNING_DIST - POINT_SAFE_DIST))
+        else:
+            continue
+        gx += d_cost_d_dist * ddx
+        gy += d_cost_d_dist * ddy
+    return float(gx), float(gy)
 
 
 def select_horizon(version, control_risk_level):
@@ -192,6 +222,107 @@ def mpc_cost(
         + (terminal_py - ref_y[terminal_idx]) ** 2
     )
     return float(total)
+
+
+def mpc_cost_and_grad(
+    control_seq,
+    state,
+    ref_x,
+    ref_y,
+    ref_theta,
+    pred_indices,
+    hazard_points,
+    last_control,
+    np_horizon,
+    nc_horizon,
+    prediction_dts,
+    obs_warn_weight,
+    obs_safe_weight,
+    right_bypass_active,
+):
+    """mpc_cost 的代价 + 解析梯度（伴随法），返回 (cost, grad) 供 minimize(jac=True)。
+
+    梯度假设 INTEGRATION_SUBSTEPS==1（当前配置），即单步半隐式欧拉：
+      theta' = wrap(theta + omega*dt)；x' = x + v*cos(theta')*dt；y' = y + v*sin(theta')*dt。
+    前向沿用 predict_trajectory/obstacle_cost（与 mpc_cost 同值），反向逐层回传。
+    """
+    prediction = predict_trajectory(
+        state, control_seq, np_horizon, nc_horizon, prediction_dts
+    )
+    controls = np.asarray(control_seq, dtype=float).reshape(nc_horizon, 2)
+    previous_v, previous_omega = map(float, last_control)
+    # ---- 前向：代价（与 mpc_cost 逐行一致）----
+    total = 0.0
+    for k, (px, py, ptheta, v, omega) in enumerate(prediction):
+        ref_idx = pred_indices[k]
+        scale = float(prediction_dts[k] / DT_CONTROL)
+        total += scale * W_TRACK * ((px - ref_x[ref_idx]) ** 2 + (py - ref_y[ref_idx]) ** 2)
+        total += scale * W_HEADING * wrap_angle(ptheta - ref_theta[ref_idx]) ** 2
+        total += scale * obstacle_cost(px, py, hazard_points, obs_warn_weight, obs_safe_weight)
+        total += scale * W_SPEED * (v - V_REF) ** 2
+        total += scale * W_OMEGA * (omega - OMEGA_REF) ** 2
+        if k < nc_horizon:
+            dv = controls[k, 0] - previous_v
+            domega = controls[k, 1] - previous_omega
+            total += W_DELTA_V * dv * dv + W_DELTA_OMEGA * domega * domega
+            total += right_bypass_cost(omega, right_bypass_active)
+            previous_v, previous_omega = controls[k]
+    terminal_idx = pred_indices[-1]
+    terminal_px, terminal_py = prediction[-1][0], prediction[-1][1]
+    total += W_TERMINAL * (
+        (terminal_px - ref_x[terminal_idx]) ** 2 + (terminal_py - ref_y[terminal_idx]) ** 2
+    )
+
+    # ---- 反向：伴随法求梯度 ----
+    grad = np.zeros(2 * nc_horizon, dtype=float)
+    # 终端代价对末态 (px, py) 的伴随；末态 ptheta 无终端代价
+    dpx = 2.0 * W_TERMINAL * (terminal_px - ref_x[terminal_idx])
+    dpy = 2.0 * W_TERMINAL * (terminal_py - ref_y[terminal_idx])
+    dpt = 0.0
+    for k in reversed(range(np_horizon)):
+        px, py, ptheta, v, omega = prediction[k]
+        dt = float(prediction_dts[k])
+        scale = float(dt / DT_CONTROL)
+        ref_idx = pred_indices[k]
+        # 阶段代价对状态 (px, py, ptheta) 的梯度
+        dpx += scale * 2.0 * W_TRACK * (px - ref_x[ref_idx])
+        dpy += scale * 2.0 * W_TRACK * (py - ref_y[ref_idx])
+        dpt += scale * 2.0 * W_HEADING * wrap_angle(ptheta - ref_theta[ref_idx])
+        ogx, ogy = obstacle_cost_grad(px, py, hazard_points, obs_warn_weight, obs_safe_weight)
+        dpx += scale * ogx
+        dpy += scale * ogy
+        # 控制量梯度：速度/角速度代价 + 动力学项
+        dL_dv = scale * 2.0 * W_SPEED * (v - V_REF)
+        dL_dom = scale * 2.0 * W_OMEGA * (omega - OMEGA_REF)
+        dL_dv += dpx * np.cos(ptheta) * dt + dpy * np.sin(ptheta) * dt
+        dL_dom += dpt * dt
+        dL_dom += dpx * (-v * np.sin(ptheta) * dt * dt) + dpy * (v * np.cos(ptheta) * dt * dt)
+        # 累加：k>=nc 时控制保持，归到 controls[nc-1]
+        slot = k if k < nc_horizon else nc_horizon - 1
+        grad[2 * slot] += dL_dv
+        grad[2 * slot + 1] += dL_dom
+        # 伴随反向传播到上一状态 (x_old, y_old, theta_old)
+        dpx = dpx
+        dpy = dpy
+        dpt = dpx * (-v * np.sin(ptheta) * dt) + dpy * (v * np.cos(ptheta) * dt) + dpt
+
+    # ---- 增量代价 + 右绕代价梯度（仅 k<nc，逐对相邻控制耦合）----
+    for k in range(nc_horizon):
+        v_k = controls[k, 0]
+        om_k = controls[k, 1]
+        v_prev = last_control[0] if k == 0 else controls[k - 1, 0]
+        om_prev = last_control[1] if k == 0 else controls[k - 1, 1]
+        dv = v_k - v_prev
+        dom = om_k - om_prev
+        grad[2 * k] += 2.0 * W_DELTA_V * dv
+        grad[2 * k + 1] += 2.0 * W_DELTA_OMEGA * dom
+        if k > 0:
+            grad[2 * (k - 1)] += -2.0 * W_DELTA_V * dv
+            grad[2 * (k - 1) + 1] += -2.0 * W_DELTA_OMEGA * dom
+        if right_bypass_active:
+            grad[2 * k + 1] += 2.0 * W_SIDE_LOCK * max(0.0, om_k)
+
+    return float(total), grad
 
 
 def make_bounds(nc_horizon):
@@ -426,10 +557,11 @@ class ProgressiveMPC:
         )
         solver_start = time.perf_counter()
         result = minimize(
-            mpc_cost,
+            mpc_cost_and_grad,
             initial_guess,
             args=cost_args,
             method=SOLVER_METHOD,
+            jac=True,
             bounds=make_bounds(nc_horizon),
             constraints=make_increment_constraints(self.last_control, nc_horizon),
             options={"maxiter": SOLVER_MAXITER, "ftol": SOLVER_FTOL, "disp": False},

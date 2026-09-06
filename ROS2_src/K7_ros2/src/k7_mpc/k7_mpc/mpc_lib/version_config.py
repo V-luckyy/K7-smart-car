@@ -40,14 +40,14 @@ V5_VERSION = {
         "safe_gain": 30.0,
     },
     "horizon_map": {
-        "LOW": (28, 4),
-        "MEDIUM": (24, 5),
-        "HIGH": (22, 6),
+        "LOW": (22, 4),
+        "MEDIUM": (20, 5),
+        "HIGH": (18, 6),
     },
     "prediction_dt_multipliers": {
-        "LOW": [1] * 28,
-        "MEDIUM": [1] * 17 + [2] * 7,
-        "HIGH": [1] * 11 + [2] * 11,
+        "LOW": [1] * 22,
+        "MEDIUM": [1] * 14 + [2] * 6,
+        "HIGH": [1] * 9 + [2] * 9,
     },
     "cbf_config": {
         # r04 sweep winner local_3x3_04；仿真复跑两次轨迹与核心指标一致。

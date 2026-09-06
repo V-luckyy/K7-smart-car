@@ -1,6 +1,6 @@
 # K7 智能小车主板 — RK3576 项目文档
 
-> **最后更新**: 2026-08-02（新增 k7_mpc 番外线（feat/k7-mpc 分支）+ GY-53(VL53L0X) 红外资料入库，见第 13.3 节）
+> **最后更新**: 2026-08-31（新增主线阶段：STM32 APF+Stanley 避障循迹，见第 13.4 节）
 > **板卡型号**: KICKPI K7 V2.0
 > **主控芯片**: Rockchip RK3576
 > **项目用途**: 智能小车主控 — 运行 Ubuntu + ROS2，负责路径规划、深度图计算、上位机通信、底层 STM32 驱动
@@ -686,6 +686,16 @@ PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
 - **红外测距×3（GY-53 / VL53L0X ToF，资料在 `sensor_data/GY-53 VL53L0X/`）**：已实现（2026-08-23，番外线）。固件在 `WHEELTEC_C50X_2026.05.29_GY53_PWM/`，用 EXTI 双边沿中断 + DWT 周期计数器测 PWM 高电平（**距离 mm = 高电平 us ÷ 10**），引脚 PE5=前方0° / PE7=左前+45° / PE8=右前-45°；距离写入 `s21c_board.rangerA/B/C` 后经**既有 0xFA 19 字节测距帧**上行（未扩 24 字节主帧；帧内 6 个 int16 大端 mm，A/B/C 为三路，D/E/F 恒 5000）。K7 串口节点按三帧状态机（0x7B 24B / 0xFA 19B / 0x7C 8B）解析，发布**单话题 `/ir_distances`（`k7_msgs/IrDistances`，front/left45/right45 单位米）**，MPC 节点订阅之。量程/更新率随测量模式：高精度 0~1.2m / 200ms / ±1cm（默认）、一般 0~1.2m / 35ms / ±2cm、快速 0~1.2m / 22ms / ±3cm、长距离 0~2m / 35ms / ±4cm（串口命令可切、掉电保存，建议快速或一般模式）。注意：传感器离线时固件不清空 `s21c_board` 旧值（K7 读到冻结值），无遮挡读数顶到模式上限（1.2m/2m）而非 5m，MPC「视为畅通」阈值需据此标定。
 - 固件上报的 IMU 坐标轴已做 ROS 坐标系变换（X/Y 互换取负），ROS 端按 wheeltec 原逻辑解析即可。
 - 电机失能（FlagStop=1）时 gyro Z 强制上报 0。
+
+### 13.4 APF + Stanley 避障循迹（主线阶段，2026-08-31）
+
+主线控制方案：**APF 避障 + Stanley 循迹**，在 STM32 固件内闭环，**不经过 RK3576**（无串口往返延迟）。
+
+- **定位**：主线的一个阶段（非番外线），替代早期 `k7_mpc` 番外线的 MPC 避障验证。三路红外直接喂给 STM32 上的 APF 斥力，Stanley 沿硬编码圆（R=0.6m）循迹，控制频率 50Hz，输出 `robot_control.Vx/Vz` 经 `balance_task` 直接驱动电机（`ControlMode=0` 直驱）。
+- **代码位置**：固件 `WHEELTEC_C50X_2026.05.29_GY53_PWM/BALANCE/`（`stanley.c/.h` 循迹、`apf.c/.h` 避障、`apf_task.c/.h` 编排），`USER/main.c` 注册任务。**该固件目录在 `.gitignore` 中（完整 Keil 工程体积大），C 代码不入库。** 参考模板 `STM32F407VET6_src/` 里的 APF 脚手架（`apf.h`/`apf_sensor.h`/`apf_task.c`，缺 `apf.c` 实现、无循迹）。
+- **实现讲解手册**：`stm32_data/固件架构/APF_Stanley_避障循迹说明.md`（函数逐行解释 + 参数速查表 + 调参/排错）。
+- **三路传感器不挤掉**：三路红外留在 STM32 做快速安全层（反应式、不依赖 RK3576），后续双目相机在 RK3576 做全局避障层，两层叠加不替换。
+- **后续扩展**：参考路径当前硬编码圆，测试通过后改由 RK3576 下发路点（改 `stanley.c` 的参考点计算）。
 
 ---
 

@@ -708,6 +708,12 @@ void K7SerialNode::Control()
     }
 
     rclcpp::spin_some(this->get_node_base_interface());   //The loop waits for the callback function //循环等待回调函数
+
+    // 节流：无数据时短暂休眠，避免空转烧 CPU（原循环每圈读1字节无节流，实测 33% CPU）
+    // 有数据时 available()>0 跳过休眠，逐字节读完不丢帧；2ms 远小于 20Hz 帧间隔，不影响实时性
+    if (Stm32_Serial.available() == 0) {
+      usleep(2000);
+    }
     }
     
     catch (const rclcpp::exceptions::RCLError & e )

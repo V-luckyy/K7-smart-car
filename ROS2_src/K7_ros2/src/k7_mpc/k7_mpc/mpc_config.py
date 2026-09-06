@@ -5,8 +5,10 @@
 """
 
 # ---- 参考路径（硬编码，不接规划器）----
-# 8 字形 x=A*sin(t), y=A*sin(t)*cos(t)，总跨度 2A 米。仿真 PATH_A=4.0（8m 跨度）。
-PATH_A = 1.2
+# PATH_TYPE: "eight" 8字形 / "circle" 圆形（测避障用，曲率恒定无尖弯）
+PATH_TYPE = "circle"
+PATH_A = 0.72              # 8 字幅度（PATH_TYPE="eight" 时用）
+CIRCLE_RADIUS = 0.6        # 圆半径（PATH_TYPE="circle" 时用；直径 1.2m 适配 ~1.5m 空间）
 
 # ---- 话题 ----
 ODOM_TOPIC = "/odom_combined"          # EKF 融合里程计（nav_msgs/Odometry）

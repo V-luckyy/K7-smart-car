@@ -21,7 +21,8 @@ stm32_data/
 │   └── MPU6050原版英文手册.PDF          ← IMU 数据手册（V1.0 使用）
 ├── 固件架构/
 │   ├── FULL_PROJECT_STRUCTURE.md       ← 完整资料包结构说明
-│   └── PROJECT_ARCHITECTURE.md         ← STM32 固件详细架构
+│   ├── PROJECT_ARCHITECTURE.md         ← STM32 固件详细架构
+│   └── APF_Stanley_避障循迹说明.md     ← APF避障 + Stanley循迹 实现讲解（函数/参数/调参）
 ├── 协议参考/
 │   ├── data_task.h                     ← 上行帧结构体定义（24 字节传感器帧）
 │   └── uartx_callback.h               ← 下行帧结构体定义（11 字节控制帧）
