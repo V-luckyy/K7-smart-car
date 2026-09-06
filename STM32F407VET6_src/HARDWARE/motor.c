@@ -26,6 +26,10 @@ void TIMx_PWM1_Mode_Init(GPIO_TypeDef* GPIOx,uint16_t PINx,TIM_TypeDef* TIMx,uin
     GPIO_InitTypeDef GPIO_InitStructure;
     TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
     TIM_OCInitTypeDef  TIM_OCInitStructure;
+
+    GPIO_StructInit(&GPIO_InitStructure);
+    TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
+    TIM_OCStructInit(&TIM_OCInitStructure);
 	
 	//确认复用的引脚号
 	uint8_t PinSource=0;
@@ -61,7 +65,7 @@ void TIMx_PWM1_Mode_Init(GPIO_TypeDef* GPIOx,uint16_t PINx,TIM_TypeDef* TIMx,uin
     TIM_TimeBaseStructure.TIM_Prescaler =psc;
     //Set the clock split :TDTS = Tck_tim
     //设置时钟分割:TDTS = Tck_tim
-    TIM_TimeBaseStructure.TIM_ClockDivision = 1;
+    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
     //Up counting mode
     //向上计数模式
     TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;

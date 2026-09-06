@@ -4,6 +4,7 @@
 
 #include "usbh_os_middleware.h"
 #include "stm32f4xx_hal_hcd.h"
+#include "system.h"
 
 void osMessageQueuePut(osMessageQueueId_t mq_id, const void *msg_ptr, uint8_t msg_prio, uint32_t timeout)
 {
@@ -104,13 +105,7 @@ void OTG_FS_IRQHandler(void)
 
 void Error_Handler(void)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
-  /* USER CODE END Error_Handler_Debug */
+  SystemDiag_Halt(SYSTEM_DIAG_ERROR_USB_HOST);
 }
 
 

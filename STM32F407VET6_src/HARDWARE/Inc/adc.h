@@ -22,6 +22,7 @@ u16 Get_ADC1(u8 ch);
 u16 Get_ADC1_Average(u8 chn, u8 times);
 float Get_battery_volt(void);
 extern AKM_SERVO_ADC Akm_Servo;
+extern volatile u32 ADC1_TimeoutCount;
 /*----------------------------------*/
 
 /*--------Battery_PIN config--------*/

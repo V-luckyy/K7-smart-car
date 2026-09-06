@@ -1,0 +1,2099 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WHEELTEC C50X STM32F407 项目上手与修改手册</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --panel-2: #eef3f8;
+      --text: #18212b;
+      --muted: #5d6b79;
+      --line: #d9e1e8;
+      --blue: #1769aa;
+      --blue-soft: #e7f2fb;
+      --green: #18794e;
+      --green-soft: #e7f6ee;
+      --orange: #a65a00;
+      --orange-soft: #fff1dc;
+      --red: #b42318;
+      --red-soft: #ffebe9;
+      --purple: #6f42c1;
+      --purple-soft: #f2ebff;
+      --shadow: 0 8px 28px rgba(31, 42, 55, .08);
+      --radius: 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #10151b;
+        --panel: #182028;
+        --panel-2: #202a34;
+        --text: #edf3f8;
+        --muted: #aebbc7;
+        --line: #34414d;
+        --blue: #73b7eb;
+        --blue-soft: #16354c;
+        --green: #7fd4aa;
+        --green-soft: #173c2d;
+        --orange: #ffbd68;
+        --orange-soft: #493018;
+        --red: #ff9b91;
+        --red-soft: #4a211e;
+        --purple: #c4a7ff;
+        --purple-soft: #342753;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
+      line-height: 1.68;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre, .mono {
+      font-family: Consolas, "Cascadia Mono", "Microsoft YaHei", monospace;
+    }
+    code {
+      background: var(--panel-2);
+      border-radius: 5px;
+      padding: .08rem .3rem;
+      overflow-wrap: anywhere;
+    }
+    pre {
+      background: #111923;
+      color: #eaf2f8;
+      padding: 1rem;
+      border-radius: 10px;
+      overflow: auto;
+      line-height: 1.55;
+      font-size: .88rem;
+    }
+    header {
+      background: linear-gradient(120deg, #0b4b78, #1769aa 55%, #348bc4);
+      color: #fff;
+      padding: 2.2rem max(1.2rem, calc((100vw - 1480px) / 2));
+    }
+    header h1 { margin: 0 0 .6rem; font-size: clamp(1.65rem, 3vw, 2.55rem); line-height: 1.25; }
+    header p { margin: .35rem 0; max-width: 1050px; opacity: .94; }
+    .header-tags { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+    .header-tags span {
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 999px;
+      padding: .25rem .65rem;
+      font-size: .82rem;
+      background: rgba(255,255,255,.1);
+    }
+    .layout {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 1.2rem;
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      gap: 1.2rem;
+      align-items: start;
+    }
+    nav {
+      position: sticky;
+      top: 1rem;
+      max-height: calc(100vh - 2rem);
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: .8rem;
+    }
+    nav strong { display: block; padding: .3rem .55rem .55rem; }
+    nav a {
+      display: block;
+      color: var(--muted);
+      border-radius: 8px;
+      padding: .38rem .55rem;
+      font-size: .88rem;
+    }
+    nav a:hover, nav a.active { color: var(--text); background: var(--panel-2); text-decoration: none; }
+    main { min-width: 0; }
+    section {
+      scroll-margin-top: 1rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: clamp(1rem, 2vw, 1.6rem);
+      margin-bottom: 1.2rem;
+    }
+    h2 { margin: 0 0 1rem; font-size: 1.38rem; line-height: 1.35; }
+    h3 { margin: 1.35rem 0 .6rem; font-size: 1.08rem; }
+    h4 { margin: 1rem 0 .4rem; }
+    p { margin: .55rem 0; }
+    ul, ol { padding-left: 1.35rem; }
+    li { margin: .3rem 0; }
+    .lead {
+      font-size: 1.04rem;
+      border-left: 4px solid var(--blue);
+      padding: .65rem .85rem;
+      background: var(--blue-soft);
+      border-radius: 0 10px 10px 0;
+    }
+    .warn, .danger, .ok, .info {
+      padding: .75rem .9rem;
+      border-radius: 10px;
+      margin: .8rem 0;
+      border-left: 4px solid;
+    }
+    .warn { background: var(--orange-soft); border-color: var(--orange); }
+    .danger { background: var(--red-soft); border-color: var(--red); }
+    .ok { background: var(--green-soft); border-color: var(--green); }
+    .info { background: var(--blue-soft); border-color: var(--blue); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: .8rem;
+    }
+    .card {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 11px;
+      padding: .85rem;
+    }
+    .card h3, .card h4 { margin-top: 0; }
+    .card p:last-child { margin-bottom: 0; }
+    .metric { font-size: 1.45rem; font-weight: 700; color: var(--blue); }
+    .muted { color: var(--muted); }
+    .small { font-size: .84rem; }
+    .badge {
+      display: inline-block;
+      border-radius: 999px;
+      padding: .13rem .48rem;
+      font-size: .76rem;
+      font-weight: 700;
+      white-space: nowrap;
+      background: var(--panel-2);
+      color: var(--muted);
+    }
+    .badge.blue { color: var(--blue); background: var(--blue-soft); }
+    .badge.green { color: var(--green); background: var(--green-soft); }
+    .badge.orange { color: var(--orange); background: var(--orange-soft); }
+    .badge.red { color: var(--red); background: var(--red-soft); }
+    .badge.purple { color: var(--purple); background: var(--purple-soft); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: .62rem .58rem;
+      border-bottom: 1px solid var(--line);
+    }
+    th {
+      color: var(--muted);
+      font-size: .78rem;
+      letter-spacing: .02em;
+      white-space: nowrap;
+      background: var(--panel-2);
+    }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: color-mix(in srgb, var(--blue-soft) 40%, transparent); }
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      align-items: stretch;
+      margin: .8rem 0;
+    }
+    .flow .step {
+      flex: 1 1 150px;
+      min-width: 145px;
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--blue);
+      border-radius: 10px;
+      padding: .65rem;
+      background: var(--panel);
+      position: relative;
+    }
+    .flow .step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -.48rem;
+      top: 42%;
+      z-index: 2;
+      color: var(--blue);
+      font-weight: 700;
+      background: var(--panel);
+    }
+    .step strong { display: block; margin-bottom: .25rem; }
+    .step span { display: block; color: var(--muted); font-size: .8rem; }
+    .clock {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(115px, 1fr));
+      gap: .6rem;
+      align-items: center;
+      margin: 1rem 0;
+    }
+    .clock .node {
+      min-height: 92px;
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--blue);
+      border-radius: 10px;
+      padding: .65rem;
+      display: grid;
+      align-content: center;
+      text-align: center;
+      background: var(--panel);
+    }
+    .clock .node strong { font-size: 1.05rem; }
+    .clock .node span { color: var(--muted); font-size: .8rem; }
+    .clock .branch {
+      display: grid;
+      gap: .45rem;
+    }
+    .clock .branch .node { min-height: auto; }
+    .dual-axis {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .axis {
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: .8rem;
+    }
+    .axis-row {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: .5rem;
+      align-items: center;
+      margin: .4rem 0;
+    }
+    .prio {
+      font-weight: 800;
+      text-align: center;
+      border-radius: 8px;
+      padding: .4rem .2rem;
+      background: var(--panel-2);
+    }
+    .axis-row .bar {
+      border-left: 5px solid var(--blue);
+      background: var(--blue-soft);
+      border-radius: 7px;
+      padding: .45rem .6rem;
+    }
+    .axis-row .bar.red { border-color: var(--red); background: var(--red-soft); }
+    .axis-row .bar.orange { border-color: var(--orange); background: var(--orange-soft); }
+    .axis-row .bar.green { border-color: var(--green); background: var(--green-soft); }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .5rem;
+      margin: .75rem 0;
+    }
+    button, select, input {
+      font: inherit;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: .48rem .7rem;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--blue); }
+    button.active { color: #fff; background: var(--blue); border-color: var(--blue); }
+    input[type="search"] { min-width: min(310px, 100%); }
+    select { max-width: 100%; }
+    .goal-result {
+      margin-top: .75rem;
+      border-left: 4px solid var(--purple);
+      background: var(--purple-soft);
+      padding: .8rem 1rem;
+      border-radius: 0 10px 10px 0;
+    }
+    .file {
+      display: inline-block;
+      font-family: Consolas, monospace;
+      font-size: .8rem;
+      overflow-wrap: anywhere;
+    }
+    .timeline {
+      border-left: 3px solid var(--blue);
+      margin-left: .6rem;
+      padding-left: 1rem;
+    }
+    .timeline .event { position: relative; margin: 0 0 1rem; }
+    .timeline .event::before {
+      content: "";
+      position: absolute;
+      left: -1.43rem;
+      top: .42rem;
+      width: .7rem;
+      height: .7rem;
+      border-radius: 50%;
+      background: var(--blue);
+    }
+    .timeline .event strong { display: block; }
+    .timeline .event span { color: var(--muted); font-size: .86rem; }
+    .checklist { list-style: none; padding-left: 0; }
+    .checklist li { padding-left: 1.6rem; position: relative; }
+    .checklist li::before { content: "□"; position: absolute; left: .15rem; color: var(--blue); font-weight: 700; }
+    .hidden { display: none !important; }
+    footer { color: var(--muted); text-align: center; padding: 0 1rem 2rem; font-size: .84rem; }
+    details.module {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      margin: .85rem 0;
+      overflow: hidden;
+    }
+    details.module > summary {
+      cursor: pointer;
+      padding: .85rem 1rem;
+      background: var(--panel-2);
+      font-weight: 700;
+      color: var(--blue);
+    }
+    details.module > .module-body { padding: .15rem 1rem 1rem; }
+    .trace {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: .65rem;
+      margin: .8rem 0;
+    }
+    .trace-step {
+      border-top: 4px solid var(--blue);
+      background: var(--panel-2);
+      border-radius: 9px;
+      padding: .7rem;
+      min-height: 115px;
+    }
+    .trace-step b { display: block; margin-bottom: .25rem; }
+    .trace-step small { display: block; color: var(--muted); margin-top: .35rem; }
+    .formula {
+      border-left: 4px solid var(--green);
+      background: var(--green-soft);
+      border-radius: 0 10px 10px 0;
+      padding: .75rem 1rem;
+      margin: .75rem 0;
+      overflow-wrap: anywhere;
+    }
+    .source-ref { color: var(--muted); font-size: .84rem; margin-top: .35rem; }
+    .byte {
+      display: inline-block;
+      min-width: 2.25rem;
+      text-align: center;
+      padding: .12rem .3rem;
+      margin: .08rem;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--panel-2);
+      font-family: Consolas, monospace;
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .callout-title { margin: 0 0 .3rem; font-weight: 700; }
+    .dense td, .dense th { padding: .45rem .55rem; font-size: .88rem; }
+    @media print {
+      body { background: #fff; color: #111; }
+      header { background: none; color: #111; padding: 1rem 0; }
+      nav, .controls, #printBtn { display: none !important; }
+      .layout { display: block; max-width: none; padding: 0; }
+      section { box-shadow: none; break-inside: avoid; border-color: #bbb; }
+      a { color: #111; }
+    }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      nav { position: static; max-height: none; display: flex; flex-wrap: wrap; gap: .2rem; }
+      nav strong { width: 100%; }
+      nav a { display: inline-block; }
+      .clock { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .dual-axis { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .layout { padding: .65rem; }
+      header { padding: 1.4rem .9rem; }
+      section { padding: .9rem; }
+      .clock { grid-template-columns: 1fr; }
+      .flow { display: grid; }
+      .flow .step::after { display: none; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>WHEELTEC C50X：STM32F407 项目上手与修改手册</h1>
+  <p>目标不是“知道几个模块名称”，而是让你能回答：程序从哪里开始、这个引脚谁占用、这个中断能否调用RTOS、传感器数据写到哪里、要改一个功能究竟改哪几个文件。</p>
+  <div class="header-tags">
+    <span>MCU：STM32F407VE / Cortex‑M4F</span>
+    <span>当前构建基准：Diff_Car / DIFF_CAR</span>
+    <span>RTOS：FreeRTOS，1 ms tick</span>
+    <span>系统主频：168 MHz</span>
+    <span>源码核对：2026‑07‑31</span>
+    <span>深度数据链版：GY53逐边沿追踪</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav id="toc">
+    <strong>阅读目录</strong>
+    <a href="#start">0. 先建立正确模型</a>
+    <a href="#keil">1. Keil目标与编译范围</a>
+    <a href="#tree">2. 工程目录地图</a>
+    <a href="#boot">3. 上电启动全过程</a>
+    <a href="#version">4. 硬件版本分支</a>
+    <a href="#clock">5. 时钟配置与计算</a>
+    <a href="#pins">6. 完整引脚表</a>
+    <a href="#irq">7. 中断与优先级</a>
+    <a href="#tasks">8. FreeRTOS任务</a>
+    <a href="#communication">9. 器件通信与数据所有权</a>
+    <a href="#control">10. 电机闭环主链</a>
+    <a href="#modify">11. 修改功能的落点</a>
+    <a href="#debug">12. Keil调试路线</a>
+    <a href="#risks">13. 修改前必须知道的风险</a>
+    <a href="#learning">14. 建议上手顺序</a>
+    <a href="#gy53-deep">15. GY53完整数据链</a>
+    <a href="#inputs-deep">16. 其他输入与传感器</a>
+    <a href="#protocols-deep">17. 通信帧与输出链</a>
+    <a href="#motor-deep">18. 电机闭环逐周期</a>
+    <a href="#services-deep">19. 回充/灯/蜂鸣/Flash</a>
+    <a href="#change-recipes">20. 修改配方与源码索引</a>
+  </nav>
+
+  <main>
+    <section id="start">
+      <h2>0. 先建立正确模型：这不是一个“从 main 顺着看完”的裸机工程</h2>
+      <p class="lead"><strong>真正的处理核心是 STM32F407 MCU。</strong>MPU6050/ICM20948只是外置IMU传感器。程序结构是“启动代码 → 板级初始化 → FreeRTOS任务 → 中断/任务共同维护全局状态 → 100 Hz电机闭环”。</p>
+      <div class="grid">
+        <div class="card">
+          <h3>你首先跟的主线</h3>
+          <p><code>Reset_Handler</code> → <code>SystemInit()</code> → <code>main()</code> → <code>systemInit()</code> → <code>start_task</code> → 各业务任务。</p>
+        </div>
+        <div class="card">
+          <h3>控制核心</h3>
+          <p><code>Balance_task</code>每10 ms执行：读编码器、选控制来源、安全检查、逆运动学、PI、写TIM8 PWM。</p>
+        </div>
+        <div class="card">
+          <h3>通信核心</h3>
+          <p>UART/CAN/遥控中断和USB/PS2任务把命令写入共享结构，控制任务再读取；多数路径没有队列快照。</p>
+        </div>
+        <div class="card">
+          <h3>传感器核心</h3>
+          <p>IMU由100 Hz任务轮询；编码器由定时器硬件计数；GY53由EXTI边沿中断+DWT计时。</p>
+        </div>
+      </div>
+      <h3>先分清三套“型号选择”，否则很容易改对代码却烧错固件</h3>
+      <div class="flow">
+        <div class="step"><strong>① Keil Target（编译期）</strong><span>Akm / Diff / Mec / 4WD / Omni；决定运动学宏和唯一参与链接的CarType参数文件</span></div>
+        <div class="step"><strong>② PCB硬件版（运行期）</strong><span>V1.0 / V1.1 / V1.2；由IMU ID和版本脚识别，决定CAN、USB、OLED、PS2、RGB等引脚</span></div>
+        <div class="step"><strong>③ robot.type（运行期机械档）</strong><span>当前Diff固件读取PC2/ADC1_IN12电位器，选择轮距、轮径、减速比、编码器精度和默认PI</span></div>
+      </div>
+      <div class="info"><strong>当前基线：</strong>最近实际构建的是<code>Diff_Car</code>，使用<code>DIFF_CAR</code>和<code>CarType/diff_robot_init.c</code>。但它仍可能运行在V1.0、V1.1或V1.2 PCB上，并由<code>robot.type</code>再选择具体机械参数。<code>DIFF_CAR</code>绝不等于<code>V1.0</code>。</div>
+      <div class="danger"><strong>实机调试先做安全隔离：</strong>抬起驱动轮或断开电机功率，并让PE4使能输入处于失能状态。当前Keil调试配置没有冻结TIM8；CPU停在断点时，PWM定时器可能继续输出最后的占空比。</div>
+    </section>
+
+    <section id="keil">
+      <h2>1. Keil目标与“哪些文件真的参加编译”</h2>
+      <p>入口工程是 <a href="USER/WHEELTEC.uvprojx" target="_blank"><code>USER/WHEELTEC.uvprojx</code></a>。它有5个Target，同一套公共代码通过宏选择不同运动学；当前目录中最新输出是<code>Diff_Car.hex</code>和<code>OBJ/Diff_Car.map</code>，因此本手册以差速车为主。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Keil Target</th><th>预处理宏</th><th>真正参与构建的车型参数文件</th><th>控制特点</th></tr></thead>
+          <tbody>
+            <tr><td>Akm_Car</td><td><code>AKM_CAR</code></td><td><code>CarType/akm_robot_init.c</code></td><td>两驱+舵机，部分型号使用ADC2/DMA滑轨反馈</td></tr>
+            <tr><td><strong>Diff_Car</strong></td><td><code>DIFF_CAR</code></td><td><code>CarType/diff_robot_init.c</code></td><td>当前基准；A/B两轮差速闭环</td></tr>
+            <tr><td>Mec_Car</td><td><code>MEC_CAR</code></td><td><code>CarType/mec_robot_init.c</code></td><td>四轮麦克纳姆，Vx/Vy/Vz</td></tr>
+            <tr><td>4WD_Car</td><td><code>_4WD_CAR</code></td><td><code>CarType/4wd_robot_init.c</code></td><td>四驱差速</td></tr>
+            <tr><td>Omni_Car</td><td><code>OMNI_CAR</code></td><td><code>CarType/omni_robot_init.c</code></td><td>三轮全向</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="warn"><strong>Keil初学者最常踩的坑：</strong>Project窗口里能看到某个<code>.c</code>，不代表它参与当前Target构建。比如CarType组里列着5个文件，但Diff_Car Target只包含<code>diff_robot_init.c</code>，其余设置为Exclude from Build。修改错文件会“编译成功但行为完全不变”。</div>
+      <div class="info"><strong>工程技术栈：</strong>这是µVision 5.34 + ARMCC 5.06u7 + STM32 Standard Peripheral Library工程，不是CubeMX/HAL工程（USB底层局部使用HAL接口）。不要把CubeMX生成的<code>HAL_GPIO_Init</code>或<code>MX_USARTx_UART_Init</code>直接粘进现有初始化链。磁盘中“编译进固件”的驱动也不一定会运行：V1.0/V1.1/V1.2仍由<code>system.c</code>和<code>main.c</code>的运行期分支决定。</div>
+      <h3>每次动手前固定检查</h3>
+      <ol>
+        <li>Keil左上角Target下拉框是否是你要烧录的车型。</li>
+        <li>Options for Target → C/C++ → Define 中是否只有一个车型宏。</li>
+        <li>修改的文件是否在当前Target中未被Exclude from Build。</li>
+        <li>Build后确认生成时间更新的是对应<code>.axf/.hex/.map</code>。</li>
+        <li>烧录文件与当前Target一致，不要把旧的Diff_Car.hex误当成刚编译结果。</li>
+      </ol>
+    </section>
+
+    <section id="tree">
+      <h2>2. 工程目录地图：先看业务层，不要陷进库文件</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>目录</th><th>职责</th><th>第一次阅读重点</th><th>一般是否修改</th></tr></thead>
+          <tbody>
+            <tr><td><code>USER</code></td><td>启动后的系统入口、板级初始化、异常处理、Keil工程</td><td><code>main.c</code>、<code>system.c</code>、<code>system_stm32f4xx.c</code>、<code>stm32f4xx_it.c</code></td><td>会</td></tr>
+            <tr><td><code>BALANCE</code></td><td>任务、控制算法、串口/CAN/定时器回调</td><td><code>balance_task.c</code>、<code>show_task.c</code>、<code>data_task.c</code>、<code>*_callback.c</code></td><td>经常</td></tr>
+            <tr><td><code>HARDWARE</code></td><td>板级驱动：GPIO、UART、CAN、PWM、编码器、OLED、传感器</td><td>与正在修改的器件同名的<code>.c</code>和<code>Inc/*.h</code></td><td>经常</td></tr>
+            <tr><td><code>CarType</code></td><td>各车型机械参数、编码器精度、轮径、默认PI参数</td><td>当前Target对应的<code>*_robot_init.c</code></td><td>调车时会</td></tr>
+            <tr><td><code>FreeRTOS</code></td><td>内核和Cortex-M4F端口</td><td><code>include/FreeRTOSConfig.h</code></td><td>通常只改配置</td></tr>
+            <tr><td><code>CORE</code></td><td>复位向量和启动汇编</td><td><code>startup_stm32f40_41xxx.s</code></td><td>通常不改</td></tr>
+            <tr><td><code>USB_HOST</code></td><td>USB Host应用、HID手柄、RTOS适配</td><td><code>usb_host.c</code>、<code>usbh_conf.c</code>、<code>usbh_os_middleware.c</code></td><td>USB功能时改</td></tr>
+            <tr><td><code>MiddleWares</code></td><td>ST USB Host中间件</td><td>先只看调用接口</td><td>尽量不改</td></tr>
+            <tr><td><code>FWLIB</code></td><td>STM32标准外设库及部分HAL USB驱动</td><td>查寄存器封装时再看</td><td>不要先改</td></tr>
+            <tr><td><code>OBJ</code></td><td>编译中间文件、链接map、axf</td><td><code>Diff_Car.map</code>用于确认真实链接符号</td><td>不手改</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>建议阅读顺序</h3>
+      <div class="flow">
+        <div class="step"><strong>① main.c</strong><span>知道任务在哪里创建</span></div>
+        <div class="step"><strong>② system.c</strong><span>知道硬件按什么顺序初始化</span></div>
+        <div class="step"><strong>③ 各Inc/*.h</strong><span>知道引脚、任务频率、宏</span></div>
+        <div class="step"><strong>④ balance_task.c</strong><span>跟完整控制闭环</span></div>
+        <div class="step"><strong>⑤ callback/data/show</strong><span>跟通信、显示、上报</span></div>
+        <div class="step"><strong>⑥ 对应驱动.c</strong><span>最后看寄存器初始化</span></div>
+      </div>
+    </section>
+
+    <section id="boot">
+      <h2>3. 上电启动全过程：每一步在哪里、失败会看到什么</h2>
+      <div class="flow">
+        <div class="step"><strong>Reset_Handler</strong><span>取MSP/PC，调用SystemInit</span></div>
+        <div class="step"><strong>SystemInit()</strong><span>FPU、HSE、PLL、总线、VTOR</span></div>
+        <div class="step"><strong>C运行库</strong><span>复制RW、清零ZI/BSS</span></div>
+        <div class="step"><strong>main()</strong><span>调用应用systemInit</span></div>
+        <div class="step"><strong>systemInit()</strong><span>版本识别与全部板级初始化</span></div>
+        <div class="step"><strong>start_task</strong><span>USB与业务任务创建</span></div>
+        <div class="step"><strong>稳定运行</strong><span>中断+周期任务</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>顺序</th><th>精确位置</th><th>发生的事情</th><th>卡住时的表现</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>CORE/startup_stm32f40_41xxx.s</code><br>Reset_Handler</td><td>从向量表取栈顶，调用大写<code>SystemInit()</code>，再跳到C库<code>__main</code></td><td>向量/栈错误通常直接Fault或完全无输出</td></tr>
+            <tr><td>2</td><td><code>USER/system_stm32f4xx.c:417</code></td><td>开启FPU；HSE→PLL；Flash 5WS；AHB/APB分频；切到168 MHz；设置VTOR</td><td>还没进入应用main，OLED和UART都不会初始化</td></tr>
+            <tr><td>3</td><td><code>USER/main.c:79</code></td><td>进入<code>main()</code>并调用小写<code>systemInit()</code></td><td>可在main首行设断点判断是否越过时钟启动</td></tr>
+            <tr><td>4</td><td><code>USER/system.c:191</code></td><td>诊断、NVIC组4、delay、软件I²C、SysVal、UART1</td><td>USART1启动日志可定位最后阶段</td></tr>
+            <tr><td>5</td><td><code>USER/system.c:223</code></td><td>先读MPU6050 ID，再读ICM20948 ID，决定V1.0/V1.1/V1.2</td><td>两个ID都不对会进入<code>SystemDiag_Halt</code></td></tr>
+            <tr><td>6</td><td><code>USER/system.c:304–382</code></td><td>蜂鸣器、使能、按键、GY53、OLED、UART4/3、遥控、编码器、ADC</td><td>OLED测试页可证明已走到OLED初始化</td></tr>
+            <tr><td>7</td><td><code>USER/system.c:389–456</code></td><td>读取车型档位、机械参数、PI、控制状态、Flash参数，标记系统就绪</td><td>车型档位/ADC异常会造成参数选错</td></tr>
+            <tr><td>8</td><td><code>USER/main.c:83–100</code></td><td>检查创建start_task，启动FreeRTOS；正常情况下调度器不返回</td><td>返回会进入致命诊断停机</td></tr>
+            <tr><td>9</td><td><code>USER/main.c:105–156</code></td><td>新版板初始化USB，临界区内创建业务任务，记录剩余堆，然后start自删</td><td>任务创建失败会记录失败任务名和掩码</td></tr>
+            <tr><td>10</td><td><code>HARDWARE/gy53_pwm.c:136</code></td><td>GY53任务先等300 ms，清pending后才真正打开EXTI9_5</td><td>防止调度器前的PWM边沿进入IRQ</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>为什么刚上电电机不响应</h3>
+      <div class="timeline">
+        <div class="event"><strong>0～约1秒：板级初始化和OLED启动画面</strong><span>具体时间还取决于IMU、OLED和USB初始化。</span></div>
+        <div class="event"><strong>FreeRTOS开始：Time_count以100 Hz递增</strong><span>每10 ms加1，<code>CONTROL_DELAY=1000</code>实际上代表10秒，不是1000 ms。</span></div>
+        <div class="event"><strong>0～10秒：UART/CAN/APP控制被忽略或尚不执行</strong><span>部分中断仍会读字节，但回调按Time_count提前返回。</span></div>
+        <div class="event"><strong>10～12秒：低速前进自检</strong><span><code>Drive_Motor(0.2,0,0)</code>并检查编码器方向/车型。</span></div>
+        <div class="event"><strong>12～12.3秒：停止并结束自检</strong><span>清零目标，设置check_end。</span></div>
+        <div class="event"><strong>约12.3秒后：才进入正常控制来源选择</strong><span>这是“串口有数据但车不动”首先要排除的时间窗口。</span></div>
+      </div>
+    </section>
+
+    <section id="version">
+      <h2>4. 硬件版本不是Keil Target：它在运行时自动识别</h2>
+      <p>Keil Target决定<strong>车型运动学</strong>，<code>SysVal.HardWare_Ver</code>决定<strong>控制板版本和引脚映射</strong>，<code>robot.type</code>决定<strong>同一车型内的机械参数档</strong>。这三套选择是不同维度。</p>
+      <div class="grid">
+        <div class="card">
+          <span class="badge orange">V1.0</span>
+          <h3>MPU6050 ID = 0x68</h3>
+          <ul>
+            <li>经典PS2插座，PE0～PE3</li>
+            <li>CAN1：PA11/PA12</li>
+            <li>无USB Host</li>
+            <li>无USART2/D50A</li>
+            <li>旧OLED映射</li>
+            <li>旧RGB LED：PD13/14/15</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="badge blue">V1.1</span>
+          <h3>ICM20948 ID = 0xEA，版本脚000</h3>
+          <ul>
+            <li>USB手柄，PA11/PA12</li>
+            <li>CAN1移到PD0/PD1</li>
+            <li>无USART2/D50A</li>
+            <li>仍使用旧OLED映射</li>
+            <li>RGB灯带PWM：PB14/PB15/PE6</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="badge green">V1.2</span>
+          <h3>ICM20948 ID = 0xEA，版本脚001</h3>
+          <ul>
+            <li>继承V1.1的USB和新CAN</li>
+            <li>USART2：PD5/PD6，连接RS485/D50A</li>
+            <li>OLED因此改到PD7/PD4/PE1/PE0</li>
+            <li>创建D50A任务</li>
+          </ul>
+        </div>
+      </div>
+      <p>版本脚为PE2、PE3、PC13；ICM20948分支读取三位值，当前只接受0和1，其他组合直接诊断停机。Diff Target随后在<code>CarType/diff_robot_init.c:18–73</code>读取PC2 ADC并把<code>robot.type</code>分到0～5，再填充<code>robot.HardwareParam</code>和默认PI。调试时第一批Watch变量应包含<code>g_system_diag.mpu6050_id</code>、<code>g_system_diag.icm20948_id</code>、<code>g_system_diag.hardware_version_bits</code>、<code>SysVal.HardWare_Ver</code>、<code>robot.type</code>和<code>robot.HardwareParam</code>。</p>
+    </section>
+
+    <section id="clock">
+      <h2>5. 时钟配置：从8 MHz一直算到每个外设</h2>
+      <div class="clock" aria-label="STM32F407时钟树">
+        <div class="node"><strong>HSE 8 MHz</strong><span>stm32f4xx.h<br>必须与实物晶振一致</span></div>
+        <div class="node"><strong>÷ PLLM 8</strong><span>PLL输入 = 1 MHz</span></div>
+        <div class="node"><strong>× PLLN 336</strong><span>VCO = 336 MHz</span></div>
+        <div class="branch">
+          <div class="node"><strong>÷ PLLP 2</strong><span>SYSCLK = 168 MHz</span></div>
+          <div class="node"><strong>÷ PLLQ 7</strong><span>USB48 = 48 MHz</span></div>
+        </div>
+        <div class="node"><strong>AHB ÷1</strong><span>HCLK / CPU / DWT<br>168 MHz</span></div>
+        <div class="branch">
+          <div class="node"><strong>APB1 ÷4</strong><span>PCLK1 42 MHz<br>TIM = 84 MHz</span></div>
+          <div class="node"><strong>APB2 ÷2</strong><span>PCLK2 84 MHz<br>TIM = 168 MHz</span></div>
+        </div>
+      </div>
+      <div class="info"><strong>定时器倍频规则：</strong>APB预分频不等于1时，挂在该APB上的定时器时钟等于PCLK×2。因此“APB1=42 MHz”不代表TIM2～5也是42 MHz，它们实际是84 MHz。</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>时钟域</th><th>频率</th><th>工程中的使用者</th><th>关键计算</th></tr></thead>
+          <tbody>
+            <tr><td>HCLK / Core</td><td>168 MHz</td><td>Cortex‑M4F、SysTick、DWT、AHB/GPIO/DMA</td><td>FreeRTOS：168000周期=1 ms；DWT：168计数/μs</td></tr>
+            <tr><td>PCLK1</td><td>42 MHz</td><td>USART2/3、UART4、CAN1、普通APB1外设</td><td>CAN：42M / ((3+2+1)×6) = 1 Mbps</td></tr>
+            <tr><td>APB1 Timer</td><td>84 MHz</td><td>TIM2/3/4/5编码器、TIM12灯带、TIM4顶配舵机</td><td>灯带/舵机常见配置：84M / 84 / 10000 = 100 Hz</td></tr>
+            <tr><td>PCLK2</td><td>84 MHz</td><td>USART1、ADC1/2</td><td>ADC prescaler÷4 → 21 MHz</td></tr>
+            <tr><td>APB2 Timer</td><td>168 MHz</td><td>TIM1航模捕获、TIM8电机PWM、TIM9舵机/绿灯</td><td>TIM8：168M / 1 / 16800 = 10 kHz；TIM1：168M/168=1 MHz</td></tr>
+            <tr><td>PLL48CLK</td><td>48 MHz</td><td>USB OTG FS</td><td>USB要求接近精确48 MHz，不能随意改PLLQ</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>如果你要改系统主频，必须同时检查这些位置</h3>
+      <ol>
+        <li><code>USER/stm32f4xx.h:123</code>：<code>HSE_VALUE</code>必须等于实物晶振。</li>
+        <li><code>USER/system_stm32f4xx.c:316–331</code>：PLLM/N/P/Q。</li>
+        <li><code>USER/system_stm32f4xx.c:597–605</code>：AHB、APB1、APB2分频。</li>
+        <li><code>USER/system.c:202</code>：当前写死<code>delay_init(168)</code>，主频变更必须改。</li>
+        <li><code>FreeRTOSConfig.h</code>：<code>configCPU_CLOCK_HZ=SystemCoreClock</code>，确保变量更新正确。</li>
+        <li>TIM8电机PWM、TIM1遥控、TIM9/TIM4舵机、TIM9/TIM12灯带的ARR/PSC全部重算。</li>
+        <li>ADC时钟不得超过器件上限；CAN波特率重新计算；USB分支仍必须得到48 MHz。</li>
+        <li>GY53按<code>SystemCoreClock/1,000,000</code>换算DWT，SystemCoreClock错误会让距离同比例错误。</li>
+      </ol>
+      <div class="warn"><strong>当前HSE失败路径存在隐患：</strong>HSE失败时可能留在16 MHz HSI，但<code>SystemCoreClock</code>和<code>delay_init(168)</code>仍按168 MHz使用，表现为RTOS、UART、PWM和GY53距离整体异常。遇到“能烧录但所有时序都怪”时先查HSE/PLL，不要先改业务代码。</div>
+    </section>
+
+    <section id="pins">
+      <h2>6. 完整引脚表：先筛选板卡版本，再决定某个脚能不能用</h2>
+      <div class="controls" aria-label="引脚筛选">
+        <span>板卡版本：</span>
+        <button type="button" class="pin-version active" data-version="all">全部</button>
+        <button type="button" class="pin-version" data-version="v10">V1.0</button>
+        <button type="button" class="pin-version" data-version="v11">V1.1</button>
+        <button type="button" class="pin-version" data-version="v12">V1.2</button>
+        <input id="pinSearch" type="search" placeholder="搜索：PA11、TIM8、OLED、编码器…">
+      </div>
+      <div class="table-wrap">
+        <table id="pinTable">
+          <thead><tr><th>功能</th><th>引脚</th><th>模式 / 复用</th><th>版本/车型</th><th>初始化位置与注意事项</th></tr></thead>
+          <tbody>
+            <tr data-ver="v10 v11 v12"><td>HSE晶振</td><td>PH0 / PH1</td><td>OSC_IN / OSC_OUT</td><td>全部</td><td>芯片固定时钟脚；不要当GPIO使用</td></tr>
+            <tr data-ver="v10 v11 v12"><td>SWD调试</td><td>PA13 / PA14</td><td>SWDIO / SWCLK</td><td>全部</td><td>Keil下载调试保留；不要随意复用</td></tr>
+            <tr data-ver="v10 v11 v12"><td>软件I²C / IMU</td><td>PB9 SCL，PB8 SDA</td><td>GPIO推挽模拟时序</td><td>全部</td><td><code>HARDWARE/I2C.c</code>；没有I2C外设IRQ</td></tr>
+            <tr data-ver="v10"><td>PS2经典手柄</td><td>PE0 DI，PE1 DO，PE2 CS，PE3 CLK</td><td>GPIO位操作</td><td>仅V1.0</td><td>与新版版本脚/OLED按版本互斥</td></tr>
+            <tr data-ver="v11 v12"><td>硬件版本位</td><td>PE2 bit0，PE3 bit1，PC13 bit2</td><td>输入，下拉</td><td>V1.1/V1.2检测</td><td><code>SYSTEM/sys/sys.c:7</code></td></tr>
+            <tr data-ver="v10 v11"><td>OLED旧映射</td><td>PD7 SCLK，PD6 SDIN，PD5 RST，PD4 DC</td><td>GPIO推挽，2 MHz</td><td>V1.0/V1.1</td><td>四线串行，不是I²C；无ACK</td></tr>
+            <tr data-ver="v12"><td>OLED V1.2映射</td><td>PD7 SCLK，PD4 SDIN，PE1 RST，PE0 DC</td><td>GPIO推挽，2 MHz</td><td>仅V1.2</td><td>为USART2释放PD5/PD6</td></tr>
+            <tr data-ver="v10 v11 v12"><td>GY53前</td><td>PE5</td><td>输入下拉，EXTI5双边沿</td><td>全部</td><td>与PE7/PE8共用EXTI9_5_IRQn</td></tr>
+            <tr data-ver="v10 v11 v12"><td>GY53左</td><td>PE7</td><td>输入下拉，EXTI7双边沿</td><td>全部</td><td>DWT时间戳，优先级5</td></tr>
+            <tr data-ver="v10 v11 v12"><td>GY53右</td><td>PE8</td><td>输入下拉，EXTI8双边沿</td><td>全部</td><td>合法高电平20～40000 μs</td></tr>
+            <tr data-ver="v10 v11 v12"><td>USART1 / ROS/诊断</td><td>PA9 TX，PA10 RX</td><td>AF7，上拉，115200</td><td>全部</td><td>RX IRQ优先级4；启动诊断日志固定走USART1</td></tr>
+            <tr data-ver="v10 v11 v12"><td>USART3 / ROS</td><td>PB10 TX，PB11 RX</td><td>AF7，上拉，115200</td><td>全部</td><td>RX IRQ优先级0，当前最高外设IRQ</td></tr>
+            <tr data-ver="v10 v11 v12"><td>UART4 / APP</td><td>PC10 TX，PC11 RX</td><td>AF8，上拉</td><td>全部</td><td>9600；若VTOR偏移0x10000则230400；IRQ p3</td></tr>
+            <tr data-ver="v12"><td>USART2 / RS485 D50A</td><td>PD5 TX，PD6 RX</td><td>AF7，上拉，115200</td><td>仅V1.2</td><td>IRQ p5；D50A逐字节状态机</td></tr>
+            <tr data-ver="v10"><td>CAN1旧板</td><td>PA12 TX，PA11 RX</td><td>AF9，上拉，1 Mbps</td><td>仅V1.0</td><td>与USB引脚相同，因此V1.0不启USB</td></tr>
+            <tr data-ver="v11 v12"><td>CAN1新板</td><td>PD1 TX，PD0 RX</td><td>AF9，上拉，1 Mbps</td><td>V1.1/V1.2</td><td>RX FIFO0 IRQ p3</td></tr>
+            <tr data-ver="v11 v12"><td>USB OTG FS</td><td>PA11 DM，PA12 DP</td><td>AF10，100 MHz GPIO速度</td><td>V1.1/V1.2</td><td>48 MHz USB时钟；IRQ p5；调度器启动后初始化</td></tr>
+            <tr data-ver="v10 v11 v12"><td>航模遥控CH1～4</td><td>PE9 / PE11 / PE13 / PE14</td><td>AF1，TIM1 CH1～4，输入下拉</td><td>全部</td><td>1 μs计数；TIM1_CC IRQ p5</td></tr>
+            <tr data-ver="v10 v11 v12"><td>编码器A</td><td>PA15 / PB3</td><td>AF1，TIM2 CH1/CH2，开漏上拉</td><td>全部</td><td>硬件Encoder TI12，无IRQ；Balance每10 ms读清</td></tr>
+            <tr data-ver="v10 v11 v12"><td>编码器B</td><td>PA6 / PA7</td><td>AF2，TIM3 CH1/CH2，开漏上拉</td><td>全部</td><td>差速车实际使用A/B</td></tr>
+            <tr data-ver="v10 v11 v12"><td>编码器C</td><td>PB6 / PB7</td><td>AF2，TIM4 CH1/CH2</td><td>非AKM目标</td><td>systemInit在非AKM均初始化；Diff虽不读取也占用引脚</td></tr>
+            <tr data-ver="v10 v11 v12"><td>编码器D</td><td>PA0 / PA1</td><td>AF2，TIM5 CH1/CH2</td><td>非AKM目标</td><td>Diff也初始化但控制链不读取</td></tr>
+            <tr data-ver="v10 v11 v12"><td>电机A PWM</td><td>PC9</td><td>AF3，TIM8_CH4</td><td>全部</td><td>10 kHz，CCR4</td></tr>
+            <tr data-ver="v10 v11 v12"><td>电机B PWM</td><td>PC8</td><td>AF3，TIM8_CH3</td><td>全部</td><td>10 kHz，CCR3</td></tr>
+            <tr data-ver="v10 v11 v12"><td>电机C PWM</td><td>PC7</td><td>AF3，TIM8_CH2</td><td>全部初始化</td><td>Diff不控制C，但初始化会占脚</td></tr>
+            <tr data-ver="v10 v11 v12"><td>电机D PWM</td><td>PC6</td><td>AF3，TIM8_CH1</td><td>全部初始化</td><td>Diff不控制D，但初始化会占脚</td></tr>
+            <tr data-ver="v10 v11 v12"><td>电机A方向</td><td>PB13 AIN1，PB12 AIN2</td><td>推挽输出</td><td>全部</td><td>由<code>Set_Pwm</code>先设方向再写CCR</td></tr>
+            <tr data-ver="v10"><td>电机B方向旧板</td><td>PC0 BIN1，PB14 BIN2</td><td>推挽输出</td><td>仅V1.0</td><td>运行时按SysVal.HardWare_Ver选择</td></tr>
+            <tr data-ver="v11 v12"><td>电机B方向新板</td><td>PC0 BIN1，PE15 BIN2</td><td>推挽输出</td><td>V1.1/V1.2</td><td>释放PB14给RGB灯带</td></tr>
+            <tr data-ver="v10 v11 v12"><td>电机C方向</td><td>PD10 CIN1，PD12 CIN2</td><td>推挽输出</td><td>全部初始化</td><td>Diff不使用输出值但引脚已配置</td></tr>
+            <tr data-ver="v10 v11 v12"><td>电机D方向</td><td>PC12 DIN1，PA8 DIN2</td><td>推挽输出</td><td>全部初始化</td><td>故障停机会把方向脚拉低</td></tr>
+            <tr data-ver="v10"><td>RGB LED旧板</td><td>PD14 R，PD13 G，PD15 B</td><td>推挽输出</td><td>仅V1.0</td><td>高电平/低电平逻辑由LED模块封装</td></tr>
+            <tr data-ver="v11 v12"><td>RGB灯带红/蓝</td><td>PB15 / PB14</td><td>AF9，TIM12_CH2 / CH1</td><td>V1.1/V1.2</td><td>TIM12共享ARR/PSC，实际约100 Hz</td></tr>
+            <tr data-ver="v11 v12"><td>RGB灯带绿</td><td>PE6</td><td>AF3，TIM9_CH2</td><td>V1.1/V1.2</td><td>与AKM高配舵机TIM9_CH1共享时基</td></tr>
+            <tr data-ver="v10 v11 v12"><td>蜂鸣器</td><td>PD11</td><td>推挽输出</td><td>全部</td><td>没有独立RTOS任务；show_task周期调用服务函数</td></tr>
+            <tr data-ver="v10 v11 v12"><td>用户按键</td><td>PC5</td><td>输入上拉，低有效</td><td>全部</td><td>Balance_task 100 Hz扫描</td></tr>
+            <tr data-ver="v10 v11 v12"><td>急停/使能</td><td>PE4</td><td>输入上拉，低有效</td><td>全部</td><td><code>Turn_Off()</code>中EN==0禁止电机响应</td></tr>
+            <tr data-ver="v10 v11 v12"><td>电池ADC</td><td>PB0 / ADC1_IN8</td><td>模拟输入</td><td>全部</td><td>show_task采样并更新robot.voltage</td></tr>
+            <tr data-ver="v10 v11 v12"><td>车型档位ADC</td><td>PC2 / ADC1_IN12</td><td>模拟输入</td><td>全部</td><td><code>CarType/diff_robot_init.c</code>将0～4095分档</td></tr>
+            <tr data-ver="v10 v11 v12"><td>AKM滑轨ADC</td><td>PC1 / ADC2_IN11</td><td>模拟+DMA2_Stream3</td><td>仅AKM Target</td><td>连续双通道扫描，无DMA IRQ</td></tr>
+            <tr data-ver="v10 v11 v12"><td>AKM舵机调节ADC</td><td>PC3 / ADC2_IN13</td><td>模拟+DMA2_Stream3</td><td>仅AKM Target</td><td>与PC1共同DMA循环缓存</td></tr>
+            <tr data-ver="v10 v11 v12"><td>AKM高配舵机</td><td>PA2</td><td>AF3，TIM9_CH1</td><td>仅AKM</td><td>100 Hz；与PE6绿灯共享TIM9时基</td></tr>
+            <tr data-ver="v10 v11 v12"><td>AKM顶配舵机</td><td>PB7</td><td>AF2，TIM4_CH2</td><td>仅AKM</td><td>与编码器C2冲突，因此AKM不初始化编码器C/D</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="warn"><strong>改引脚不能只改一个<code>GPIO_Pin_x</code>：</strong>至少同时检查端口GPIOx、Pin、PinSource、GPIO_AF、RCC端口时钟、外设时钟、EXTI PortSource/PinSource以及硬件版本分支。还要查当前Target是否“虽然不用数据但仍执行初始化”。</div>
+    </section>
+
+    <section id="irq">
+      <h2>7. 中断优先级：NVIC与任务优先级是两套相反的规则</h2>
+      <div class="dual-axis">
+        <div class="axis">
+          <h3>NVIC中断：数字越小越强</h3>
+          <div class="axis-row"><div class="prio">固定</div><div class="bar red">NMI / HardFault等</div></div>
+          <div class="axis-row"><div class="prio">0</div><div class="bar red">USART3；SVC默认</div></div>
+          <div class="axis-row"><div class="prio">3</div><div class="bar orange">CAN1_RX0、UART4</div></div>
+          <div class="axis-row"><div class="prio">4</div><div class="bar">USART1</div></div>
+          <div class="axis-row"><div class="prio">5</div><div class="bar green">EXTI9_5、TIM1_CC、USART2、OTG_FS</div></div>
+          <div class="axis-row"><div class="prio">15</div><div class="bar">SysTick、PendSV</div></div>
+        </div>
+        <div class="axis">
+          <h3>FreeRTOS任务：数字越大越强</h3>
+          <div class="axis-row"><div class="prio">31</div><div class="bar red">Timer Service（通常阻塞）</div></div>
+          <div class="axis-row"><div class="prio">25</div><div class="bar orange">start_task（一次性）</div></div>
+          <div class="axis-row"><div class="prio">24</div><div class="bar">USBH、ReportErr</div></div>
+          <div class="axis-row"><div class="prio">4</div><div class="bar green">Balance、DATA、PS2</div></div>
+          <div class="axis-row"><div class="prio">3</div><div class="bar">IMU</div></div>
+          <div class="axis-row"><div class="prio">2</div><div class="bar">show、GY53、LED、D50A</div></div>
+          <div class="axis-row"><div class="prio">0</div><div class="bar">Idle</div></div>
+        </div>
+      </div>
+      <p class="lead">任何外设中断都可以打断任意任务；“Balance任务优先级4”不能阻止“UART4中断优先级3”。任务优先级只在线程态任务之间比较。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>中断</th><th>有效条件/优先级</th><th>入口与来源</th><th>写入/影响</th><th>RTOS约束</th></tr></thead>
+          <tbody>
+            <tr><td>USART3_IRQHandler</td><td>始终，p0</td><td><code>BALANCE/uartx_callback.c:388</code><br>PB11 RXNE</td><td>共享11字节解析器，写robot_control/charger/IP</td><td>禁止调用RTOS API；可抢占其他所有外设IRQ</td></tr>
+            <tr><td>CAN1_RX0_IRQHandler</td><td>始终，p3</td><td><code>BALANCE/can_callback.c:10</code><br>FIFO0消息</td><td>robot_control、charger、s21c_board</td><td>禁止RTOS API；与UART4同级不嵌套</td></tr>
+            <tr><td>UART4_IRQHandler</td><td>始终，p3</td><td><code>BALANCE/uartx_callback.c:202</code><br>PC11 RXNE</td><td>APP按键、参数、OLED页、Debug_Flag</td><td>禁止RTOS API；当前ISR过重</td></tr>
+            <tr><td>USART1_IRQHandler</td><td>始终，p4</td><td><code>BALANCE/uartx_callback.c:175</code><br>PA10 RXNE</td><td>与USART3共用解析状态</td><td>禁止RTOS API；可被p0/p3嵌套</td></tr>
+            <tr><td>EXTI9_5_IRQHandler</td><td>任务启动300 ms后，p5</td><td><code>HARDWARE/gy53_pwm.c:223</code><br>PE5/7/8双边沿</td><td>DWT脉宽、距离、计数、在线状态</td><td>可用FromISR但当前不用；会被p0/3/4延迟</td></tr>
+            <tr><td>TIM1_CC_IRQHandler</td><td>始终，p5</td><td><code>BALANCE/timx_callback.c:11</code><br>CH1～4捕获</td><td>remoter、控制模式、信号在线计数</td><td>不调用RTOS；与其他p5排队</td></tr>
+            <tr><td>USART2_IRQHandler</td><td>仅V1.2，p5</td><td><code>BALANCE/uartx_callback.c:415</code><br>PD6 RXNE</td><td>向D50A_RxByte状态机喂字节</td><td>不投队列；任务取完整帧时短暂关中断</td></tr>
+            <tr><td>OTG_FS_IRQHandler</td><td>仅V1.1+，p5</td><td><code>USB_HOST/App/usbh_os_middleware.c</code></td><td>HAL HCD状态，向深度16的USB队列投递事件</td><td>唯一实际调用xQueueSendToBackFromISR的外设IRQ；p5合规</td></tr>
+            <tr><td>SysTick_Handler</td><td>调度前默认p0；调度后p15</td><td><code>SYSTEM/delay/delay.c</code></td><td>调度后进入xPortSysTickHandler，1 ms tick</td><td>内核路径；需要切换时挂起PendSV</td></tr>
+            <tr><td>PendSV</td><td>p15</td><td>FreeRTOS Cortex-M4F port</td><td>保存/恢复任务上下文</td><td>被所有现用外设中断抢占</td></tr>
+            <tr><td>SVC</td><td>默认p0，仅启动时</td><td>FreeRTOS port</td><td>恢复首个任务上下文</td><td>不是普通业务IRQ</td></tr>
+            <tr><td>Fault/NMI</td><td>固定高优先级</td><td><code>USER/stm32f4xx_it.c</code></td><td>保存CFSR/HFSR/BFAR等并安全停机</td><td>不返回</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>精确抢占规则</h3>
+      <ul>
+        <li><code>NVIC_PriorityGroup_4</code>表示4位全是抢占优先级、0位子优先级；代码写的SubPriority不生效。</li>
+        <li>同级IRQ不能互相嵌套；同时pending时按异常号较小者先。p3中CAN1_RX0先于UART4；p5中EXTI9_5→TIM1_CC→USART2→OTG_FS。</li>
+        <li><code>configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY=5</code>：IRQ 0～4绝不能调用FreeRTOS API；IRQ 5～15只能调用带<code>FromISR</code>后缀的API。</li>
+        <li>FreeRTOS临界区使用BASEPRI=5，只屏蔽p5～15；USART3、CAN、UART4、USART1仍可能打断临界区中的任务代码。</li>
+        <li>编码器TIM2/3/4/5、电机TIM8和ADC当前不使用中断；它们分别由硬件计数、PWM输出或任务轮询完成。</li>
+      </ul>
+      <div class="warn"><strong>未启用不等于以后能直接开：</strong>CAN2_RX1宏为0；EXTI15_10当前链接到启动文件的弱Default_Handler。若以后只开启中断源而没有把正确Handler加入当前Keil Target，CPU会进入默认死循环。</div>
+    </section>
+
+    <section id="tasks">
+      <h2>8. FreeRTOS任务：谁创建、多久运行一次、读写什么</h2>
+      <p>系统配置为抢占式+同优先级时间片，tick=1 ms，32级任务优先级，总堆30 KiB。<code>xTaskCreate</code>的栈深度单位是32位word，不是字节。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>任务</th><th>优先级</th><th>栈word / byte</th><th>周期/阻塞</th><th>主要职责</th><th>创建条件</th></tr></thead>
+          <tbody>
+            <tr><td>Timer Service</td><td>31</td><td>260 / 1040</td><td>阻塞等timer队列</td><td>FreeRTOS软件定时器服务；当前无用户xTimerCreate</td><td>内核总是创建</td></tr>
+            <tr><td>start_task</td><td>25</td><td>512 / 2048</td><td>一次性</td><td>初始化USB、创建业务任务、记录剩余堆、自删</td><td>main创建</td></tr>
+            <tr><td>USBH_Process_OS</td><td>24</td><td>1024 / 4096</td><td>永久阻塞等事件</td><td>USB Host状态机和HID手柄处理；事件队列深度16</td><td>V1.1+</td></tr>
+            <tr><td>ReportErrTask</td><td>24</td><td>512 / 2048</td><td>500 ms轮询</td><td>Debug_Flag非0时经UART4输出诊断</td><td>全部</td></tr>
+            <tr><td>RGB effect</td><td>22</td><td>256或512 word</td><td>按灯效20～2000 ms</td><td>动态灯效，同一时刻最多一个effect任务</td><td>按需创建</td></tr>
+            <tr><td>Balance_task</td><td>4</td><td>512 / 2048</td><td>10 ms / 100 Hz</td><td>反馈、命令选择、安全、运动学、PI、PWM</td><td>全部</td></tr>
+            <tr><td>DATA_task</td><td>4</td><td>512 / 2048</td><td>50 ms / 20 Hz</td><td>组织24字节状态帧、测距帧，发UART1/3和CAN</td><td>全部</td></tr>
+            <tr><td>PSTWO_task</td><td>4</td><td>256 / 1024</td><td>50 ms / 20 Hz</td><td>轮询经典PS2并更新GamePadInterface</td><td>仅V1.0</td></tr>
+            <tr><td>IMU_task</td><td>3</td><td>256 / 1024</td><td>10 ms / 100 Hz</td><td>MPU6050或ICM20948采样，更新imu结构</td><td>二选一</td></tr>
+            <tr><td>show_task</td><td>2</td><td>512 / 2048</td><td>100 ms / 10 Hz</td><td>电压采样、OLED页面、APP状态、蜂鸣服务</td><td>全部</td></tr>
+            <tr><td>led/RGBControl</td><td>2</td><td>128/256 word</td><td>状态相关</td><td>普通LED或灯带状态管理</td><td>车型决定</td></tr>
+            <tr><td>GY53_PWM_task</td><td>2</td><td>128 / 512</td><td>先等300 ms；之后100 ms</td><td>开放IRQ、500 ms在线判断、更新A/B/C距离</td><td>全部</td></tr>
+            <tr><td>D50A_task</td><td>2</td><td>256 / 1024</td><td>100 ms</td><td>处理RS485请求队列和轮询驱动状态</td><td>仅V1.2</td></tr>
+            <tr><td>Idle</td><td>0</td><td>130 / 520</td><td>无高任务就绪时</td><td>FreeRTOS空闲任务</td><td>内核总是创建</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="info"><strong>不是任务的“Task”函数：</strong><code>Buzzer_task()</code>只是show_task每100 ms调用的服务函数；<code>Usart1_SendTask/Usart3_SendTask/CAN1_SendTask</code>只是DATA_task内部函数。判断一个东西是不是RTOS任务，应查它是否传给<code>xTaskCreate</code>。</div>
+      <h3>增加任务前计算内存</h3>
+      <ol>
+        <li>栈参数×4才是字节。例如<code>512</code>表示2048字节。</li>
+        <li>总heap只有30 KiB，还包含TCB、队列、互斥量和动态灯效任务。</li>
+        <li>统一通过<code>CreateTaskChecked</code>创建并检查返回值；不要直接复制裸<code>xTaskCreate</code>而忽略失败。</li>
+        <li>运行后查看<code>g_system_diag.free_heap_after_create</code>和任务high-water mark。</li>
+        <li>周期任务优先使用<code>vTaskDelayUntil</code>，保持固定频率；不要用长时间忙等。</li>
+      </ol>
+    </section>
+
+    <section id="communication">
+      <h2>9. 器件之间怎么通信：协议、执行上下文和共享对象</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>设备/通道</th><th>物理/协议</th><th>谁采集</th><th>写到哪里</th><th>谁消费</th></tr></thead>
+          <tbody>
+            <tr><td>MPU6050 / ICM20948</td><td>PB8/PB9软件I²C</td><td>IMU_task 100 Hz轮询</td><td><code>imu</code></td><td>DATA、OLED/APP；当前Diff速度PI不依赖IMU</td></tr>
+            <tr><td>GY53×3</td><td>PWM；EXTI双边沿+DWT</td><td>EXTI9_5 ISR计脉宽；任务10 Hz维护</td><td><code>gy53_pwm_sensor[]</code>、<code>s21c_board.rangerA/B/C</code></td><td>OLED第4页、DATA测距帧、灯带告警</td></tr>
+            <tr><td>编码器</td><td>TIM2/3/4/5正交模式3</td><td>硬件计数；Balance每10 ms读取并清零</td><td><code>robot.MOTOR_x.Encoder</code></td><td>PI、DATA、OLED、自检</td></tr>
+            <tr><td>USART1/3</td><td>115200，11字节控制帧</td><td>RXNE ISR逐字节解析</td><td><code>robot_control</code>、<code>charger</code>、IP状态</td><td>Balance、DATA</td></tr>
+            <tr><td>UART4 APP</td><td>9600/230400，字符+参数文本帧</td><td>UART4 ISR直接解析</td><td><code>appkey</code>、控制参数、<code>oled.page</code>、<code>Debug_Flag</code></td><td>Balance、show、ReportErr</td></tr>
+            <tr><td>CAN1</td><td>1 Mbps，标准/扩展帧</td><td>CAN1_RX0 ISR</td><td>控制、回充、<code>s21c_board</code></td><td>Balance、DATA、LED、回充逻辑</td></tr>
+            <tr><td>航模遥控</td><td>TIM1四路PWM输入捕获</td><td>TIM1_CC ISR</td><td><code>remoter</code>、ControlMode</td><td>Balance</td></tr>
+            <tr><td>USB手柄</td><td>USB FS HID</td><td>OTG IRQ→事件队列→USBH任务</td><td><code>GamePadInterface</code></td><td>Balance的PS2_control</td></tr>
+            <tr><td>经典PS2</td><td>PE0～3软件时序</td><td>PSTWO_task 20 Hz</td><td><code>GamePadInterface</code></td><td>Balance</td></tr>
+            <tr><td>D50A</td><td>USART2/RS485，13字节私有帧</td><td>USART2 ISR收字节；D50A任务处理</td><td>D50A帧缓存/状态缓存</td><td>业务读取状态，写请求走深度8队列</td></tr>
+            <tr><td>OLED</td><td>四线GPIO串行</td><td>show_task写显存并刷新</td><td><code>OLED_GRAM</code>、<code>oled.page</code></td><td>屏幕；无ACK回读</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>USART1/3控制帧</h3>
+      <pre><code>索引:  0     1       2       3..4      5..6      7..8       9        10
+内容: 0x7B  模式     保留     Vx int16   Vy int16   Vz int16   BCC异或   0x7D
+
+速度按大端16位组合，再除以1000，单位恢复为 m/s。</code></pre>
+      <p>USART1与USART3共用<code>UartxControll_Callback()</code>。USART1被识别为<code>_USART_Control</code>，USART3被识别为<code>_ROS_Control</code>。</p>
+
+      <h3>CAN ID</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>方向</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x181</code></td><td>接收</td><td>Vx/Vy/Vz控制命令，每轴int16大端，单位mm/s</td></tr>
+            <tr><td><code>0x182</code></td><td>接收</td><td>自动回充设备命令</td></tr>
+            <tr><td><code>0x21C</code></td><td>接收</td><td>S21C六路测距结构分包，每包首字节是包号</td></tr>
+            <tr><td><code>0x12345678</code></td><td>接收扩展帧</td><td>回充设备存在特征码</td></tr>
+            <tr><td><code>0x101/0x102/0x103</code></td><td>发送</td><td>DATA_task把24字节状态帧拆成3个CAN帧</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>真实同步机制</h3>
+      <ul>
+        <li><strong>USB：</strong>深度16的事件队列；ISR使用<code>xQueueSendToBackFromISR</code>，USBH任务永久等待。</li>
+        <li><strong>D50A：</strong>深度8的业务请求队列；USART2 ISR不投队列，只组帧；任务读取完整帧和处理请求。</li>
+        <li><strong>RGB：</strong>互斥量保护灯带硬件写入和RGB状态。</li>
+        <li><strong>其余大部分：</strong>ISR/任务直接读写全局结构，没有mailbox、双缓冲或整帧快照。</li>
+      </ul>
+      <div class="info"><strong>物理层仍要看板上器件：</strong>CAN1的TX/RX只是MCU逻辑脚，外部还需要CAN收发器与正确终端电阻；USB的<code>USBH_LL_DriverVBUS()</code>是空实现，依赖板上固定5 V/VBUS硬件；D50A代码没有DE/RE GPIO，默认板载RS485自动方向；OLED虽把线命名为SCL/SDA，实际是SCLK+SDIN+DC+RST四线GPIO串行，不与PB8/PB9的IMU软件I²C共总线。</div>
+
+      <h3>共享对象所有权</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>对象</th><th>主要写者</th><th>主要读者</th><th>并发注意</th></tr></thead>
+          <tbody>
+            <tr><td><code>robot_control</code></td><td>UART/CAN/遥控/APP/PS2/USB路径、Balance自身</td><td>Balance、DATA、show</td><td>Vx/Vy/Vz可能被读到跨帧组合；ControlMode写入非原子</td></tr>
+            <tr><td><code>robot</code></td><td>车型初始化、Balance、show电压</td><td>Balance、DATA、show、ReportErr</td><td>当前Diff定义在<code>CarType/diff_robot_init.c</code></td></tr>
+            <tr><td><code>imu</code></td><td>IMU任务/驱动逐轴写</td><td>Balance、DATA、show</td><td>无完整三轴快照保护</td></tr>
+            <tr><td><code>gy53_pwm_sensor[]</code></td><td>EXTI ISR，任务更新在线状态</td><td>GY53任务、show</td><td>结构为volatile，但多字段仍不是事务</td></tr>
+            <tr><td><code>s21c_board</code></td><td>GY53任务写A/B/C；CAN ISR可整结构覆盖</td><td>DATA、LED、回充</td><td>两个写者有所有权冲突</td></tr>
+            <tr><td><code>charger</code></td><td>UART/CAN ISR、Balance</td><td>Balance、DATA、show、LED</td><td>多字段状态无统一快照</td></tr>
+            <tr><td><code>remoter</code></td><td>TIM1_CC ISR</td><td>Balance</td><td>四通道更新并非同时发生</td></tr>
+            <tr><td><code>GamePadInterface</code></td><td>PS2任务或USB任务</td><td>Balance</td><td>按硬件版本二选一路径</td></tr>
+            <tr><td><code>oled.page</code></td><td>按键、UART4、USB插拔回调</td><td>show_task</td><td>最好统一通过接口修改页码</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="control">
+      <h2>10. 电机闭环主链：修改运动行为时必须沿这条链追</h2>
+      <div class="flow">
+        <div class="step"><strong>控制来源</strong><span>UART/CAN/APP/RC/USB/PS2</span></div>
+        <div class="step"><strong>robot_control</strong><span>Vx、Vy、Vz、ControlMode</span></div>
+        <div class="step"><strong>Balance 100 Hz</strong><span>安全、自检、命令选择</span></div>
+        <div class="step"><strong>Drive_Motor</strong><span>限幅、平滑、逆运动学</span></div>
+        <div class="step"><strong>各轮Target</strong><span>差速车A/B目标m/s</span></div>
+        <div class="step"><strong>增量PI</strong><span>Target − Encoder</span></div>
+        <div class="step"><strong>Set_Pwm</strong><span>方向GPIO + TIM8 CCR</span></div>
+        <div class="step"><strong>编码器反馈</strong><span>TIM2/3 → 下个10 ms周期</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>阶段</th><th>函数/文件</th><th>Diff_Car实际行为</th><th>适合修改什么</th></tr></thead>
+          <tbody>
+            <tr><td>读反馈</td><td><code>Get_Robot_FeedBack()</code><br><code>BALANCE/balance_task.c:1721</code></td><td>读TIM2/3 CNT并清零，换算A/B轮m/s；B轮取反</td><td>编码器方向、精度、轮速换算</td></tr>
+            <tr><td>选命令</td><td><code>Balance_task()</code><br><code>:76–121</code></td><td>回充优先；否则APP→RC→PS2→UART/CAN默认</td><td>控制来源优先级、超时、避障介入点</td></tr>
+            <tr><td>运动学</td><td><code>Drive_Motor()</code><br><code>:859</code></td><td>限幅/平滑后调用<code>InverseKinematics_diff(Vx,Vz)</code></td><td>速度限幅、加减速、底盘运动学</td></tr>
+            <tr><td>车型参数</td><td><code>CarType/diff_robot_init.c</code></td><td>ADC档位选择轮距、减速比、编码器精度、轮径、默认KP/KI</td><td>换轮子、换电机、换编码器、默认PI</td></tr>
+            <tr><td>PI</td><td><code>Incremental_MOTOR()</code> + <code>ResponseControl()</code></td><td>A/B分别以Encoder和Target计算Output</td><td>控制器算法、限幅、PI参数</td></tr>
+            <tr><td>硬件输出</td><td><code>Set_Pwm()</code><br><code>:1051</code></td><td>按硬件版本选择B方向脚，写PWMA/PWMB</td><td>方向极性、输出通道；不要在此做避障逻辑</td></tr>
+            <tr><td>安全禁止</td><td><code>Turn_Off()</code><br><code>:1123</code></td><td>电压&lt;20 V、PE4急停低、自检错误都会禁止响应</td><td>安全阈值和停机策略</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="info"><strong>GY53当前不在闭环中：</strong>三路距离只进入OLED、USART1/USART3测距帧和特定车型的灯光告警；当前没有把本地GY53测距帧通过CAN发送。若要自动避障，应在Balance任务选择完命令、调用<code>Drive_Motor()</code>之前，根据“在线且新鲜”的距离修正Vx/Vy/Vz；不要直接篡改PI输出或TIM8 CCR。</div>
+    </section>
+
+    <section id="modify">
+      <h2>11. 我想改某功能，到底改哪几个文件</h2>
+      <div class="controls">
+        <label for="goalSelect"><strong>选择你的修改目标：</strong></label>
+        <select id="goalSelect">
+          <option value="sensor">增加一个新传感器</option>
+          <option value="pin">更换某个外设引脚</option>
+          <option value="irq">增加/修改中断</option>
+          <option value="clock">修改系统时钟</option>
+          <option value="pwm">修改电机PWM频率或通道</option>
+          <option value="oled">增加OLED页面</option>
+          <option value="uart">修改串口协议</option>
+          <option value="can">修改CAN协议</option>
+          <option value="control">修改速度/PI/运动学</option>
+          <option value="avoid">让GY53参与自动避障</option>
+          <option value="task">增加FreeRTOS任务</option>
+        </select>
+      </div>
+      <div id="goalResult" class="goal-result"></div>
+
+      <h3>通用变更检查单</h3>
+      <ul class="checklist">
+        <li>先确认Keil Target、硬件版本和真正参与构建的源文件。</li>
+        <li>查完整引脚表，确认端口、AF、定时器通道、EXTI线和版本复用均不冲突。</li>
+        <li>初始化函数放在正确阶段：RTOS API相关外设必须在调度器运行后初始化。</li>
+        <li>中断只采数据/清标志；复杂解析和浮点运算放到任务。</li>
+        <li>明确数据结构的唯一写者；跨ISR/任务使用volatile、临界区、队列或双缓冲。</li>
+        <li>新增<code>.c</code>后加入所有需要的Keil Target；确认不是Exclude from Build。</li>
+        <li>重新计算任务栈、heap、执行周期和CPU占用。</li>
+        <li>先用Watch验证原始数据，再接入控制；最后才允许电机带负载。</li>
+        <li>Build后检查0 error/0 warning、map文件符号、hex时间，再烧录。</li>
+      </ul>
+    </section>
+
+    <section id="debug">
+      <h2>12. Keil调试：按阶段设断点，不要在整个工程里乱单步</h2>
+      <h3>第一次调试建议断点顺序</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>断点</th><th>验证问题</th><th>重点Watch</th></tr></thead>
+          <tbody>
+            <tr><td><code>main()</code>首行</td><td>SystemInit和C运行库是否成功</td><td><code>SystemCoreClock</code>、RCC→CFGR、RCC→PLLCFGR</td></tr>
+            <tr><td><code>systemInit()</code></td><td>开始进入应用板级初始化</td><td><code>g_system_diag.stage</code></td></tr>
+            <tr><td>MPU/ICM ID判断</td><td>实际板卡识别成哪个版本</td><td>两个ID、版本bits、<code>SysVal.HardWare_Ver</code></td></tr>
+            <tr><td><code>OLED_Init()</code></td><td>是否选择正确OLED引脚映射</td><td><code>oled_pins</code>、GPIO MODER/ODR</td></tr>
+            <tr><td><code>vTaskStartScheduler()</code>前</td><td>板级初始化是否全部返回</td><td><code>g_system_diag</code>、heap状态</td></tr>
+            <tr><td><code>start_task()</code></td><td>调度器是否运行、USB/任务创建是否成功</td><td>task masks、failed_task_name、free_heap</td></tr>
+            <tr><td><code>Balance_task()</code>循环</td><td>控制周期、编码器、目标、FlagStop</td><td><code>SysVal.Time_count</code>、<code>robot_control</code>、<code>robot.MOTOR_A/B</code></td></tr>
+            <tr><td><code>EXTI9_5_IRQHandler</code></td><td>三路GY53是否真的有边沿</td><td><code>gy53_pwm_sensor</code>、DWT→CYCCNT、pwm_irq_count</td></tr>
+            <tr><td>UART/CAN IRQ</td><td>物理数据是否进MCU、帧状态是否正确</td><td>接收字节、Count、RxMessage、ControlMode</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>推荐Watch表达式</h3>
+      <pre><code>SystemCoreClock
+SysVal
+g_system_diag
+robot_control
+robot
+imu
+gy53_pwm_sensor
+gy53_pwm_capture_enabled
+s21c_board
+remoter
+charger
+TIM8->ARR
+TIM8->CCR1
+TIM8->CCR2
+TIM8->CCR3
+TIM8->CCR4
+TIM2->CNT
+TIM3->CNT
+RCC->CFGR
+RCC->PLLCFGR</code></pre>
+      <h3>零基础第一次连接时的精确断点顺序</h3>
+      <ol>
+        <li><code>USER/main.c:81</code>：确认已越过大写<code>SystemInit()</code>并进入小写<code>systemInit()</code>。</li>
+        <li><code>USER/system.c:223/247</code>：看MPU6050/ICM20948 ID；到<code>:301</code>确认<code>SysVal.HardWare_Ver</code>。</li>
+        <li><code>USER/system.c:324</code>：单步OLED初始化；<code>:389</code>看<code>Robot_Select()</code>后的<code>robot.type</code>和机械参数。</li>
+        <li><code>USER/main.c:108</code>与<code>:128–151</code>：确认USB条件分支和各任务创建返回值。</li>
+        <li><code>BALANCE/show_task.c:29</code>、<code>BALANCE/balance_task.c:30</code>：确认调度器确实切到业务任务。</li>
+        <li><code>HARDWARE/gy53_pwm.c:136/223</code>：确认300 ms后开放IRQ并有边沿；这里只用一次性断点，长期停住会破坏PWM脉宽。</li>
+        <li><code>BALANCE/balance_task.c:46/120/965/1051</code>：依次观察反馈、选定命令、Diff PI和最终PWM；电机功率必须先断开。</li>
+      </ol>
+      <h3>实用寄存器期望值</h3>
+      <ul>
+        <li><code>SystemCoreClock = 168000000</code>。</li>
+        <li>TIM8：<code>ARR=16799</code>、<code>PSC=0</code>，CCR为0～16799。</li>
+        <li>TIM1遥控：<code>PSC=167</code>，计数单位1 μs。</li>
+        <li>GY53正常时每路<code>edge_count</code>和<code>update_count</code>持续增加，<code>online=1</code>。</li>
+        <li>系统稳定后<code>g_system_diag.stage=0x0400</code>，task_fail_mask为0。</li>
+      </ul>
+      <div class="danger"><strong>断点安全：</strong>调试配置中<code>DbgMCU_APB1_Fz=0</code>、<code>DbgMCU_APB2_Fz=0</code>，TIM1/TIM8等不会因内核停机自动冻结。断点前先让PE4失能、目标速度为0，并让车轮离地。不要在电机带载时长时间停在UART或Balance断点。</div>
+    </section>
+
+    <section id="risks">
+      <h2>13. 当前源码中修改前必须知道的风险</h2>
+      <p>这些不是“理论上可能”，而是当前源码中可以明确定位的风险点。它们解释了为什么某些随机黑屏、HardFault、丢帧或GY53跳值不一定是OLED本身的问题。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>等级</th><th>位置</th><th>问题</th><th>可能表现</th><th>修改方向</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge red">高</span></td><td><code>BALANCE/uartx_callback.c:280</code></td><td>UART4的<code>Receive[50]</code>写入前无边界保护；后置<code>i&lt;=50</code>也允许越界</td><td>畸形APP帧破坏内存、HardFault、OLED停止</td><td>写入前限制i；超限立即丢帧；解析移到任务</td></tr>
+            <tr><td><span class="badge red">高</span></td><td><code>uartx_callback.c:316–338</code></td><td><code>num</code>未初始化；<code>dataArray[9]</code>索引无上限</td><td>参数随机、越界写</td><td>初始化变量并限制字段数量</td></tr>
+            <tr><td><span class="badge red">高</span></td><td><code>BALANCE/can_callback.c:50–63</code></td><td>S21C包号和DLC未校验，DLC=0时长度下溢</td><td>异常CAN帧造成大块越界memcpy</td><td>检查DLC≥1、包号范围、目标剩余长度</td></tr>
+            <tr><td><span class="badge red">运动安全</span></td><td><code>balance_task.c:155–159, 1981–2001</code></td><td><code>FlashParam_Save</code>可能在控制周期末进入Flash擦写；TIM8仍保持最后CCR</td><td>控制长时间空窗，车辆可能继续按旧PWM转动</td><td>保存前停车并写0 PWM；由低优先级专用任务在安全状态执行</td></tr>
+            <tr><td><span class="badge orange">并发</span></td><td><code>uartx_callback.c:27</code></td><td>USART1/3共用Count、Last_Uartx和Receive_Data；USART3 p0可嵌套USART1 p4</td><td>两个串口同时来帧时交叉破坏</td><td>每个UART独立解析上下文或使用环形缓冲</td></tr>
+            <tr><td><span class="badge orange">并发</span></td><td><code>BALANCE/Inc/balance_task.h:94</code></td><td><code>Set_Control_Mode</code>用两次读改写实现赋值</td><td>中断嵌套窗口中控制模式被意外覆盖</td><td>改为单次赋值或临界区保护</td></tr>
+            <tr><td><span class="badge orange">并发</span></td><td>多个任务/ISR</td><td>robot_control、imu、s21c_board多字段直接共享</td><td>读到新旧混合快照；CAN与GY53互相覆盖距离</td><td>明确单写者，使用结构快照/队列/版本号</td></tr>
+            <tr><td><span class="badge orange">时序</span></td><td><code>HARDWARE/gy53_pwm.c</code></td><td>EXTI服务时才读GPIO电平；更高优先级长ISR可吞掉窄脉冲边沿</td><td>GY53偶发离线、脉宽跳变、三路同时来时漏测</td><td>缩短高优先级ISR；必要时改用TIM输入捕获/DMA</td></tr>
+            <tr><td><span class="badge orange">临界区</span></td><td><code>HARDWARE/driver_d50a.c:471–533</code></td><td>D50A代码关中断后无条件<code>__enable_irq()</code>，没有恢复原PRIMASK</td><td>若从已屏蔽上下文调用，会意外提前开放全部中断</td><td>保存/恢复PRIMASK或使用匹配的FreeRTOS临界区</td></tr>
+            <tr><td><span class="badge orange">实时性</span></td><td><code>uartx_callback.c</code>、<code>data_task.c</code></td><td>UART4在p3 ISR内做大量文本/浮点解析；DATA任务轮询逐字节发送两路串口</td><td>延迟p5的GY53/USB/遥控；给100 Hz控制增加抖动</td><td>ISR只入环形缓冲；TX改队列/DMA或专用发送任务</td></tr>
+            <tr><td><span class="badge orange">同步</span></td><td>USB/D50A/蜂鸣</td><td>USB队列满无丢失计数；蜂鸣“队列”是无锁ring；GamePadInterface多字段发布无快照</td><td>偶发丢USB事件、蜂鸣竞态、手柄轴/键跨帧</td><td>增加失败计数；使用真正Queue或序列号/双缓冲快照</td></tr>
+            <tr><td><span class="badge orange">初始化</span></td><td><code>HARDWARE/Inc/encoder.h:24等</code></td><td>GPIO时钟宏错误调用<code>RCC_APB1PeriphClockCmd</code>并传AHB1常量</td><td>当前靠其他外设先开GPIOA/B而侥幸工作；单独移植失败</td><td>改为<code>RCC_AHB1PeriphClockCmd</code></td></tr>
+            <tr><td><span class="badge orange">引脚</span></td><td><code>HARDWARE/can.c:59</code></td><td>V1.0 CAN RX复用配置误用TX PinSource</td><td>PA11接收复用可能错误</td><td>使用<code>V1_0_CAN1_RX_Soure</code></td></tr>
+            <tr><td><span class="badge orange">时钟</span></td><td><code>system_stm32f4xx.c</code></td><td>HSE/PLL失败处理不足，SystemCoreClock可能与实际时钟不一致</td><td>所有时序成比例错误</td><td>增加超时/失败停机或调用SystemCoreClockUpdate核验</td></tr>
+            <tr><td><span class="badge blue">维护</span></td><td>向量表/Keil Target</td><td>EXTI15_10当前是弱Default_Handler；旧control.c未加入构建</td><td>一旦使能该IRQ就死循环</td><td>在当前Target加入强Handler并清全部共享pending位</td></tr>
+            <tr><td><span class="badge blue">构建</span></td><td><code>USER/system.h</code>、Keil IROM</td><td><code>VECT_TAB_OFFSET</code>当前为0；无线Boot偏移还会把UART4从9600切到230400</td><td>只改VTOR或只改IROM会跑飞；APP串口也可能突然失联</td><td>Bootloader、VTOR、IROM起始地址和上位机波特率必须成套修改</td></tr>
+            <tr><td><span class="badge blue">维护</span></td><td><code>HARDWARE/LED.C</code></td><td>注释写500 Hz，实际ARR/PSC计算为100 Hz</td><td>按错误注释调整时误判</td><td>始终按定时器输入频率公式复算</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="info">本手册只指出这些风险，没有在本次说明任务中自动改动控制源码。先理解架构、建立可重复测试，再逐项修复，能避免一次改太多后无法判断是哪处生效。</div>
+    </section>
+
+    <section id="learning">
+      <h2>14. 从“一无所知”到能安全修改：建议按这5个练习上手</h2>
+      <ol>
+        <li><strong>只观察，不改代码：</strong>在Keil Watch确认<code>SystemCoreClock=168 MHz</code>、硬件版本、系统stage和任务创建掩码。</li>
+        <li><strong>验证一个纯输入：</strong>看<code>gy53_pwm_sensor[0..2]</code>的距离/脉宽/计数，理解“IRQ写原始数据→任务维护状态→OLED显示”。</li>
+        <li><strong>改一个低风险显示：</strong>在OLED第5页增加一个已有变量，不创建新任务、不改中断。学会Build、烧录、回归。</li>
+        <li><strong>跟一次控制命令：</strong>给USART3发送一帧，依次观察<code>Receive_Data</code>→<code>robot_control.Vx</code>→各轮Target→PI Output；电机保持失能。</li>
+        <li><strong>最后才改控制：</strong>先改限幅或平滑系数，再改PI，再改运动学。每次只改一个变量，并记录前后波形/Watch值。</li>
+      </ol>
+      <h3>你真正需要记住的6个入口</h3>
+      <div class="grid">
+        <div class="card"><span class="file">USER/system_stm32f4xx.c</span><p>系统时钟和复位后的CMSIS初始化。</p></div>
+        <div class="card"><span class="file">USER/system.c</span><p>硬件版本识别和全部板级初始化顺序。</p></div>
+        <div class="card"><span class="file">USER/main.c</span><p>FreeRTOS启动、USB时机和任务创建。</p></div>
+        <div class="card"><span class="file">BALANCE/balance_task.c</span><p>100 Hz控制主循环和电机闭环。</p></div>
+        <div class="card"><span class="file">BALANCE/*_callback.c</span><p>所有中断如何把外部数据写入系统。</p></div>
+        <div class="card"><span class="file">HARDWARE/Inc/*.h</span><p>引脚、定时器通道、任务频率和硬件宏。</p></div>
+      </div>
+      <div class="controls">
+        <button id="printBtn" type="button">打印 / 导出PDF</button>
+      </div>
+    </section>
+
+    <section id="gy53-deep">
+      <h2>15. GY53完整数据链：从一个电平边沿到屏幕上的毫米数</h2>
+      <p class="lead"><strong>先给结论：</strong>这个工程没有通过I²C读取GY53内部寄存器。GY53模块内部完成激光ToF测距，再用PWM高电平宽度表示距离；STM32只做“捕获上升沿、捕获下降沿、算脉宽、除以10、发布结果”。因此你在源码中看不到VL53L0X的光学测距算法，只能看到PWM解码算法。</p>
+      <div class="info"><strong>当前真实输出范围：</strong>代码接受20～40000 μs的高电平，所以换算后是2～4000 mm。有效结果显示在OLED第4页，并以19字节测距帧发到USART1和USART3；本地GY53测距帧当前<strong>不经CAN发送</strong>，也<strong>不参与电机自动避障</strong>。</div>
+
+      <h3>15.1 先按源码文件建立索引</h3>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>阶段</th><th>真实源文件/函数</th><th>它负责什么</th></tr></thead>
+          <tbody>
+            <tr><td>常量与数据结构</td><td><code>HARDWARE/Inc/gy53_pwm.h:11–64</code></td><td>三路编号、PE5/PE7/PE8、EXTI线、任务频率、合法脉宽、在线超时及结构体字段。</td></tr>
+            <tr><td>硬件初始化</td><td><code>HARDWARE/gy53_pwm.c:86–116</code></td><td>开启DWT计数器、GPIOE和SYSCFG时钟，配置下拉输入与双边沿EXTI；初始化阶段故意不开放IRQ。</td></tr>
+            <tr><td>启用捕获</td><td><code>GY53_PWM_task()</code> → <code>GY53_PWM_EnableCapture()</code></td><td>调度器启动后等待300 ms，清旧状态和pending，再开放EXTI9_5，避免启动毛刺提前触发。</td></tr>
+            <tr><td>边沿中断</td><td><code>EXTI9_5_IRQHandler()</code> → <code>GY53_PWM_EXTI_IRQHandler()</code></td><td>读取三条EXTI pending位，依次处理前/左/右传感器。</td></tr>
+            <tr><td>脉宽解码</td><td><code>GY53_PWM_HandleEdge():48–84</code></td><td>上升沿记DWT周期数，下降沿相减得到μs，范围校验后计算mm。</td></tr>
+            <tr><td>发布与超时</td><td><code>GY53_PWM_task():136–190</code></td><td>10 Hz消费updated，维护online，将mm换为m并写入<code>s21c_board.rangerA/B/C</code>。</td></tr>
+            <tr><td>OLED显示</td><td><code>BALANCE/show_task.c:397–429</code></td><td>OLED第4页直接读取三路结构，显示距离、在线、原始脉宽和有效计数。</td></tr>
+            <tr><td>串口上报</td><td><code>BALANCE/data_task.c:178–268</code></td><td>20 Hz把A～F六路米值重新乘1000，构成19字节帧，发送USART1/USART3。</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>15.2 物理接线、编号与共享中断</h3>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>安装方向</th><th>数组编号</th><th>MCU引脚</th><th>EXTI线</th><th>发布字段</th><th>OLED标签</th></tr></thead>
+          <tbody>
+            <tr><td>前方</td><td><code>GY53_PWM_FRONT = 0</code></td><td>PE5</td><td>EXTI5</td><td><code>rangerA</code></td><td>F</td></tr>
+            <tr><td>左方</td><td><code>GY53_PWM_LEFT = 1</code></td><td>PE7</td><td>EXTI7</td><td><code>rangerB</code></td><td>L</td></tr>
+            <tr><td>右方</td><td><code>GY53_PWM_RIGHT = 2</code></td><td>PE8</td><td>EXTI8</td><td><code>rangerC</code></td><td>R</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>三根信号线都进入同一个<code>EXTI9_5_IRQn</code>，抢占优先级为5。它们不是轮流启动、也没有软件触发命令；每个模块持续独立输出PWM，任何一路变化都会把自己的pending位置1。</p>
+      <pre><code>GY53 PWM脚:  ____|‾‾‾‾‾‾‾‾‾‾‾‾‾‾|________
+                    &lt;-- high_us --&gt;
+STM32动作:       上升沿记t_rise     下降沿记t_fall
+计算:             pulse_us = (t_fall - t_rise) / 168
+                  distance_mm = pulse_us / 10</code></pre>
+
+      <h3>15.3 上电后为什么不是立刻捕获</h3>
+      <div class="trace">
+        <div class="trace-step"><b>① <code>systemInit()</code></b>调用<code>GY53_PWM_Init()</code>。<small>来源：<code>USER/system.c:318</code></small></div>
+        <div class="trace-step"><b>② DWT启动</b><code>CYCCNT=0</code>，使能CPU周期计数。<small>此时168 MHz意味着每周期约5.952 ns。</small></div>
+        <div class="trace-step"><b>③ GPIO/EXTI只配置</b>PE5/7/8为下拉输入，上升沿和下降沿检测都打开。<small>但EXTI IMR仍屏蔽，NVIC也禁用。</small></div>
+        <div class="trace-step"><b>④ RTOS创建任务</b><code>USER/main.c:132</code>创建优先级2、栈128 words的GY53任务。<small>128 words=512 bytes，不是128 bytes。</small></div>
+        <div class="trace-step"><b>⑤ 延时300 ms</b>传感器电源和PWM先稳定。<small><code>GY53_PWM_CAPTURE_DELAY_MS</code></small></div>
+        <div class="trace-step"><b>⑥ 原子式开放</b>先清等待下降沿状态和pending，再设置<code>capture_enabled=1</code>，开放IMR/NVIC。<small>诊断位同时置位。</small></div>
+      </div>
+
+      <h3>15.4 一次有效PWM到底经历了什么</h3>
+      <div class="trace">
+        <div class="trace-step"><b>1. GY53输出上升沿</b>例如前传感器PE5由0变1。<small>硬件将EXTI5 pending置1。</small></div>
+        <div class="trace-step"><b>2. CPU进入EXTI9_5</b>保存现场，执行统一Handler。<small><code>pwm_irq_count++</code></small></div>
+        <div class="trace-step"><b>3. 锁定来源</b><code>pending = EXTI-&gt;PR &amp; mask</code>，发现EXTI5。<small>随后清该pending位。</small></div>
+        <div class="trace-step"><b>4. 读取当前电平</b>PE5仍为1，于是识别为上升沿。<small>代码不是硬件输入捕获寄存器，而是ISR服务时读GPIO。</small></div>
+        <div class="trace-step"><b>5. 保存起点</b><code>rise_cycle[0]=DWT-&gt;CYCCNT</code>，<code>wait_fall[0]=1</code>。<small><code>edge_count++</code></small></div>
+        <div class="trace-step"><b>6. GY53输出下降沿</b>PE5由1变0，再次进入同一个中断。<small>若已经看到上升沿，才配对计算。</small></div>
+        <div class="trace-step"><b>7. 无符号周期差</b><code>now-rise</code>得到高电平占用的CPU周期数。<small>DWT回绕时无符号减法仍成立，单次脉宽远小于25.57 s。</small></div>
+        <div class="trace-step"><b>8. 周期换μs</b>除以<code>SystemCoreClock/1,000,000</code>；168 MHz时除以168。<small><code>last_pulse_us</code>无论有效与否都会更新。</small></div>
+        <div class="trace-step"><b>9. 合法区间判断</b>20～40000 μs为有效；否则只增加<code>invalid_count</code>。<small>无效帧不会覆盖上次有效距离。</small></div>
+        <div class="trace-step"><b>10. μs换mm</b><code>distance_mm=pulse_us/10U</code>，再写<code>high_us/distance_mm/online/updated/update_count</code>。<small>整数除法向下截断，分辨率是1 mm。</small></div>
+      </div>
+
+      <div class="formula">
+        <p class="callout-title">完整算例：PWM高电平代表1234 mm</p>
+        <code>high_us = 1234 × 10 = 12340 μs</code><br>
+        <code>DWT周期差 = 12340 × 168 = 2,073,120 cycles</code><br>
+        <code>pulse_us = 2,073,120 / 168 = 12,340 μs</code><br>
+        <code>distance_mm = 12,340 / 10 = 1,234 mm</code><br>
+        <code>distance_m = 1,234 / 1000.0f = 1.234 m</code>
+      </div>
+      <div class="warn"><strong>时钟是公式的一部分：</strong>如果MCU实际不是168 MHz而<code>SystemCoreClock</code>仍写168 MHz，所有GY53距离会按同一比例整体偏大或偏小。先在Keil Watch确认<code>SystemCoreClock</code>，再怀疑传感器。</div>
+
+      <h3>15.5 结构体每个字段到底表示什么</h3>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>字段</th><th>谁写</th><th>精确定义</th><th>排错时怎么解释</th></tr></thead>
+          <tbody>
+            <tr><td><code>distance_mm</code></td><td>ISR</td><td>最后一次<strong>有效</strong>脉宽换算出的毫米数。</td><td>掉线或收到无效脉宽时不会自动清零，所以必须与online一起看。</td></tr>
+            <tr><td><code>high_us</code></td><td>ISR</td><td>最后一次<strong>有效</strong>高电平宽度。</td><td>理论上约等于<code>distance_mm×10</code>，存在整数截断。</td></tr>
+            <tr><td><code>last_pulse_us</code></td><td>ISR</td><td>最后一次成功配对的脉宽，包括越界无效值。</td><td>定位接线毛刺最有用；P在OLED上显示的就是它。</td></tr>
+            <tr><td><code>edge_count</code></td><td>ISR</td><td>该路每次被处理的上升/下降边沿总数。</td><td>正常每个PWM周期约增加2；完全不动先查供电、地线、引脚。</td></tr>
+            <tr><td><code>invalid_count</code></td><td>ISR</td><td>已配对、但不在20～40000 μs内的次数。</td><td>快速上涨说明脉宽比例、毛刺、中断延迟或传感器模式不对。</td></tr>
+            <tr><td><code>updated</code></td><td>ISR置1，任务清0</td><td>至少有一个新有效值等待10 Hz任务消费。</td><td>100 ms内多个样本会合并成一个“有更新”标志，最新数值保留。</td></tr>
+            <tr><td><code>update_count</code></td><td>ISR</td><td>每个有效PWM帧都加1。</td><td>比updated更适合判断真实采样是否持续；OLED N显示其末4位。</td></tr>
+            <tr><td><code>last_update_tick</code></td><td>任务</td><td>任务看见updated时的RTOS tick，不是精确边沿时间。</td><td>因此500 ms超时从实际PWM停止到显示OFF约0.6～0.7 s。</td></tr>
+            <tr><td><code>online</code></td><td>ISR与任务</td><td>ISR收到有效帧会先置1；任务根据last_update_tick重新判定。</td><td>它表示“最近有有效数据”，不是电气连接的绝对证明。</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>15.6 10 Hz任务做的不是测距，而是发布与保活</h3>
+      <pre><code>每100 ms:
+  any_online = 0
+  对前/左/右三路:
+    如果 updated == 1:
+      临界区内 updated = 0
+      last_update_tick = 当前tick
+    如果 last_update_tick非0 且 当前tick-last_update_tick &lt;= 500 ms:
+      online = 1
+      distance_m = distance_mm / 1000.0
+      写 rangerA / rangerB / rangerC
+      any_online = 1
+    否则:
+      online = 0              //注意：不清distance_mm，也不清rangerA/B/C
+  SysVal.HardWare_Ranger = any_online</code></pre>
+      <p>所以系统中同时存在两套单位：<code>gy53_pwm_sensor[].distance_mm</code>是整数毫米，<code>s21c_board.rangerA/B/C</code>是浮点米。以后增加算法时必须在变量名或接口处明确单位，不能拿0.5米阈值直接和毫米变量比较。</p>
+
+      <h3>15.7 三个传感器能否同时读取</h3>
+      <div class="ok"><strong>可以。</strong>PE5、PE7、PE8各有独立EXTI pending位、上升沿时间和等待下降沿状态。一次进入EXTI9_5后，Handler会按“前→左→右”的顺序把当时所有pending位都处理掉，因此三路无需软件轮询切换。</div>
+      <p>但“可以同时工作”不等于“每个边沿都有硬件时间戳”：EXTI每条线只有一个pending位，代码在ISR服务时才读取GPIO当前电平。如果同一路在CPU来不及处理时已经发生两次变化，pending不能排成两条消息；USART3优先级0、CAN/UART4优先级3、USART1优先级4又都可以抢占优先级5的GY53中断，过长ISR会产生抖动或漏边沿。需要更强鲁棒性时，应把三路改到具有输入捕获能力的TIM通道，并用捕获寄存器/可选DMA获得硬件时间戳。</p>
+
+      <h3>15.8 数据如何到OLED和串口</h3>
+      <div class="two-col">
+        <div class="card">
+          <h4>OLED第4页，10 Hz</h4>
+          <p><code>show_task.c:397–429</code>直接读原始GY53结构：</p>
+          <pre><code>F:01234mm  ON
+P:12340us  N:0042
+L:.....
+R:.....</code></pre>
+          <p>F/L/R是毫米和在线状态；P是最近配对脉宽，包括无效值；N是有效更新计数末4位。若P变化但距离不变，通常是脉宽越界；若N增加而OFF，检查任务是否运行和tick时间。</p>
+        </div>
+        <div class="card">
+          <h4>USART1/USART3测距帧，20 Hz</h4>
+          <p><code>data_task</code>从米重新乘1000并取<code>short</code>，按大端发送：</p>
+          <p><span class="byte">FA</span><span class="byte">A_H</span><span class="byte">A_L</span><span class="byte">B_H</span><span class="byte">B_L</span><span class="byte">C_H</span><span class="byte">C_L</span><span class="byte">D…F</span><span class="byte">00×4</span><span class="byte">XOR</span><span class="byte">FC</span></p>
+          <p>1234 mm → <code>0x04D2</code>，所以A字段为<code>04 D2</code>。第17字节是0～16字节异或，第18字节是<code>FC</code>。</p>
+        </div>
+      </div>
+      <div class="warn"><strong>串口上的一个容易误判点：</strong>只要<code>HardWare_Ranger=1</code>，USART1/3除了24字节基础状态帧和19字节测距帧，还会因为<code>charger || ranger</code>条件继续发送8字节回充状态帧。上位机必须按帧头/长度/帧尾分别解包，不能假设每周期只有43字节。</div>
+      <p>CAN发送函数只把24字节基础状态帧拆成<code>0x101/0x102/0x103</code>三个CAN帧，没有复制19字节GY53测距帧。CAN接收<code>0x21C</code>反而会写同一个<code>s21c_board</code>，与本地GY53形成两个写者；长期修改应把“本地GY53”和“外部S21C”分开存储，再由一个合并函数决定最终数据源。</p>
+
+      <h3>15.9 当前包含了哪些算法，哪些并没有</h3>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>类别</th><th>当前是否存在</th><th>具体行为</th></tr></thead>
+          <tbody>
+            <tr><td>PWM边沿配对</td><td><span class="badge green">有</span></td><td>每路上升沿保存起点，只有已经等待下降沿时才计算。</td></tr>
+            <tr><td>DWT高精度计时</td><td><span class="badge green">有</span></td><td>168 MHz CPU周期计数；使用无符号差值处理一次计数器回绕。</td></tr>
+            <tr><td>范围门限</td><td><span class="badge green">有</span></td><td>只接收20～40000 μs；无效结果计数但保留上一有效距离。</td></tr>
+            <tr><td>线性比例换算</td><td><span class="badge green">有</span></td><td><code>mm=μs/10</code>，没有偏置项、温度补偿或标定曲线。</td></tr>
+            <tr><td>最新值保持</td><td><span class="badge green">有</span></td><td>只保存最后有效样本；无历史队列。</td></tr>
+            <tr><td>在线超时</td><td><span class="badge green">有</span></td><td>任务级看门狗；不是传感器自检。</td></tr>
+            <tr><td>均值/中值/卡尔曼</td><td><span class="badge red">没有</span></td><td>没有抑制孤立跳点、没有方差或置信度估计。</td></tr>
+            <tr><td>多传感器融合</td><td><span class="badge red">没有</span></td><td>前/左/右独立，没有取最小值以外的空间推理。</td></tr>
+            <tr><td>迟滞与多帧确认</td><td><span class="badge red">没有</span></td><td>RGB 0.5 m门限可能在边界抖动；控制层尚未使用距离。</td></tr>
+            <tr><td>避障控制</td><td><span class="badge red">没有</span></td><td>当前只显示、串口上报，部分车型用于灯光告警。</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>15.10 如果要让GY53参与避障，正确插入点和算法骨架</h3>
+      <p>推荐在<code>Balance_task()</code>完成控制源仲裁之后、调用<code>Drive_Motor(Vx,Vy,Vz)</code>之前生成一个“安全后的命令”。中断层只测量，GY53任务只过滤/发布，控制任务才决定是否减速或停车。</p>
+      <pre><code>// 伪代码：并非当前已经实现的源码
+front_fresh = front.online &amp;&amp; (now - front_timestamp &lt;= fresh_limit);
+front_mm = median5(front_history);          // 任务中做，不在EXTI ISR中做
+
+if (front_fresh &amp;&amp; command_vx &gt; 0) {
+    if (front_mm &lt;= STOP_MM) blocked = true;          // 例如250 mm
+    if (front_mm &gt;= RELEASE_MM) blocked = false;      // 例如320 mm，形成迟滞
+    if (blocked) safe_vx = 0;
+    else if (front_mm &lt; SLOW_MM)
+        safe_vx *= (front_mm-STOP_MM)/(SLOW_MM-STOP_MM); // 线性减速
+}
+Drive_Motor(safe_vx, safe_vy, safe_vz);</code></pre>
+      <ul>
+        <li>至少同时检查<code>online</code>、新鲜度和距离；离线时采取“停车”还是“降级继续”必须显式定义。</li>
+        <li><code>STOP_MM &lt; RELEASE_MM &lt; SLOW_MM</code>，迟滞避免距离在阈值附近反复启停。</li>
+        <li>中值滤波适合去除单个尖峰；窗口5在10 Hz发布层会带来约0.2 s群延迟，应根据真实PWM帧率决定。</li>
+        <li>回充、自检和人工急停的优先级必须写成状态机：安全停机永远高于避障，回充是否允许近距离接桩要单独定义。</li>
+        <li>不要从EXTI中断直接写TIM8 CCR，也不要在PI输出后硬截断某个轮子，否则会绕过平滑、运动学和方向安全。</li>
+      </ul>
+
+      <h3>15.11 Keil逐级排错表</h3>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>顺序</th><th>Watch/寄存器</th><th>正常现象</th><th>异常时优先检查</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>SystemCoreClock</code></td><td><code>168000000</code></td><td>PLL/HSE与时钟变量是否一致。</td></tr>
+            <tr><td>2</td><td><code>gy53_pwm_capture_enabled</code></td><td>调度器后约300 ms从0变1</td><td>任务是否创建、是否被高优先级任务饿死。</td></tr>
+            <tr><td>3</td><td><code>DWT-&gt;CTRL</code>、<code>DWT-&gt;CYCCNT</code></td><td>CYCCNT持续增加</td><td>TRCENA/CYCCNTENA是否打开。</td></tr>
+            <tr><td>4</td><td><code>EXTI-&gt;IMR &amp; 0x1A0</code></td><td>PE5/7/8对应位开放</td><td>GPIOE/SYSCFG时钟、EXTI映射。</td></tr>
+            <tr><td>5</td><td><code>edge_count[0..2]</code></td><td>持续增长，通常每帧+2</td><td>供电、共地、PWM模式、信号电平和接错引脚。</td></tr>
+            <tr><td>6</td><td><code>last_pulse_us</code></td><td>约为真实mm×10</td><td>若0：边沿未配对；若极端：毛刺/延迟/公式模式不符。</td></tr>
+            <tr><td>7</td><td><code>invalid_count</code>、<code>update_count</code></td><td>前者稳定，后者增长</td><td>前者增长说明被合法区间拒绝。</td></tr>
+            <tr><td>8</td><td><code>distance_mm</code>、<code>online</code></td><td>距离随目标变化、online=1</td><td>任务心跳、更新时间与500 ms超时。</td></tr>
+            <tr><td>9</td><td><code>s21c_board.rangerA/B/C</code></td><td>等于mm/1000.0</td><td>CAN 0x21C是否同时覆盖，单位是否误解。</td></tr>
+            <tr><td>10</td><td><code>SysVal.HardWare_Ranger</code></td><td>任意一路在线即为1</td><td>全部离线或任务未发布。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="danger"><strong>不要在EXTI Handler里长期停断点。</strong>断点会让下一边沿到来时pending合并，测得的脉宽失真；同时电机TIM8可能继续保持上次PWM。优先用Watch计数器，必须断点时使用一次性条件断点并让车轮离地、先把PWM置0。</div>
+    </section>
+    <section id="inputs-deep">
+      <h2>16. 其他输入与传感器：原始电信号如何变成程序变量</h2>
+      <p class="lead">读任何外设都使用同一套追踪方法：<strong>引脚/总线 → 初始化寄存器 → 采集上下文 → 原始值 → 校准/滤波/单位换算 → 共享结构 → 消费者</strong>。下面不是罗列模块名，而是沿这条链逐个拆开。</p>
+
+      <details class="module" open>
+        <summary>16.1 软件I²C总线：MPU6050和ICM20948共同的底层</summary>
+        <div class="module-body">
+          <div class="trace">
+            <div class="trace-step"><b>引脚</b>PB9=SCL，PB8=SDA。<small><code>HARDWARE/Inc/I2C.h</code></small></div>
+            <div class="trace-step"><b>实现</b>普通GPIO软件模拟，不使用STM32硬件I²C、DMA或中断。<small><code>HARDWARE/I2C.c</code></small></div>
+            <div class="trace-step"><b>写寄存器</b>START → 设备地址+W → 寄存器地址 → 数据 → STOP。<small>每个字节后等待ACK。</small></div>
+            <div class="trace-step"><b>读寄存器</b>先写寄存器地址，再重复START，以地址+R读取并发送ACK/NACK。<small>驱动上层逐寄存器调用。</small></div>
+          </div>
+          <p>地址容易混淆：MPU6050的7位地址是<code>0x68</code>；底层有的接口使用左移后的8位写地址<code>0xD0</code>。判断地址时先确认函数参数约定，不要直接把逻辑分析仪看到的地址机械复制。</p>
+          <div class="warn"><strong>当前实现的可靠性边界：</strong>GPIO配置为推挽并带上拉，而标准I²C推荐开漏；ACK等待约50 μs，但多数上层调用不处理失败结果，也没有总线恢复、重试和互斥锁。若SDA被设备拉低，系统可能持续读到错误值。修改底层时应改为开漏、让错误码一路返回到IMU任务，并实现“SCL脉冲9次+STOP”的恢复流程。</div>
+          <p>Keil排错顺序：先看<code>g_system_diag.mpu6050_id</code>/<code>icm20948_id</code>，再看PB8/PB9的<code>GPIOB-&gt;IDR/ODR</code>；更推荐用逻辑分析仪确认START、地址、ACK和时钟频率。不要一开始就盯<code>imu.accel</code>，否则无法区分“总线没通”和“后处理出错”。</p>
+        </div>
+      </details>
+
+      <details class="module" open>
+        <summary>16.2 IMU：自动识别、读取、校准、滤波与输出</summary>
+        <div class="module-body">
+          <h3>自动选择哪颗IMU</h3>
+          <p><code>USER/system.c:222–290</code>先读MPU6050的<code>WHO_AM_I</code>，值为<code>0x68</code>时判定老硬件V1.0并初始化MPU6050；否则检查ICM20948的ID<code>0xEA</code>，判定V1.1/V1.2。随后<code>USER/main.c</code>只创建对应的一个100 Hz IMU任务。</p>
+          <div class="table-wrap">
+            <table class="dense">
+              <thead><tr><th>项目</th><th>MPU6050路径</th><th>ICM20948路径</th></tr></thead>
+              <tbody>
+                <tr><td>识别值</td><td><code>WHO_AM_I=0x68</code></td><td><code>WHO_AM_I=0xEA</code></td></tr>
+                <tr><td>量程</td><td>陀螺仪±500 dps；加速度±2 g</td><td>陀螺仪±500 dps；加速度±2 g</td></tr>
+                <tr><td>设备采样配置</td><td>约50 Hz，DLPF约20 Hz</td><td>divider=7、DLPF配置6，约140.625 Hz</td></tr>
+                <tr><td>任务读取</td><td>100 Hz，所以可能连续两次拿到同一设备样本</td><td>100 Hz，低于设备内部更新率</td></tr>
+                <tr><td>软件滤波</td><td>代码有10点均值函数，但当前读取主链未使用</td><td>逐轴8点移动平均，约80 ms窗口</td></tr>
+                <tr><td>启动偏置</td><td>前10 s不断用“上一次样本”更新Deviation，最终近似最后一个静止样本</td><td>初始化先做32次陀螺仪偏置平均，再经历任务层前10 s的Deviation逻辑</td></tr>
+                <tr><td>磁力计</td><td>无</td><td>初始化AK09916，但运行期读取位于<code>#if 0</code>，实际未使用</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>MPU6050一次读取的真实过程</h3>
+          <div class="trace">
+            <div class="trace-step"><b>① 100 Hz唤醒</b><code>MPU6050_task()</code>使用<code>vTaskDelayUntil</code>每10 ms运行。<small><code>BALANCE/imu_task.c:6–29</code></small></div>
+            <div class="trace-step"><b>② 任务先复制旧值</b>前10 s先把当前<code>imu.gyro/accel</code>复制到Deviation。<small>这不是10秒平均。</small></div>
+            <div class="trace-step"><b>③ 逐轴读寄存器</b>调用<code>MPU6050_Get_Accelscope()</code>和<code>Get_Gyroscope()</code>。<small>高/低字节是分开的I²C事务，存在跨样本撕裂窗口。</small></div>
+            <div class="trace-step"><b>④ 拼成int16</b><code>raw=(high&lt;&lt;8)|low</code>，保留传感器带符号原始数。</div>
+            <div class="trace-step"><b>⑤ 10 s后去偏置</b><code>Original-Deviation</code>；Z加速度额外<code>+16384</code>以保留静止1 g。<small>双击按键会把当前Original复制成新Deviation。</small></div>
+            <div class="trace-step"><b>⑥ 发布</b>写<code>imu.accel</code>和<code>imu.gyro</code>，供DATA/OLED/停车检测/手柄振动读取。</div>
+          </div>
+          <div class="formula">
+            <strong>单位换算：</strong><br>
+            加速度：<code>a(m/s²)=raw/1671.84</code>，因为±2 g对应±32768；<br>
+            角速度：<code>ω(rad/s)=raw/3754.9</code>，因为±500 °/s要再乘<code>π/180</code>。<br>
+            DATA任务做ROS坐标映射：<code>X=传感器Y，Y=-传感器X，Z不变</code>。
+          </div>
+          <p>例：静止时校准后的Z轴原始值约16384，<code>16384/1671.84≈9.8 m/s²</code>；若陀螺仪Z为3755，则约为<code>1.0 rad/s</code>。串口基础状态帧里传的是原始<code>int16</code>字段，不是IEEE浮点数。</p>
+
+          <h3>当前IMU算法的能力边界</h3>
+          <ul>
+            <li>有：量程/低通寄存器配置、零偏相减、ICM的8点移动平均、坐标轴重映射。</li>
+            <li>没有：四元数、欧拉角解算、陀螺积分、互补滤波、卡尔曼滤波、磁力计融合和完整静止统计标定。</li>
+            <li><code>Parking()</code>只使用Y/Z加速度和约8.8的经验差值判断停车/推动车辆，不是严格姿态解算。</li>
+            <li>ICM的<code>ICM20948_Get_Gyroscope()</code>/<code>Get_Accel()</code>声明返回<code>u8</code>，但局部<code>res</code>未赋值便返回；当前调用者忽略返回值，因此不影响主链数值，却不能把它当作可靠错误码。</li>
+          </ul>
+          <div class="warn"><strong>改量程不能只改寄存器。</strong>如果把±2 g改为±4 g，或±500 dps改成±1000 dps，必须同步修改1671.84/3754.9及所有上游阈值。更稳妥的升级是一次burst读取完整14字节/12字节快照，并用数据就绪信号或设备采样率对齐任务。</div>
+        </div>
+      </details>
+
+      <details class="module" open>
+        <summary>16.3 编码器：A/B相如何变成m/s反馈</summary>
+        <div class="module-body">
+          <div class="table-wrap">
+            <table class="dense">
+              <thead><tr><th>轮</th><th>定时器</th><th>两相信号</th><th>当前Diff是否读取</th></tr></thead>
+              <tbody>
+                <tr><td>A/左</td><td>TIM2</td><td>PA15、PB3</td><td>是</td></tr>
+                <tr><td>B/右</td><td>TIM3</td><td>PA6、PA7</td><td>是，最终符号取反</td></tr>
+                <tr><td>C</td><td>TIM4</td><td>PB6、PB7</td><td>Diff初始化但控制反馈不读取</td></tr>
+                <tr><td>D</td><td>TIM5</td><td>PA0、PA1</td><td>Diff初始化但控制反馈不读取</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><code>HARDWARE/encoder.c</code>把定时器设为TI12正交编码器模式、ARR=65535、PSC=0、输入滤波=0。A/B相的相位关系决定向上计数还是向下计数；不需要每个脉冲进入CPU中断。Balance任务每10 ms调用<code>Read_Encoder()</code>，把CNT强制解释成带符号<code>short</code>，随后把CNT清0。</p>
+          <div class="formula">
+            <code>Encoder_precision = 4 × 编码器线数 × 减速比</code><br>
+            <code>Wheel_Circ = π × 轮径</code><br>
+            <code>轮速(m/s) = 本周期count × 100 / Encoder_precision × Wheel_Circ / 纠偏系数</code><br>
+            其中100来自10 ms采样周期换算为每秒；B轮公式前还有负号以统一车辆前进方向。
+          </div>
+          <p><strong>数值例：</strong>若500线、27:1减速比、4倍频、轮径0.125 m，则<code>Encoder_precision=54000</code>，周长约0.392699 m。10 ms内读到100个计数时，速度约<code>100×100/54000×0.392699=0.07272 m/s</code>；每个计数对应约0.000727 m/s。</p>
+          <div class="trace">
+            <div class="trace-step"><b>A/B相电平变化</b>TIM2/TIM3硬件判断方向并累计CNT。</div>
+            <div class="trace-step"><b>100 Hz取样</b><code>Get_Robot_FeedBack()</code>读CNT并清0。<small><code>balance_task.c:1721–1775</code></small></div>
+            <div class="trace-step"><b>参数换算</b>用轮径、减速比、编码器线数得到m/s。</div>
+            <div class="trace-step"><b>写反馈</b><code>robot.MOTOR_A/B.Encoder</code>。</div>
+            <div class="trace-step"><b>PI消费</b>下游与Target相减，决定下一周期PWM。</div>
+          </div>
+          <div class="warn"><strong>当前注意点：</strong>输入滤波为0，长线/电机噪声会变成额外计数；10 ms内若绝对计数超过32767，转成short会翻转；<code>HARDWARE/Inc/encoder.h</code>的GPIO时钟宏误用<code>RCC_APB1PeriphClockCmd</code>传AHB1常量，当前可能因为别的初始化先开GPIOA/B而“碰巧可用”，移植时应修为<code>RCC_AHB1PeriphClockCmd</code>。</div>
+        </div>
+      </details>
+
+      <details class="module">
+        <summary>16.4 ADC：车型旋钮、电池电压，以及AKM专用滑轨/舵机</summary>
+        <div class="module-body">
+          <h3>ADC1：单次软件触发</h3>
+          <p>ADC1为12位，ADC时钟约21 MHz、采样时间480 cycles。PB0/通道8测电池，PC2/通道12读车型电位器；<code>Get_ADC1()</code>每次设置通道、启动转换并轮询EOC，代码已有超时计数。</p>
+          <div class="table-wrap">
+            <table class="dense">
+              <thead><tr><th>输入</th><th>公式/算法</th><th>结果用在哪里</th></tr></thead>
+              <tbody>
+                <tr><td>电池PB0/CH8</td><td><code>V=ADC×3.3×11/4096</code></td><td>show任务每100 ms采100次求均值，再过100点移动平均；低电和Turn_Off使用。</td></tr>
+                <tr><td>车型PC2/CH12</td><td><code>TypeNum=10次均值/(4096/CAR_NUMBER)</code></td><td>上电在<code>Robot_Select()</code>选择轮距、轮径、减速比、编码器和PI参数。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>电池低于20 V置<code>LowPower=1</code>，高于21 V才清除，已经形成1 V迟滞；18～20 V周期蜂鸣。非回充状态下<code>Turn_Off()</code>也用20 V作为停机门限。显示的电量百分比只是20～23.05 V线性映射，不是按电池化学曲线估算的真实SOC。</p>
+          <div class="danger"><strong>当前Diff车型选择有确定风险：</strong><code>CAR_NUMBER=9</code>，ADC可产生0～8；但<code>CarType/diff_robot_init.c:26–40</code>只处理case 0～5。若旋钮落在6～8，<code>Robot_Init()</code>不会执行，轮距/周长/编码器精度可能保持0，后续速度公式可能除0。修改前应增加合法case或在default中选择安全默认值并置错误标志。</div>
+          <h3>ADC2+DMA：只在AKM路径使用</h3>
+          <p>PC1/CH11读取滑轨位置，PC3/CH13读取舵机调节，ADC2连续扫描并由DMA2 Stream3 Channel1搬运160个halfword，即80组双通道样本。代码分别平均80个样本并减2048；滑轨值随后再过20点均值滤波。当前Diff_Car主链不消费这组数据。</p>
+        </div>
+      </details>
+
+      <details class="module">
+        <summary>16.5 航模遥控：四路PWM输入捕获到Vx/Vy/Vz</summary>
+        <div class="module-body">
+          <p>TIM1以1 MHz计数，因此1个计数约1 μs；ARR=9999形成10 ms回绕。四路分别是PE9/CH1、PE11/CH2、PE13/CH3、PE14/CH4，<code>TIM1_CC_IRQn</code>抢占优先级5。上升沿记录起点，下降沿计算1000～2000 μs附近的高电平宽度。</p>
+          <div class="formula">
+            <code>LX=ch2-1500</code>（前后），<code>LY=ch4-1500</code>（横移），<code>RX=ch3-1500</code>（油门），<code>RY=-(ch1-1500)</code>（旋转）；<br>
+            各轴先限1000～2000 μs并设±100死区；<br>
+            <code>Remote_RCvelocity=rc_speed+RX</code><br>
+            <code>Vx=LX×Remote_RCvelocity/500/1000</code> m/s<br>
+            <code>Vy=-LY×Remote_RCvelocity/500/1000</code> m/s<br>
+            <code>Vz=(π/4)×(RY/500)×(Remote_RCvelocity/500)</code> rad/s（Diff）。
+          </div>
+          <p>CH2大于1600、系统已过启动10 s、掉线计数仍有效且控制模式可用时，条件还要连续累计超过250次TIM1_CC中断才激活RC（这个250按中断进入次数计，不是固定毫秒）；进入RC后的前1 s输出被压为0。任一通道相对上次跳变超过500 μs时，前5次会被拒绝，第6次才接受。Balance任务每10 ms增加掉线计数，而CH3捕获会清零；约110 ms无有效CH3后四路回中/油门归低。</p>
+          <div class="warn">定时器回绕补偿代码使用+9999而不是+10000，会产生1 μs误差，影响很小但概念上应修正。中断里直接更新四个字段，Balance可能看到不属于同一遥控帧的通道组合；安全要求高时应在同步边界发布完整快照。</div>
+        </div>
+      </details>
+
+      <details class="module">
+        <summary>16.6 游戏手柄：V1.0经典PS2与V1.1/V1.2 USB Host</summary>
+        <div class="module-body">
+          <div class="two-col">
+            <div class="card">
+              <h4>V1.0经典PS2</h4>
+              <p>PE0=DI、PE1=DO、PE2=CS、PE3=CLK，使用GPIO软件同步协议而非硬件SPI。<code>PSTWO_task</code>优先级4、20 Hz读取9字节报告，再写统一的<code>GamePadInterface</code>。</p>
+              <p>START激活控制，L1/L2调整速度，摇杆以127为中心并设置死区。连续超过10个周期通信失败后才归中，约0.55 s内可能暂时保留上一条命令，属于需要重视的失联窗口。</p>
+            </div>
+            <div class="card">
+              <h4>V1.1/V1.2 USB手柄</h4>
+              <p>PA11/PA12为USB FS D−/D+。链路是<code>OTG_FS_IRQHandler</code> → 深度16事件队列 → USB Host任务 → HID/非标准HID报告解码 → <code>GamePadInterface</code>。</p>
+              <p>USB Host任务实际优先级24、栈1024 words，明显高于优先级4的Balance；正常阻塞时没问题，但若USB处理持续就绪，可能挤压100 Hz控制。无报告约0.5 s会清轴，拔出回调会立即恢复默认接口。</p>
+            </div>
+          </div>
+          <p>两条硬件路径最终都在<code>BALANCE/balance_task.c</code>的<code>PS2_control()</code>中统一转换为Vx/Vy/Vz，再进入同一个电机控制链。也就是说，换手柄协议应主要修改“报告→GamePadInterface”的适配层，不应复制一套新的运动学和PI。</p>
+          <div class="info">USB的<code>USBH_LL_DriverVBUS()</code>为空实现，程序默认板上硬件持续提供5 V VBUS。排查“USB设备不识别”时，必须测量接口5 V和D+/D−，不能只看软件枚举状态。</div>
+        </div>
+      </details>
+
+      <details class="module">
+        <summary>16.7 用户按键与PE4使能：它们如何影响系统</summary>
+        <div class="module-body">
+          <div class="table-wrap">
+            <table class="dense">
+              <thead><tr><th>输入</th><th>采样方式</th><th>动作</th><th>安全含义</th></tr></thead>
+              <tbody>
+                <tr><td>PC5用户键，低有效</td><td>Balance 100 Hz轮询并做按键状态机</td><td>单击切换自动回充；双击用当前IMU Original更新Deviation；长按切换OLED页面</td><td>不是中断，不会抢占控制；实际长按约&gt;500 ms，双击第二次间隔约50～300 ms。</td></tr>
+                <tr><td>PE4 EN，低有效</td><td>Balance每10 ms检查</td><td>低电平调用安全禁止路径，清PI并把PWM写0</td><td>这是软件急停输入，不是直接切断电机驱动电源；CPU卡死时不保证动作。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>PE4释放后，代码还会清Vx/Vy/Vz和平滑状态，避免恢复时突然沿用旧命令。真正的安全急停仍应有硬件级驱动使能/电源切断链路；调试器暂停CPU时，软件无法继续读取PE4。</p>
+        </div>
+      </details>
+    </section>
+    <section id="protocols-deep">
+      <h2>17. 通信帧与输出链：一个字节从接口到控制，再从状态回到上位机</h2>
+      <p class="lead">通信代码分成两种方向：<strong>输入命令</strong>改变<code>robot_control/charger</code>，由100 Hz Balance任务消费；<strong>状态输出</strong>由20 Hz DATA任务、10 Hz show任务读取共享状态并发送。中断优先级数字与FreeRTOS任务优先级不是同一套尺度，不能直接比较数字大小。</p>
+
+      <h3>17.1 全工程统一数据流</h3>
+      <div class="flow">
+        <div class="step"><strong>UART/CAN/RC/USB/PS2</strong><span>ISR或设备任务得到原始命令</span></div>
+        <div class="step"><strong>协议校验/映射</strong><span>帧头、长度、XOR、摇杆死区</span></div>
+        <div class="step"><strong>共享命令状态</strong><span>robot_control / charger / GamePadInterface</span></div>
+        <div class="step"><strong>Balance 100 Hz</strong><span>控制源仲裁与安全门</span></div>
+        <div class="step"><strong>电机闭环</strong><span>运动学→PI→TIM8</span></div>
+        <div class="step"><strong>共享反馈</strong><span>速度、IMU、电压、距离、回充状态</span></div>
+        <div class="step"><strong>DATA/show/RGB</strong><span>20 Hz串口/CAN、10 Hz OLED/APP、5 Hz灯效</span></div>
+      </div>
+
+      <details class="module" open>
+        <summary>17.2 USART1/USART3：11字节控制帧如何变成Vx/Vy/Vz</summary>
+        <div class="module-body">
+          <p>USART1使用PA9/PA10，USART3使用PB10/PB11，均为115200、8N1、RXNE逐字节中断。USART1中断抢占优先级4，USART3为0（工程中最高紧迫度）。启动前<code>CONTROL_DELAY=1000</code>个100 Hz周期，即约10 s，两个中断读到的数据都会直接丢弃。</p>
+          <p><span class="byte">0:7B</span><span class="byte">1:MODE</span><span class="byte">2:保留</span><span class="byte">3:VxH</span><span class="byte">4:VxL</span><span class="byte">5:VyH</span><span class="byte">6:VyL</span><span class="byte">7:VzH</span><span class="byte">8:VzL</span><span class="byte">9:XOR</span><span class="byte">10:7D</span></p>
+          <div class="formula">
+            <code>raw16=(int16_t)((high&lt;&lt;8)|low)</code><br>
+            <code>speed=raw16/1000.0f</code><br>
+            例如<code>Vx=0.300 m/s</code> → 整数300 → <code>0x012C</code> → 字节<code>01 2C</code>。负数按16位补码发送。
+          </div>
+          <div class="table-wrap">
+            <table class="dense">
+              <thead><tr><th>MODE</th><th>数据写到哪里</th><th>行为</th></tr></thead>
+              <tbody>
+                <tr><td><code>0x00</code></td><td><code>robot_control.Vx/Vy/Vz</code></td><td>USART1设_USART_Control，USART3设_ROS_Control；退出回充。</td></tr>
+                <tr><td><code>0x01/0x02</code></td><td><code>charger.Up_MoveX/Y/Z</code></td><td>开启回充导航，具体NavWalk判定因车型不同。</td></tr>
+                <tr><td><code>0x03</code></td><td><code>charger.Dock_MoveX/Y/Z</code></td><td>设置红外贴桩速度。</td></tr>
+                <tr><td><code>0xFF</code></td><td>IP确认相关状态</td><td>连续接收一致IP后更新显示/状态。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="danger"><strong>共享解析器竞态：</strong><code>UartxControll_Callback()</code>的<code>Count</code>、<code>Last_Uartx</code>和<code>Receive_Data.buffer</code>被USART1/3共用。USART3优先级0可在USART1优先级4解析中间抢占；两个接口同时发帧时会清计数或把字节交叉。正确修复是每个UART各有一个parser context，再在完整帧通过后原子发布命令，不能只增加volatile。</div>
+        </div>
+      </details>
+
+      <details class="module" open>
+        <summary>17.3 20 Hz基础状态帧：24字节每一段是什么</summary>
+        <div class="module-body">
+          <p><code>BALANCE/data_task.c</code>每50 ms调用<code>data_transition()</code>，再依次发送USART1、USART3和CAN。24字节基础帧布局如下：</p>
+          <div class="table-wrap">
+            <table class="dense">
+              <thead><tr><th>字节</th><th>字段</th><th>编码与单位</th></tr></thead>
+              <tbody>
+                <tr><td>0</td><td>帧头</td><td><code>0x7B</code></td></tr>
+                <tr><td>1</td><td><code>FlagStop</code></td><td>软件失控/停止标志</td></tr>
+                <tr><td>2–7</td><td>正运动学Vx/Vy/Vz</td><td>各为int16大端，<code>m/s×1000</code></td></tr>
+                <tr><td>8–13</td><td>加速度X/Y/Z</td><td>各为int16大端；已做ROS轴映射，仍是驱动原始尺度</td></tr>
+                <tr><td>14–19</td><td>角速度X/Y/Z</td><td>各为int16大端；已做ROS轴映射</td></tr>
+                <tr><td>20–21</td><td>电池电压</td><td><code>V×1000</code>，int16大端</td></tr>
+                <tr><td>22</td><td>BCC</td><td>字节0～21逐字节异或</td></tr>
+                <tr><td>23</td><td>帧尾</td><td><code>0x7D</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>USART1/3逐字节轮询发送该帧；CAN则按顺序拆成三个DLC=8帧，ID分别为<code>0x101/0x102/0x103</code>。接收端重组CAN时必须检查三个ID的新鲜度和顺序，不能把不同时刻的分片拼成一帧。</p>
+        </div>
+      </details>
+
+      <details class="module" open>
+        <summary>17.4 CAN1：物理引脚、ID、回调和当前风险</summary>
+        <div class="module-body">
+          <p>CAN1速率为1 Mbps、接收FIFO0中断优先级3，过滤器掩码为0，等于接受所有ID。V1.0用PA12/PA11；新板使用PD1/PD0。MCU引脚只是逻辑TX/RX，板上仍必须有CAN收发器、CANH/CANL、共地和合适终端电阻。</p>
+          <div class="table-wrap">
+            <table class="dense">
+              <thead><tr><th>ID</th><th>方向</th><th>载荷如何解释</th><th>最终消费者</th></tr></thead>
+              <tbody>
+                <tr><td><code>0x181</code></td><td>RX</td><td>三轴int16大端速度，mm/s</td><td>写<code>robot_control</code>，Balance消费</td></tr>
+                <tr><td><code>0x182</code></td><td>RX</td><td>贴桩速度、红外位、充电位、电流</td><td>写<code>charger</code>，回充状态机消费</td></tr>
+                <tr><td><code>0x21C</code></td><td>RX</td><td>S21C六路距离分包，首字节是包序号</td><td>写<code>s21c_board</code>，与本地GY53 A/B/C冲突</td></tr>
+                <tr><td><code>0x12345678</code></td><td>RX扩展</td><td>8字节和值为8的充电板发现响应</td><td>置<code>HardWare_charger</code></td></tr>
+                <tr><td><code>0x101–0x103</code></td><td>TX</td><td>24字节基础状态帧三分片</td><td>外部CAN主机</td></tr>
+                <tr><td><code>0x105</code></td><td>TX</td><td>8字节回充导航目标/refresh</td><td>自动回充板</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul>
+            <li><code>can_callback.c</code>对S21C包号/DLC缺少充分校验；异常DLC可能造成错误长度的<code>memcpy</code>。</li>
+            <li><code>HARDWARE/can.c:235–307</code>调用<code>CAN_Transmit()</code>却没有把返回邮箱号保存到<code>mbox</code>，且等待计数<code>i</code>未初始化，发送完成判断不可靠。应写成<code>mbox=CAN_Transmit(...); i=0;</code>并检查<code>CAN_TxStatus_NoMailBox</code>。</li>
+            <li>ISR一次更新<code>charger</code>或<code>s21c_board</code>多个字段，任务可能读到半新半旧状态。协议回调应写临时结构，校验完整后在短临界区交换快照。</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="module">
+        <summary>17.5 UART4 APP/调试口：字符协议为什么最容易引发随机故障</summary>
+        <div class="module-body">
+          <p>UART4使用PC10/PC11，中断优先级3。当前<code>VECT_TAB_OFFSET=0</code>时波特率9600；某无线Boot配置会改为230400，所以VTOR、Keil IROM地址、Bootloader和上位机波特率必须成套匹配。工程<code>printf</code>也重定向到这里。</p>
+          <p>接收中断直接完成：系统复位字符、APP方向键、<code>b/m</code>功能、<code>{...}</code>参数文本解析、<code>W</code>触发Flash保存、调试级别设置。show任务10 Hz再把状态文本回发APP。</p>
+          <div class="danger"><strong>这是当前最危险的内存入口之一：</strong><code>Receive[50]</code>在写入前没有限制i；“发送全部参数”分支的<code>float num</code>未初始化，<code>dataArray[9]</code>也没有字段数上限，并且<code>pow()</code>和文本解析全部在ISR内执行。畸形或过长串口数据可能越界、HardFault，表现为OLED突然不刷新或整机死机。应改成ISR只入环形缓冲，普通任务做带长度、超时、字段数和数值范围检查的解析。</div>
+        </div>
+      </details>
+
+      <details class="module">
+        <summary>17.6 USART2 / D50A：V1.2专用的13字节请求响应</summary>
+        <div class="module-body">
+          <p>USART2使用PD5/PD6、115200、RX中断优先级5。D50A任务约10 Hz：从深度8请求队列取命令，发送后等待约80 ms接收。代码没有控制DE/RE引脚，默认外部RS485电路自动收发切换。</p>
+          <pre><code>0..2  : AA AA AA
+3     : 设备地址
+4     : 功能码 D0/D1/D2/D3
+5..8  : 数据/参数
+9..12 : BB BB BB BB</code></pre>
+          <p>协议没有CRC，只能依赖固定头尾与长度，电机环境下抗误码能力有限。USART2 ISR负责逐字节组帧，业务请求走队列；修改协议时应加入CRC16、帧超时、地址与功能码白名单，并统计队列满和校验失败次数。</p>
+        </div>
+      </details>
+
+      <details class="module" open>
+        <summary>17.7 OLED：从OLED_GRAM到屏幕像素</summary>
+        <div class="module-body">
+          <p>OLED不是PB8/PB9的I²C设备。它使用无CS的四线GPIO串行：时钟SCLK、数据SDIN、数据/命令DC和复位RST。老板为PD7/PD6/PD4/PD5组合，新V1.2走PD7、PD4、PE0、PE1组合，准确顺序以<code>HARDWARE/Inc/oled.h</code>当前宏为准。</p>
+          <div class="trace">
+            <div class="trace-step"><b>① 业务写显存</b><code>OLED_ShowString/Number</code>只修改128×8页的<code>OLED_GRAM</code>。</div>
+            <div class="trace-step"><b>② 选择页面</b><code>OLED_ShowTask()</code>根据<code>oled.page</code>把车型、IMU、IP、GY53或诊断字段写入GRAM。</div>
+            <div class="trace-step"><b>③ 刷新</b>show任务10 Hz调用<code>OLED_Refresh_Gram()</code>，逐页设置地址并发送1024个数据字节。</div>
+            <div class="trace-step"><b>④ GPIO移位</b>每字节从MSB开始，用SCLK边沿把SDIN送入OLED；无ACK和读回。</div>
+            <div class="trace-step"><b>⑤ 像素点亮</b>OLED控制器内部显存驱动面板；STM32无法确认屏幕是否真正接收。</div>
+          </div>
+          <p>切页时代码先<code>OLED_Clear()</code>并立即整屏刷新，然后返回；下一个100 ms周期才绘制新页，所以会产生一次空白刷新。OLED黑屏排错应沿RST/DC/SCLK/SDIN逐层测量：若<code>oled_refresh_enter/exit</code>都增加而无SCLK，查引脚/初始化；有SCLK无显示，查供电、RST/DC极性、版本引脚；只显示但不更新，查show任务和HardFault诊断。</p>
+          <div class="info"><strong>页面4已经完整实现：</strong>不是“预留页面”。它直接显示三路GY53；页面5显示系统stage、任务创建掩码、heap、IMU ID、PWM IRQ/任务心跳、OLED刷新计数和错误位，是排查黑屏/任务停止的首选诊断页。</div>
+        </div>
+      </details>
+    </section>
+    <section id="motor-deep">
+      <h2>18. 电机闭环逐周期：100 Hz内每一步如何计算</h2>
+      <p class="lead"><strong>当前Diff_Car真正链接的是<code>BALANCE/balance_task.c</code>，不是旧的<code>BALANCE/control.c</code>。</strong><code>OBJ/Diff_Car.map</code>可验证符号来源。修改旧文件即使编译器没有报错，也不会改变当前固件行为。</p>
+
+      <h3>18.1 上电到允许正常控制的时间轴</h3>
+      <div class="timeline">
+        <div class="event"><strong>0～10 s：初始化/IMU偏置阶段</strong><span>外部USART1/3/UART4命令被丢弃；Balance仍以100 Hz运行并采编码器、按键和安全状态。</span></div>
+        <div class="event"><strong>约10～12 s：基础车型自检</strong><span><code>Drive_Motor(0.2,0,0)</code>低速前进，并累计编码器方向/响应；轮子会真的转，首次调试必须架空。</span></div>
+        <div class="event"><strong>约12～12.3 s：停止与自检收尾</strong><span>目标设为0，<code>check_end=1</code>。</span></div>
+        <div class="event"><strong>约12.3 s以后：正常命令仲裁</strong><span>回充优先；正常模式按APP→航模RC→PS2/USB→UART/CAN直接命令选择。</span></div>
+      </div>
+
+      <h3>18.2 一个10 ms周期的严格执行顺序</h3>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>顺序</th><th>函数/动作</th><th>输入</th><th>输出/副作用</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>vTaskDelayUntil()</code></td><td>上次唤醒tick</td><td>维持100 Hz；如果前一周期超时，后续执行会追赶而非自动降频。</td></tr>
+            <tr><td>2</td><td><code>Time_count++</code></td><td>任务周期</td><td>最多计到3000，即约30 s；用于10 s/12.3 s阶段门。</td></tr>
+            <tr><td>3</td><td><code>Get_Robot_FeedBack()</code></td><td>TIM2/3 CNT</td><td>清计数器并更新A/B轮m/s。</td></tr>
+            <tr><td>4</td><td><code>Charger_DevCheck()</code></td><td>CAN回充状态、RC计数</td><td>1 s回充离线检测，约110 ms RC失联归中。</td></tr>
+            <tr><td>5</td><td><code>UserKey_Scan()</code></td><td>PC5</td><td>回充、IMU重标定或OLED切页。</td></tr>
+            <tr><td>6</td><td><code>Robot_ParkingCheck()</code></td><td>IMU与残余输出</td><td>静止时逐渐清残余PI，减少噪声/功耗。</td></tr>
+            <tr><td>7</td><td>自检或命令源仲裁</td><td>charger、ControlMode、Vx/Vy/Vz</td><td>调用<code>Drive_Motor()</code>生成本周期各轮Target。</td></tr>
+            <tr><td>8</td><td><code>Turn_Off()</code></td><td>电池、PE4、自检、软件停机</td><td>得到<code>FlagStop</code>；这是输出前最后安全门。</td></tr>
+            <tr><td>9</td><td><code>ResponseControl()</code></td><td>Target和Encoder</td><td>两轮增量PI，按车型极性调用<code>Set_Pwm()</code>。</td></tr>
+            <tr><td>10</td><td>或<code>UnResponseControl()</code></td><td><code>FlagStop!=0</code></td><td>复位PI，TIM8 CCR写0。</td></tr>
+            <tr><td>11</td><td><code>FlashParam_Save()</code></td><td>APP保存标志</td><td>可能擦写Flash；这是当前实时性风险点。</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>18.3 命令仲裁不是“最后写入者永远生效”</h3>
+      <pre><code>如果 AllowRecharge == 1:
+    有红外 → 使用 charger.Red_MoveX/Y/Z
+    无红外且NavWalk → 使用 charger.Up_MoveX/Y/Z
+    否则 → 目标0
+否则:
+    APP模式 → Get_APPcmd()
+    否则RC模式 → Remote_Control()
+    否则PS2模式 → PS2_control()（经典或USB最终都走这里）
+    否则 → 直接使用 robot_control.Vx/Vy/Vz（UART/CAN写入）</code></pre>
+      <p><code>SecurityLevel=0</code>时，串口/CAN命令约1 s没有刷新会把Vx/Vy/Vz清0；PS2、APP和航模各自还有独立失联逻辑。任何新增控制源都必须定义：如何进入模式、多久算失联、退出时清哪些状态、与回充/急停谁优先。</p>
+
+      <h3>18.4 <code>Drive_Motor()</code>的三层整形</h3>
+      <div class="trace">
+        <div class="trace-step"><b>① 输入限幅</b>Vx/Vy/Vz分别限制到<code>±limt_max_speed</code>。<small>Diff默认3.5；这同一数值也限制rad/s，量纲设计并不理想。</small></div>
+        <div class="trace-step"><b>② 斜坡平滑</b>每10 ms最多变化<code>smooth_MotorStep=0.02</code>。<small>相当于约2 m/s²的线速度斜率；回充绕过平滑。</small></div>
+        <div class="trace-step"><b>③ 逆运动学</b>车体Vx/Vz转换为左右轮目标速度。</div>
+        <div class="trace-step"><b>④ 轮速再限幅</b>每个Target再限制到最大速度。</div>
+        <div class="trace-step"><b>⑤ 直线纠偏</b><code>LineDiffParam</code>以50为中点，对一侧乘1.0～约1.2。</div>
+      </div>
+      <div class="formula">
+        差速逆运动学：<br>
+        <code>LeftTarget = Vx − Vz × WheelSpacing / 2</code><br>
+        <code>RightTarget = Vx + Vz × WheelSpacing / 2</code><br><br>
+        反向正运动学：<br>
+        <code>Vx = (LeftEncoder + RightEncoder) / 2</code><br>
+        <code>Vz = (RightEncoder − LeftEncoder) / WheelSpacing</code>
+      </div>
+      <p><strong>例：</strong>轮距0.329 m，命令Vx=0.500 m/s、Vz=0.400 rad/s，则左轮目标<code>0.500−0.400×0.329/2=0.4342 m/s</code>，右轮目标<code>0.5658 m/s</code>。如果刚从0启动，平滑器不会第一周期跳到这两个值；Vx首先到0.02、Vz到0.02，再逐周期逼近。</p>
+      <p>直线纠偏函数当前已经有兜底<code>return 1.0f</code>：参数&gt;50只增强左侧，参数&lt;50只增强右侧，50两侧均为1。APP写参数时仍应限制0～100，避免超范围产生过大系数。</p>
+
+      <h3>18.5 增量PI不是“位置式PID”</h3>
+      <div class="formula">
+        <code>e[k] = target[k] − encoder[k]</code><br>
+        <code>u[k] = u[k−1] + Kp × (e[k]−e[k−1]) + Ki × e[k]</code><br>
+        <code>u[k]</code>最终限制在<code>−16800…+16800</code>。
+      </div>
+      <p>只有P和I，没有D项。Kp作用于误差变化，Ki对当前误差持续累加；当车轮被卡住时输出会累积到饱和。失能时<code>PI_Controller_Reset()</code>清Bias、LastBias和Output，防止恢复瞬间带着旧积分。</p>
+      <p><strong>数值例：</strong>假设上一输出1200、上一误差0.020，本次左轮目标0.4342、反馈0.4000，Kp=Ki=300：<code>e=0.0342</code>，增量为<code>300×(0.0342−0.020)+300×0.0342=14.52</code>，新输出约1214.52。代码返回int，实际写PWM时发生整数化。</p>
+      <div class="warn"><strong>Ki隐含100 Hz采样周期：</strong>公式中没有显式<code>dt</code>，所以这里的Ki是“每次采样的离散增益”。如果把Balance从100 Hz改成200 Hz却不重调Ki，单位时间内积分作用大约翻倍。改任务频率必须同时重算编码器速度中的100和PI参数。</div>
+
+      <h3>18.6 PI输出如何变成H桥方向和10 kHz PWM</h3>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>电机</th><th>PWM脚/通道</th><th>方向脚</th><th>Diff用途</th></tr></thead>
+          <tbody>
+            <tr><td>A</td><td>PC9 / TIM8_CH4 / CCR4</td><td>PB13、PB12</td><td>左轮</td></tr>
+            <tr><td>B</td><td>PC8 / TIM8_CH3 / CCR3</td><td>新板PC0、PE15；老版使用V1.0宏</td><td>右轮</td></tr>
+            <tr><td>C</td><td>PC7 / TIM8_CH2 / CCR2</td><td>PD10、PD12</td><td>其他车型</td></tr>
+            <tr><td>D</td><td>PC6 / TIM8_CH1 / CCR1</td><td>PC12、PA8</td><td>其他车型</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="formula">
+        <code>TIM8_clock = 168 MHz</code><br>
+        <code>PSC=0，ARR=16799</code><br>
+        <code>fPWM=168,000,000/((0+1)×(16799+1))=10,000 Hz</code><br>
+        <code>duty≈CCR/(ARR+1)</code>
+      </div>
+      <p><code>ResponseControl()</code>根据电机型号决定是否先把PI输出取反；<code>Set_Pwm()</code>再用符号设置H桥方向GPIO，把绝对值写CCR。TIM8硬件之后自主重复输出PWM，没有“每个PWM周期的电机中断”。诊断变量名中的PWM IRQ指GY53捕获中断，不是TIM8电机PWM中断。</p>
+      <div class="warn"><strong>输出边界：</strong><code>FULL_DUTYCYCLE=16800</code>而ARR=16799，最大值等于ARR+1，目的是表达约100%占空，但定义容易混淆；建议明确使用<code>PWM_PERIOD_COUNTS=16800</code>与<code>PWM_CCR_MAX=16799</code>，或在驱动层统一饱和策略。方向反转时当前代码先改方向脚再写CCR，没有死区；大功率驱动建议先CCR=0，等待1～2个PWM周期，再翻方向并恢复占空。</div>
+
+      <h3>18.7 安全门与调试变量</h3>
+      <p><code>Turn_Off()</code>任一条件成立就禁止输出：电池&lt;20 V且不在回充、PE4 EN为0、自检错误、<code>SoftWare_Stop=1</code>。恢复使能时还会清原始与平滑三轴命令。HardFault致命路径会进一步关闭TIM8 MOE、CCER、CCR和计数器，比普通任务失能更彻底。</p>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>阶段</th><th>Keil Watch</th><th>你要确认的关系</th></tr></thead>
+          <tbody>
+            <tr><td>输入</td><td><code>robot_control.Vx/Vz</code></td><td>外部命令单位已是m/s、rad/s。</td></tr>
+            <tr><td>平滑</td><td><code>smooth_Vx/smooth_Vz</code></td><td>每周期差值不超过0.02（非回充）。</td></tr>
+            <tr><td>运动学</td><td><code>MOTOR_A/B.Target</code></td><td>符合左右轮公式和轮距。</td></tr>
+            <tr><td>反馈</td><td><code>MOTOR_A/B.Encoder</code></td><td>架空同向前进时二者都应为正。</td></tr>
+            <tr><td>PI</td><td><code>PI_MotorA/B.Bias/LastBias/Output</code></td><td>误差减小时输出增量应相应变化，无异常饱和。</td></tr>
+            <tr><td>硬件</td><td><code>TIM8-&gt;CCR4/CCR3</code>、方向GPIO ODR</td><td>CCR等于Output绝对值，方向脚与符号匹配。</td></tr>
+            <tr><td>安全</td><td><code>FlagStop</code>、<code>EN</code>、<code>robot.voltage</code>、<code>errorflag</code></td><td>任何禁止条件出现后下个控制周期CCR应归0。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="danger"><strong>Keil暂停不等于电机停止。</strong>当前调试冻结寄存器没有冻结TIM8；CPU停在断点时，TIM8仍保持最后CCR持续输出。调试前把车轮架空，先让命令为0并确认CCR=0，再停核。不要在非零PWM的PI/Set_Pwm处长时间断住。</div>
+    </section>
+    <section id="services-deep">
+      <h2>19. 回充、灯光、蜂鸣器、Flash与故障诊断</h2>
+      <p class="lead">这些功能看似在控制主链之外，却可能改变命令来源、占用高优先级任务、长时间关中断或让你误判故障。修改前要知道它们何时运行、读写谁以及失败时会影响什么。</p>
+
+      <details class="module" open>
+        <summary>19.1 自动回充：CAN握手、导航命令和红外贴桩</summary>
+        <div class="module-body">
+          <div class="trace">
+            <div class="trace-step"><b>① 发现设备</b>发送扩展ID<code>0x12345678</code>，数据<code>01×8</code>。<small>充电板回同ID/特征后置在线。</small></div>
+            <div class="trace-step"><b>② 下发贴桩参数</b>20 Hz以标准ID<code>0x105</code>发Dock X/Y/Z和红外刷新时间。<small>速度×1000，大端。</small></div>
+            <div class="trace-step"><b>③ 充电板回0x182</b>解析X/Z速度、四路红外、充电位和电流。<small>CAN RX ISR写<code>charger</code>。</small></div>
+            <div class="trace-step"><b>④ Balance仲裁</b>有红外用<code>Red_Move</code>；无红外且NavWalk用上位机<code>Up_Move</code>。<small>回充优先于普通控制。</small></div>
+            <div class="trace-step"><b>⑤ 失联看门狗</b>在线后约1 s没收到状态就<code>auto_recharge_reset()</code>。<small>重新发现硬件。</small></div>
+          </div>
+          <div class="table-wrap">
+            <table class="dense">
+              <thead><tr><th>0x182载荷</th><th>含义</th><th>处理</th></tr></thead>
+              <tbody>
+                <tr><td>byte0–1</td><td>贴桩X速度int16大端</td><td>除1000得到m/s</td></tr>
+                <tr><td>byte2–3</td><td>预留/当前Y未使用</td><td>代码把Y强制设0</td></tr>
+                <tr><td>byte4–5</td><td>贴桩Z速度int16大端</td><td>除1000得到rad/s语义</td></tr>
+                <tr><td>byte6 bit0</td><td>正在充电</td><td>充电时清贴桩运动</td></tr>
+                <tr><td>byte6 bit5/4/3/2</td><td>LA/LB/RB/RA四路红外</td><td>求和得到<code>RED_STATE</code></td></tr>
+                <tr><td>byte7</td><td>有符号电流档位</td><td>乘30得到<code>ChargingCurrent</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>默认贴桩速度为X=−0.1 m/s、Z=0.2；无红外或已经充电时，代码把Red_Move三轴清0。Diff车型5只根据后方<code>rangerE/F&lt;0.5 m</code>把贴桩X减半；当前本地GY53写的是A/B/C，所以不会触发这条回充减速。</p>
+          <div class="warn"><strong>两个边界问题：</strong>byte7用<code>&gt;128</code>判断负数，恰好0x80会被解释错误，应直接用<code>(int8_t)byte7×30</code>；回充模式绕过<code>Drive_Motor</code>平滑，速度更新可能突变。CAN ISR对charger多字段逐项写，建议双缓冲后一次发布。</div>
+        </div>
+      </details>
+
+      <details class="module" open>
+        <summary>19.2 普通LED与RGB灯带：状态优先级和效果算法</summary>
+        <div class="module-body">
+          <p>普通车型使用低有效三色GPIO（PD14/PD13/PD15），按<code>SysVal.LED_delay</code>闪烁：进入回充黄、充电紫、退出回充回默认红。Diff车型5和Mec车型9会删除普通LED任务，创建优先级2、栈256 words的<code>RGBControl_task</code>。</p>
+          <p>新板RGB硬件是三路PWM：红PB15/TIM12_CH2、绿PE6/TIM9_CH2、蓝PB14/TIM12_CH1。定时器实际约100 Hz，0～255亮度线性映射到CCR 0～10000。<code>bsp_RGBLight.c</code>还实现了线性渐变、HSV彩虹、<code>sin()</code>呼吸、闪烁和错误码效果。</p>
+          <div class="formula">
+            RGB状态机每秒5次判定，优先级从高到低：<br>
+            <code>回充/充电 &gt; 低电 &gt; 任一A～F距离&lt;0.5 m &gt; 用户自定义 &gt; 熄灭</code>
+          </div>
+          <p>GY53在线时A/B/C距离可触发黄色警示，但状态机不检查每路online/新鲜度；GY53掉线后保留的旧近距离可能继续报警。进入控制用途前，应使用同一套“在线+时间戳+迟滞”规则，灯光与电机共享经过验证的障碍物状态，而不是各自比较裸距离。</p>
+          <div class="danger"><strong>RGB任务删除死锁风险：</strong><code>RGB_StopEffect()</code>可能直接<code>vTaskDelete()</code>一个正在持有<code>rgb_mutex</code>的效果任务，互斥量将永远不释放。正确模式是发送停止通知，由效果任务自行释放mutex并退出，再由管理者等待句柄清空。另外<code>ChargingCurrent</code>在协议中按mA量级计算，却与<code>0.65f</code>比较，单位明显不一致，应统一成&lt;650 mA或先换算为A。</div>
+          <div class="warn">TIM9还被AKM高级舵机CH1复用时基；修改绿色RGB的TIM9频率会同时改变舵机PWM。改定时器前必须查完整引脚/定时器复用表。</div>
+        </div>
+      </details>
+
+      <details class="module">
+        <summary>19.3 蜂鸣器：它是开关节拍，不是音频PWM</summary>
+        <div class="module-body">
+          <p>PD11推挽输出，高电平响、低电平停，要求板上是有源蜂鸣器。没有定时器音调，也不能靠当前接口改变频率。各任务调用<code>Buzzer_AddTask(num,times)</code>向长度10的二维环形数组加入“响几次、每段times×10 ms”。</p>
+          <div class="trace">
+            <div class="trace-step"><b>生产者</b>自检、低电、Flash保存等调用<code>Buzzer_AddTask</code>。</div>
+            <div class="trace-step"><b>软件队列</b>保存最多10组<code>{num,times}</code>。<small>满时返回0。</small></div>
+            <div class="trace-step"><b>show任务驱动</b><code>Buzzer_task(SHOW_TASK_RATE)</code>在10 Hz被调用。<small>实际时间分辨率是100 ms。</small></div>
+            <div class="trace-step"><b>状态机</b>先响real_times，再停real_times，重复num次。<small>不同任务之间固定停约0.5 s。</small></div>
+          </div>
+          <p>例如<code>Buzzer_AddTask(1,50)</code>请求响500 ms、停500 ms；由于100 ms调度粒度可以实现。若times=5请求50 ms，小于100 ms最小粒度，代码会拒绝执行。</p>
+          <div class="warn">这个“队列”不是FreeRTOS Queue，多任务同时写head/tail/length没有互斥，存在竞态；建议换成<code>xQueueSend</code>，并增加队列满计数。若要播放不同音高，应另用定时器PWM驱动无源蜂鸣器，不能只缩短show任务周期。</div>
+        </div>
+      </details>
+
+      <details class="module" open>
+        <summary>19.4 内部Flash参数：保存的7个word和实时性风险</summary>
+        <div class="module-body">
+          <p>保存区固定为<code>0x08060000</code>，即STM32F407 512 KiB Flash的Sector 7起点，扇区大小128 KiB。UART4参数命令<code>W</code>置<code>ParamSaveFlag</code>，Balance任务在每个控制周期末检查并执行保存。</p>
+          <div class="table-wrap">
+            <table class="dense">
+              <thead><tr><th>word索引</th><th>保存内容</th><th>读取后的处理</th></tr></thead>
+              <tbody>
+                <tr><td>0</td><td><code>Akm_Servo.Min</code></td><td>不是0xFFFFFFFF则采用</td></tr>
+                <tr><td>1</td><td><code>Akm_Servo.Mid</code></td><td>同上</td></tr>
+                <tr><td>2</td><td><code>Akm_Servo.Max</code></td><td>同上</td></tr>
+                <tr><td>3</td><td><code>LineDiffParam</code></td><td>当前缺少0～100范围校验</td></tr>
+                <tr><td>4</td><td><code>rc_speed</code>的32位浮点位模式</td><td>读回后若&lt;0或&gt;10000，恢复500</td></tr>
+                <tr><td>5</td><td>速度PI Kp</td><td>调用<code>Set_Robot_PI_Param</code></td></tr>
+                <tr><td>6</td><td>速度PI Ki</td><td>同上</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>当前每次保存先进入FreeRTOS临界区，再擦整个Sector 7并写7个word。Flash擦除可能远大于10 ms；临界区内中断停止，而TIM8仍保持最后PWM，车辆可能在控制空窗里继续输出旧动力。</p>
+          <div class="danger"><strong>保存设计缺少事务保护：</strong>没有magic、版本、长度、CRC、序号、读回验证、双槽或磨损均衡。擦除中掉电会丢全部参数。建议记录格式为<code>{magic,version,length,seq,payload,crc32}</code>，使用两个槽位，启动选择CRC有效且seq最新的一份；只在PE4失能、CCR=0、车辆静止时，由低优先级专用任务写入。</div>
+        </div>
+      </details>
+
+      <details class="module" open>
+        <summary>19.5 诊断与Fault：如何从“黑屏”追到真正故障点</summary>
+        <div class="module-body">
+          <p><code>USER/system.h</code>的<code>g_system_diag</code>记录启动stage、错误位、任务创建mask、剩余heap、IMU ID、GY53捕获标志/IRQ/心跳、OLED刷新进入/退出、UART超时和Fault寄存器。OLED第5页只显示其中最关键的紧凑字段，完整信息应在Keil Watch查看。</p>
+          <div class="table-wrap">
+            <table class="dense">
+              <thead><tr><th>现象</th><th>先看诊断量</th><th>判断</th></tr></thead>
+              <tbody>
+                <tr><td>OLED从上电起一直不亮</td><td><code>stage</code>、IMU ID、任务mask</td><td>判断卡在板级初始化、IMU识别还是任务创建前。</td></tr>
+                <tr><td>先亮后冻结</td><td><code>show_task_heartbeat</code>、<code>oled_refresh_enter/exit</code></td><td>heartbeat停是任务/调度问题；enter增而exit不增是OLED刷新路径卡住。</td></tr>
+                <tr><td>GY53 P/N不变</td><td><code>pwm_irq_count</code>、<code>pwm_task_heartbeat</code></td><td>IRQ不增查信号/EXTI；任务不增查创建/调度；二者增再看invalid。</td></tr>
+                <tr><td>串口一来屏就黑</td><td><code>fault_type</code>、<code>CFSR/HFSR/BFAR</code></td><td>优先怀疑UART4越界/非法地址，不要先换OLED。</td></tr>
+                <tr><td>整机无响应且PWM仍有</td><td>调试器是否暂停、Fault断点</td><td>普通断点会冻结CPU但不冻结TIM8；致命Fault路径才主动关TIM8。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>NMI/HardFault/MemManage/BusFault/UsageFault分别传入fault_type 5/1/2/3/4；<code>SystemDiag_CaptureFault()</code>保存SCB的<code>CFSR、HFSR、MMFAR、BFAR</code>等，再走致命停止：关中断、关闭TIM8 MOE/CCER/CCR/CEN、拉低电机方向脚，有调试器时触发BKPT。</p>
+          <div class="warn"><strong>诊断不是掉电日志：</strong><code>g_system_diag</code>当前位于普通BSS，复位启动代码会清零。若Fault后按复位再连接调试器，现场已经丢失。要抓偶发故障，应把最小fault record放到no-init/备份SRAM并带magic+CRC，或在安全可行时写独立Flash日志；仍需避免Fault状态下复杂Flash操作再次失败。</div>
+        </div>
+      </details>
+    </section>
+    <section id="change-recipes">
+      <h2>20. 算法总表、修改配方与源码索引</h2>
+      <p class="lead">以后遇到任何需求，先在“算法总表”判断它属于采集、解释、状态、控制还是输出，再按修改配方沿上下游一起改。只改最后一个显示语句或只改某个宏，往往会留下单位、超时或数据所有权问题。</p>
+
+      <h3>20.1 当前工程实际包含的算法</h3>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>算法/机制</th><th>输入</th><th>核心运算</th><th>输出</th><th>源文件</th></tr></thead>
+          <tbody>
+            <tr><td>GY53 PWM解码</td><td>双边沿+DWT周期</td><td>周期差/168→μs；范围门；μs/10</td><td>mm、online、计数</td><td><code>HARDWARE/gy53_pwm.c</code></td></tr>
+            <tr><td>GY53在线看门狗</td><td>updated、RTOS tick</td><td>10 Hz消费；500 ms阈值</td><td>online、HardWare_Ranger</td><td>同上</td></tr>
+            <tr><td>IMU零偏</td><td>原始加速度/角速度</td><td>Original−Deviation；Z加速度+16384</td><td><code>imu.accel/gyro</code></td><td><code>imu_task.c</code>、MPU/ICM驱动</td></tr>
+            <tr><td>ICM移动平均</td><td>逐轴原始样本</td><td>8点累加后右移3</td><td>平滑轴值</td><td><code>HARDWARE/ICM20948/ICM20948.c</code></td></tr>
+            <tr><td>正交编码</td><td>A/B相</td><td>TIM硬件×4计数与方向判断</td><td>10 ms signed count</td><td><code>HARDWARE/encoder.c</code></td></tr>
+            <tr><td>轮速换算</td><td>count、轮径、线数、减速比</td><td><code>count×100/precision×πD</code></td><td>m/s反馈</td><td><code>balance_task.c:Get_Robot_FeedBack</code></td></tr>
+            <tr><td>命令失联</td><td>帧/报告刷新</td><td>不同来源独立计数与归零</td><td>安全的Vx/Vy/Vz</td><td>UART/CAN/PS2/USB/Balance</td></tr>
+            <tr><td>遥控离群抑制</td><td>本次与上次PWM</td><td>跳变&gt;500 μs前5次拒绝</td><td>四通道脉宽</td><td><code>BALANCE/timx_callback.c</code></td></tr>
+            <tr><td>摇杆死区/缩放</td><td>1000～2000 μs或0～255轴值</td><td>中心化、死区、油门比例</td><td>Vx/Vy/Vz</td><td><code>balance_task.c</code></td></tr>
+            <tr><td>速度斜坡</td><td>目标与当前smooth</td><td>每周期最多±0.02</td><td>平滑三轴命令</td><td><code>Drive_Motor()</code></td></tr>
+            <tr><td>差速逆/正运动学</td><td>车体速度↔左右轮速</td><td>基于轮距的线性组合</td><td>Target或里程速度</td><td><code>balance_task.c</code>、<code>data_task.c</code></td></tr>
+            <tr><td>直线纠偏</td><td>LineDiffParam 0～100</td><td>一侧乘<code>1+0.004×偏差</code></td><td>校正轮目标/反馈</td><td><code>wheelCoefficient()</code></td></tr>
+            <tr><td>增量PI</td><td>Target、Encoder、上一误差/输出</td><td><code>u+=KpΔe+Ki·e</code></td><td>−16800～16800</td><td><code>Incremental_MOTOR()</code></td></tr>
+            <tr><td>电池滤波</td><td>ADC1</td><td>每轮100次均值+跨100轮移动平均</td><td>电压、低电状态</td><td><code>show_task.c</code></td></tr>
+            <tr><td>低电迟滞</td><td>电压</td><td>&lt;20置位，&gt;21清除</td><td><code>LowPower</code></td><td>同上</td></tr>
+            <tr><td>按键状态机</td><td>PC5周期采样</td><td>单击/双击/长按时序</td><td>回充、IMU校准、页面</td><td><code>key.c</code>、<code>UserKey_Scan()</code></td></tr>
+            <tr><td>停车残余清除</td><td>IMU、速度、PI残余</td><td>静止经验门限+逐步清输出</td><td>更安静的驻车</td><td><code>Robot_ParkingCheck()</code></td></tr>
+            <tr><td>BCC校验</td><td>帧字节</td><td>逐字节XOR</td><td>控制/状态帧有效性</td><td><code>uartx_callback.c</code>、<code>data_task.c</code></td></tr>
+            <tr><td>RGB效果</td><td>颜色、时间、状态</td><td>线性插值、HSV转换、sin呼吸、闪烁</td><td>三路PWM亮度</td><td><code>bsp_RGBLight.c</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="info"><strong>工程中没有的核心算法：</strong>GY53统计滤波/融合/避障，IMU姿态融合，电机D项与前馈，编码器里程积分，路径规划和定位。这些不能因为存在imu、ranger或Vx变量就推定“已经实现”。</div>
+
+      <h3>20.2 修改GY53时，按需求改哪些地方</h3>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>需求</th><th>必须修改</th><th>还要同步检查</th><th>验证方法</th></tr></thead>
+          <tbody>
+            <tr><td>换PE5/7/8引脚</td><td><code>HARDWARE/Inc/gy53_pwm.h</code>的PORT/PIN/EXTI/PIN_SOURCE；<code>GY53_PWM_Init()</code>中GPIO时钟与组合初始化</td><td>新引脚是否同一EXTI号冲突、是否被AF占用、IRQ Handler是否变化</td><td>看GPIO IDR、EXTI pending和edge_count</td></tr>
+            <tr><td>修改距离比例</td><td><code>GY53_PWM_HandleEdge():70</code></td><td>脉宽合法区间、单位、OLED宽度、串口int16范围</td><td>用信号发生器输入已知10,000 μs，核对计算</td></tr>
+            <tr><td>做零点/比例标定</td><td>在有效脉宽换算处使用<code>(pulse_us-offset)/scale</code></td><td>负值饱和、标定参数保存、不同三路是否各自参数</td><td>至少用近/中/远三点拟合并记录误差</td></tr>
+            <tr><td>增加滤波</td><td>在<code>GY53_PWM_task</code>或独立传感器任务维护每路历史</td><td>不可在EXTI ISR排序/浮点；定义延迟、跳点和掉线策略</td><td>记录原始P、滤波前mm、滤波后mm三组波形</td></tr>
+            <tr><td>改在线超时/频率</td><td><code>gy53_pwm.h</code>的TASK_RATE/TIMEOUT</td><td>任务周期造成的额外0.1 s量化；stack/CPU</td><td>拔信号后测ON→OFF真实时间</td></tr>
+            <tr><td>增加OLED字段</td><td><code>BALANCE/show_task.c</code>页面4</td><td>128×64坐标不能重叠；页面刷新仍应在10 Hz任务</td><td>逐页切换并看refresh enter/exit</td></tr>
+            <tr><td>增加串口字段</td><td><code>BALANCE/data_task.c</code>及上位机解析器</td><td>帧长、XOR范围、字节序、版本兼容</td><td>抓取十六进制原始流，手工验一帧</td></tr>
+            <tr><td>通过CAN发送距离</td><td>为距离定义新的CAN ID/分包函数</td><td>不要悄悄改变0x101～103；定义六路来源和新鲜度</td><td>CAN分析仪检查ID、DLC、周期和丢帧</td></tr>
+            <tr><td>加入自动避障</td><td>Balance命令仲裁后、<code>Drive_Motor()</code>前增加安全命令层</td><td>online、时间戳、中值、迟滞、回充/自检/人工优先级</td><td>先断开电机只看safe命令，再架空，再低速地测</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>20.3 其他常见修改配方</h3>
+      <details class="module">
+        <summary>换IMU或修改IMU采样率</summary>
+        <div class="module-body">
+          <ol>
+            <li>在<code>system.c</code>增加可靠的ID探测与初始化失败分支，不能把未知设备继续当正常。</li>
+            <li>驱动层使用burst读取一个完整样本；返回错误码，不要吞ACK失败。</li>
+            <li>明确原始量程和单位换算常量，写入统一<code>imu</code>快照。</li>
+            <li>若改<code>IMU_TASK_RATE</code>，同步检查设备内部ODR/DLPF、滤波窗口的实际毫秒数、停车/振动阈值。</li>
+            <li>静止标定至少取N点均值并检查方差；标定时检测车辆是否确实静止。</li>
+          </ol>
+        </div>
+      </details>
+      <details class="module">
+        <summary>换轮径、减速比或编码器</summary>
+        <div class="module-body">
+          <ol>
+            <li>确认Keil Target为Diff，并修改<code>CarType/Inc/robot_init.h</code>相关常量和<code>CarType/diff_robot_init.c</code>的对应case。</li>
+            <li>复算<code>πD</code>和<code>4×线数×减速比</code>；用手转一圈检查TIM计数绝对值。</li>
+            <li>架空低速前进，确认A/B换算后都为正；不对时优先修编码器符号/接线，不要用PI硬顶。</li>
+            <li>换机械参数后重新整定Kp/Ki和最大速度，自检阈值也要复核。</li>
+          </ol>
+        </div>
+      </details>
+      <details class="module">
+        <summary>改电机PWM频率、通道或方向</summary>
+        <div class="module-body">
+          <ol>
+            <li>在<code>USER/system.c</code>的<code>MiniBalance_PWM_Init(arr,psc)</code>按TIM8=168 MHz复算频率。</li>
+            <li>同步修改<code>HARDWARE/Inc/motor.h</code>通道/引脚宏和<code>FULL_DUTYCYCLE</code>饱和值。</li>
+            <li>查新通道是否为高级定时器、是否需要MOE、是否与RGB/舵机/编码器复用冲突。</li>
+            <li>方向极性只在<code>Set_Pwm()</code>按电机驱动器真值表修改；加入先零PWM再换向的死区。</li>
+            <li>示波器先测空载PWM频率/占空，最后才接驱动和电机。</li>
+          </ol>
+        </div>
+      </details>
+      <details class="module">
+        <summary>改UART/CAN协议</summary>
+        <div class="module-body">
+          <ol>
+            <li>先写协议表：帧头、版本、长度、消息类型、单位、符号、字节序、CRC、超时。</li>
+            <li>ISR只把字节/帧放队列；解析任务用独立上下文，完成校验后发布结构快照。</li>
+            <li>旧协议若要兼容，使用版本字段或新ID，不要用数据长度猜格式。</li>
+            <li>发送函数检查队列/邮箱返回值并累计drop/error；接收必须先检查DLC/长度再索引。</li>
+            <li>用抓包工具保存一组“正常、截断、错CRC、超长、交错、掉线”测试向量。</li>
+          </ol>
+        </div>
+      </details>
+      <details class="module">
+        <summary>增加一个新FreeRTOS任务</summary>
+        <div class="module-body">
+          <ol>
+            <li>能放入现有周期任务就不要新建；若必须新建，先定义触发频率、最大执行时间和数据所有者。</li>
+            <li>栈参数单位是word，乘4才是字节；使用<code>CreateTaskChecked</code>并增加诊断mask。</li>
+            <li>优先级必须与阻塞行为一起分析；高优先级任务如果不阻塞，会饿死Balance。</li>
+            <li>使用<code>vTaskDelayUntil</code>维持周期，记录heartbeat和stack high-water mark。</li>
+            <li>跨ISR/任务数据用Queue、通知、临界区或双缓冲，不把“加volatile”当作完整同步。</li>
+          </ol>
+        </div>
+      </details>
+
+      <h3>20.4 关键源码入口：按“我想知道什么”打开文件</h3>
+      <div class="table-wrap">
+        <table class="dense">
+          <thead><tr><th>你要追的问题</th><th>先打开</th><th>然后打开</th></tr></thead>
+          <tbody>
+            <tr><td>复位后先执行什么</td><td><code>USER/startup_stm32f40_41xxx.s</code></td><td><code>system_stm32f4xx.c</code> → <code>main.c</code></td></tr>
+            <tr><td>外设初始化顺序</td><td><code>USER/system.c:systemInit()</code></td><td>对应<code>HARDWARE/*.c</code></td></tr>
+            <tr><td>当前哪些.c真的参与链接</td><td><code>OBJ/Diff_Car.map</code></td><td>Keil Manage Project Items / Options for File</td></tr>
+            <tr><td>时钟树</td><td><code>USER/system_stm32f4xx.c</code></td><td><code>RCC_ClocksTypeDef</code>与各外设初始化公式</td></tr>
+            <tr><td>引脚定义</td><td><code>HARDWARE/Inc/*.h</code></td><td>具体驱动初始化、硬件版本分支</td></tr>
+            <tr><td>中断真正做什么</td><td><code>USER/stm32f4xx_it.c</code></td><td><code>BALANCE/*_callback.c</code>和驱动Handler</td></tr>
+            <tr><td>任务创建和优先级</td><td><code>USER/main.c</code></td><td>各<code>BALANCE/Inc/*_task.h</code>、USB Host中间件</td></tr>
+            <tr><td>GY53</td><td><code>HARDWARE/Inc/gy53_pwm.h</code></td><td><code>gy53_pwm.c</code> → <code>show_task.c</code>/<code>data_task.c</code></td></tr>
+            <tr><td>IMU</td><td><code>BALANCE/imu_task.c</code></td><td><code>HARDWARE/MPU6050</code>或<code>ICM20948</code> → <code>I2C.c</code></td></tr>
+            <tr><td>电机为什么这样转</td><td><code>BALANCE/balance_task.c</code></td><td><code>CarType/diff_robot_init.c</code> → <code>encoder.c</code>/<code>motor.c</code></td></tr>
+            <tr><td>上位机收发</td><td><code>BALANCE/uartx_callback.c</code></td><td><code>data_task.c</code> → <code>HARDWARE/uartx.c</code></td></tr>
+            <tr><td>CAN/回充</td><td><code>BALANCE/can_callback.c</code></td><td><code>HARDWARE/can.c</code>、<code>auto_recharge.c</code></td></tr>
+            <tr><td>OLED为何黑屏</td><td><code>BALANCE/show_task.c</code></td><td><code>HARDWARE/oled.c</code>、<code>oled.h</code>、诊断结构</td></tr>
+            <tr><td>参数为何掉电保留/丢失</td><td><code>balance_task.c:FlashParam_Save/Read</code></td><td><code>HARDWARE/stmflash.c</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>20.5 每次修改后的最小闭环验证</h3>
+      <ol class="checklist">
+        <li>确认当前Keil Target是Diff_Car，map中符号来自你修改的文件，而不是同名旧文件。</li>
+        <li>全量Rebuild，记录0 error/0 warning、hex时间和map变化；warning不能在控制项目里被当作无关。</li>
+        <li>不接电机或PE4失能，先验证时钟、任务heartbeat、原始输入、单位换算和协议帧。</li>
+        <li>用边界值测试：最小/最大/负数/零/掉线/错误CRC/三路同时到达。</li>
+        <li>车轮架空，低速验证Target、Encoder、PI、CCR、方向脚和急停；再做地面低速。</li>
+        <li>每次只引入一个功能变化，保存“修改前/后Watch或示波器记录”，出现问题才能回到具体层级。</li>
+      </ol>
+      <div class="danger"><strong>最后的判断原则：</strong>显示值不等于原始采集正确，串口能发不等于数据新鲜，online不等于传感器可信，PWM有波形不等于闭环方向正确。每一层都要用它自己的原始量、计数器、单位和超时证据验证。</div>
+    </section>  </main>
+</div>
+
+<footer>
+  本手册基于当前工程源码与Diff_Car链接结果整理；硬件接线最终仍应与实物原理图和板卡丝印交叉确认。
+</footer>
+
+<script>
+  (() => {
+    const versionButtons = [...document.querySelectorAll('.pin-version')];
+    const search = document.getElementById('pinSearch');
+    const rows = [...document.querySelectorAll('#pinTable tbody tr')];
+    let selectedVersion = 'all';
+
+    function filterPins() {
+      const query = search.value.trim().toLowerCase();
+      rows.forEach((row) => {
+        const versions = row.dataset.ver.split(/\s+/);
+        const versionMatch = selectedVersion === 'all' || versions.includes(selectedVersion);
+        const textMatch = !query || row.textContent.toLowerCase().includes(query);
+        row.classList.toggle('hidden', !(versionMatch && textMatch));
+      });
+    }
+
+    versionButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        selectedVersion = button.dataset.version;
+        versionButtons.forEach((item) => item.classList.toggle('active', item === button));
+        filterPins();
+      });
+    });
+    search.addEventListener('input', filterPins);
+
+    const goals = {
+      sensor: `
+        <h3>增加新传感器：推荐落地顺序</h3>
+        <ol>
+          <li>在本手册引脚表中选无冲突引脚；再查STM32F407数据手册确认AF/电气能力。</li>
+          <li>新增 <code>HARDWARE/Inc/xxx.h</code>：引脚、结构体、初始化和读取接口；新增 <code>HARDWARE/xxx.c</code> 实现。</li>
+          <li>把xxx.c加入每个需要支持的Keil Target，检查Exclude from Build。</li>
+          <li>轮询设备：在 <code>systemInit()</code>初始化，在现有合适任务读取；只有确实需要独立周期才新增任务。</li>
+          <li>中断设备：ISR只记录原始数据/时间戳并清标志，通过任务完成计算、超时和上报。</li>
+          <li>定义单一数据所有者；显示在 <code>show_task.c</code>，上报在 <code>data_task.c</code>，控制接入最后做。</li>
+        </ol>`,
+      pin: `
+        <h3>更换引脚：需要一起改的字段</h3>
+        <ol>
+          <li>在对应 <code>HARDWARE/Inc/*.h</code>同时修改GPIO端口、Pin、PinSource、端口时钟宏。</li>
+          <li>若为复用功能，确认GPIO_AF与芯片封装上的通道映射；定时器通道也必须匹配。</li>
+          <li>若为EXTI，修改EXTI Line、PortSource、PinSource和共享IRQ；Handler必须清新的pending位。</li>
+          <li>检查V1.0/V1.1/V1.2和车型条件，尤其PA11/12、PD5/6、PE0～3、PB7、PB14/15。</li>
+          <li>在Keil调试中查看GPIO MODER/AFR/IDR/ODR，先验证电平，再接设备。</li>
+        </ol>`,
+      irq: `
+        <h3>增加/修改中断</h3>
+        <ol>
+          <li>配置外设标志和中断使能，设置NVIC；全局已经是PriorityGroup_4。</li>
+          <li>需要调用FreeRTOS时，IRQ数值必须≥5，且只能调用 <code>*FromISR</code> API。</li>
+          <li>Handler名称必须与启动向量表完全一致，并且源文件参与当前Target链接。</li>
+          <li>进入ISR后识别来源、保存最少数据、清pending；不要做printf、pow、长循环或无界memcpy。</li>
+          <li>同一向量有多个来源时逐个判断和清除，例如EXTI9_5必须处理所有已启用的5～9线。</li>
+          <li>复杂处理用队列/通知交给任务，并测试中断风暴、溢出和队列满。</li>
+        </ol>`,
+      clock: `
+        <h3>修改系统时钟</h3>
+        <ol>
+          <li>修改HSE_VALUE和PLL M/N/P/Q，保证VCO与CPU频率合法，PLLQ仍给USB 48 MHz。</li>
+          <li>修改AHB/APB分频并明确“PCLK”和“定时器×2”差别。</li>
+          <li>去掉或同步修改 <code>delay_init(168)</code>；核对SystemCoreClock。</li>
+          <li>重算TIM8电机、TIM1遥控、舵机、灯带、ADC、CAN；UART库会按RCC时钟计算，但仍需实测波特率。</li>
+          <li>示波器验证MCO/串口/PWM，Watch检查RCC寄存器；不要只看编译成功。</li>
+        </ol>`,
+      pwm: `
+        <h3>修改电机PWM频率或通道</h3>
+        <ol>
+          <li>引脚与CCR宏在 <code>HARDWARE/Inc/motor.h</code>；GPIO与TIM8初始化在 <code>HARDWARE/motor.c:130–223</code>；方向和最终输出在 <code>BALANCE/balance_task.c::Set_Pwm()</code>。</li>
+          <li>公式：<code>fPWM = TIMCLK / ((PSC+1) × (ARR+1))</code>。当前TIM8=168 MHz、PSC=0、ARR=16799，即10 kHz。</li>
+          <li>ARR变化时同步修改 <code>FULL_DUTYCYCLE</code>、输出限幅和任何把百分比映射到CCR的代码。</li>
+          <li>换通道时修改端口、Pin、PinSource、GPIO_AF、TIM实例、Channel和PWMA/B/C/D的CCR宏；四路TIM8共享PSC/ARR，改频率会同时影响A/B/C/D。</li>
+          <li>TIM8是高级定时器，必须保持 <code>TIM_CtrlPWMOutputs()</code>；确认方向GPIO极性和V1.0/新板不同的Motor-B第二方向脚。</li>
+          <li>先用示波器看空载PWM，再使能驱动器；检查故障停机是否仍能把全部CCR清零。</li>
+        </ol>`,
+      oled: `
+        <h3>增加OLED页面</h3>
+        <ol>
+          <li>在 <code>BALANCE/show_task.c::OLED_ShowTask()</code>增加新的page分支。</li>
+          <li>在 <code>OLED_Param_Init()</code>更新 <code>oled.MAX_PAGE</code>，否则按键/APP不会翻到新页。</li>
+          <li>只读取已有快照变量，避免在显示任务里直接控制电机或执行慢外设事务。</li>
+          <li>页面切换写者包括用户按键、UART4字符m和USB回调，确保范围处理一致。</li>
+          <li>每页先清buffer，最后统一 <code>OLED_Refresh_Gram()</code>；注意128×64坐标。</li>
+        </ol>`,
+      uart: `
+        <h3>修改串口协议</h3>
+        <ol>
+          <li>物理层/波特率/IRQ在 <code>HARDWARE/uartx.c</code>；帧解析在 <code>BALANCE/uartx_callback.c</code>；发送在 <code>BALANCE/data_task.c</code>。</li>
+          <li>先定义帧版本、长度、字节序、单位、校验和超时，再改两端。</li>
+          <li>不要继续在RX ISR里堆复杂解析；改为每UART独立环形缓冲+解析任务更安全。</li>
+          <li>所有数组在写入前检查边界；接收超时后复位状态机；未知帧必须可丢弃并重新找帧头。</li>
+          <li>协议改动要保留旧版本兼容或同步升级ROS/APP上位机。</li>
+        </ol>`,
+      can: `
+        <h3>修改CAN协议</h3>
+        <ol>
+          <li>物理引脚和位时序在 <code>HARDWARE/can.c</code>；接收ID处理在 <code>BALANCE/can_callback.c</code>；发送在 <code>data_task.c</code>。</li>
+          <li>当前CAN为1 Mbps、全通滤波器；新增ID时先明确标准/扩展帧和DLC。</li>
+          <li>进入任何数组复制前验证DLC、包号、目标偏移和剩余长度。</li>
+          <li>多包数据加序号、总长、超时和完整性校验；完成后用双缓冲一次性发布结构快照。</li>
+          <li>CAN ISR只收帧/入队，复杂业务放任务，防止p3长时间阻塞GY53/USB/SysTick。</li>
+        </ol>`,
+      control: `
+        <h3>修改速度、PI或运动学</h3>
+        <ol>
+          <li>机械参数和默认KP/KI：当前Target的 <code>CarType/diff_robot_init.c</code>。</li>
+          <li>最大速度、平滑步长、控制状态：<code>ROBOT_CONTROL_t_Init()</code>及APP参数路径。</li>
+          <li>目标生成：<code>Drive_Motor()</code>与<code>InverseKinematics_diff()</code>。</li>
+          <li>PI算法：<code>Incremental_MOTOR()</code>；输出和方向：<code>ResponseControl()</code>、<code>Set_Pwm()</code>。</li>
+          <li>先记录Target/Encoder/Output三条曲线，单独调KP，再调KI；不要同时改机械参数和PI。</li>
+        </ol>`,
+      avoid: `
+        <h3>让GY53参与自动避障</h3>
+        <ol>
+          <li>不要在EXTI ISR里控制电机；ISR只负责可靠测距。</li>
+          <li>GY53任务发布一次性快照：距离、online、更新时间；500 ms超时数据必须判无效。</li>
+          <li>在Balance任务选出原始Vx/Vy/Vz之后、调用Drive_Motor之前执行避障约束。</li>
+          <li>先实现“前方在线且距离&lt;阈值时只限制正向Vx”，再扩展左/右转向；设置迟滞避免抖动。</li>
+          <li>传感器离线策略必须明确：停车、降速或允许人工接管；不要把0 mm直接当作最近障碍。</li>
+          <li>记录介入原因到诊断/OLED，再进行低速、架空轮和软障碍测试。</li>
+        </ol>`,
+      task: `
+        <h3>增加FreeRTOS任务</h3>
+        <ol>
+          <li>先判断能否放进现有任务；每多一个任务都增加栈、TCB和调度复杂度。</li>
+          <li>在头文件定义优先级、栈word和周期；在 <code>start_task</code>中用 <code>CreateTaskChecked</code>创建。</li>
+          <li>普通采集/显示优先级通常≤3；不要高于控制任务，除非有明确时限分析。</li>
+          <li>周期任务用 <code>vTaskDelayUntil</code>；事件任务阻塞等队列/通知，禁止空转轮询。</li>
+          <li>新增诊断bit、任务句柄、stack high-water观察；创建后检查30 KiB heap余量。</li>
+        </ol>`
+    };
+
+    const goalSelect = document.getElementById('goalSelect');
+    const goalResult = document.getElementById('goalResult');
+    function renderGoal() { goalResult.innerHTML = goals[goalSelect.value]; }
+    goalSelect.addEventListener('change', renderGoal);
+    renderGoal();
+
+    document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+    const navLinks = [...document.querySelectorAll('#toc a')];
+    const sections = [...document.querySelectorAll('main section')];
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      navLinks.forEach((link) => link.classList.toggle('active', link.getAttribute('href') === `#${visible.target.id}`));
+    }, { rootMargin: '-15% 0px -70% 0px', threshold: [0, .2, .5] });
+    sections.forEach((section) => observer.observe(section));
+  })();
+</script>
+</body>
+</html>

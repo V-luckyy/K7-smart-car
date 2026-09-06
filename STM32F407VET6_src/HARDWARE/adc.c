@@ -1,8 +1,12 @@
 #include "adc.h"
 #include "motor.h"
+#include "system.h"
 
 //阿克曼转向滑轨数据
 AKM_SERVO_ADC Akm_Servo;
+
+#define ADC1_EOC_WAIT_LIMIT 100000U
+volatile u32 ADC1_TimeoutCount = 0;
 
 //使用DMA采集的数据量
 #define akm_servo_bufsize 80 //每组ADC数据共采集的个数
@@ -198,6 +202,7 @@ Output  : AD conversion results
 **************************************************************************/
 u16 Get_ADC1(volatile u8 ch)
 {
+    u32 timeout = ADC1_EOC_WAIT_LIMIT;
     //Sets the specified ADC rule group channel, one sequence, and sampling time
     //设置指定ADC的规则组通道，一个序列，采样时间
 
@@ -210,7 +215,15 @@ u16 Get_ADC1(volatile u8 ch)
 	
     //Wait for the conversion to finish
     //等待转换结束
-    while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC ));
+    while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC ))
+    {
+        if(--timeout == 0U)
+        {
+            ADC1_TimeoutCount++;
+            SystemDiag_SetError(SYSTEM_DIAG_ERROR_ADC_TIMEOUT);
+            return 0;
+        }
+    }
 	
     //Returns the result of the last ADC1 rule group conversion
     //返回最近一次ADC1规则组的转换结果
@@ -228,12 +241,23 @@ Output  : AD conversion results
 u16 Get_ADC1_Average(u8 chn, u8 times)
 {
     u32 temp_val=0;
+    u32 timeout_before;
+    u16 sample;
     u8 t;
+
+    if(times == 0U) return 0U;
     for(t=0; t<times; t++)
     {
-        temp_val+=Get_ADC1(chn);
+        timeout_before = ADC1_TimeoutCount;
+        sample = Get_ADC1(chn);
+        if(ADC1_TimeoutCount != timeout_before)
+        {
+            if(t == 0U) return 0U;
+            return (u16)(temp_val/t);
+        }
+        temp_val += sample;
     }
-    return temp_val/times;
+    return (u16)(temp_val/times);
 }
 
 /**************************************************************************

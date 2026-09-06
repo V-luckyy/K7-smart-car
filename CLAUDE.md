@@ -299,6 +299,8 @@ D:\BaiduNetdiskDownload\RK3576\
 │   └── wheeltec_ros2/                           ← 参考代码（基于普通小车，非 K7 专用）
 │       └── src/  (21 个功能包)
 │
+├── STM32F407VET6_src\                           ← STM32 完整 Keil 工程（含 APF 避障 + Stanley 循迹 + GY53 测距；OBJ 已 gitignore）
+│
 └── rk3576_data\                                 ← 从 kickpi 网盘下载的资料（已清理无关内容）
     ├── 0-Specifications\
     │   └── K7-RK3576\
@@ -356,8 +358,7 @@ D:\BaiduNetdiskDownload\RK3576\
     ├── 手册/  (STM32F407 + MPU6050 datasheet)
     ├── 固件架构/  (工程结构 + 固件架构 md)
     ├── 协议参考/  (data_task.h + uartx_callback.h)
-    ├── 源码工程使用指南.pdf
-    └── firmware/  (完整 STM32 源码, .gitignore 已排除)
+    └── 源码工程使用指南.pdf
 │
 └── sensor_data\                                ← 传感器资料
     └── GY-53 VL53L0X\                          ← 红外测距模块 ×3（VL53L0X ToF）
@@ -651,7 +652,7 @@ PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
 
 ## 13. STM32 C50X 底盘（已确认信息，2026-07-20）
 
-> 资料来源：`stm32_data/`（原理图、固件架构文档、协议头文件、完整 Keil 源码 `firmware/STM32F407VET6_src/`）。以下结论均已对照固件源码核实。
+> 资料来源：`stm32_data/`（原理图、固件架构文档、协议头文件）与仓库根目录完整 Keil 源码 `STM32F407VET6_src/`。以下结论均已对照固件源码核实。
 
 ### 13.1 基本信息
 
@@ -683,7 +684,7 @@ PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
 
 - ⚠️ **断链不停车**：固件的命令丢失保护（1 秒无指令清零速度）被 `SecurityLevel` 默认关闭，断链后小车保持最后速度继续跑。**K7 端 ROS 层必须自行实现 cmd_vel 看门狗**。
 - **自动回充完整支持**：`0x7C…0x7F` 8 字节回充帧 + 4 路充电桩红外对接信号；低电压且对准时允许自动回充。
-- **红外测距×3（GY-53 / VL53L0X ToF，资料在 `sensor_data/GY-53 VL53L0X/`）**：已实现（2026-08-23，番外线）。固件在 `WHEELTEC_C50X_2026.05.29_GY53_PWM/`，用 EXTI 双边沿中断 + DWT 周期计数器测 PWM 高电平（**距离 mm = 高电平 us ÷ 10**），引脚 PE5=前方0° / PE7=左前+45° / PE8=右前-45°；距离写入 `s21c_board.rangerA/B/C` 后经**既有 0xFA 19 字节测距帧**上行（未扩 24 字节主帧；帧内 6 个 int16 大端 mm，A/B/C 为三路，D/E/F 恒 5000）。K7 串口节点按三帧状态机（0x7B 24B / 0xFA 19B / 0x7C 8B）解析，发布**单话题 `/ir_distances`（`k7_msgs/IrDistances`，front/left45/right45 单位米）**，MPC 节点订阅之。量程/更新率随测量模式：高精度 0~1.2m / 200ms / ±1cm（默认）、一般 0~1.2m / 35ms / ±2cm、快速 0~1.2m / 22ms / ±3cm、长距离 0~2m / 35ms / ±4cm（串口命令可切、掉电保存，建议快速或一般模式）。注意：传感器离线时固件不清空 `s21c_board` 旧值（K7 读到冻结值），无遮挡读数顶到模式上限（1.2m/2m）而非 5m，MPC「视为畅通」阈值需据此标定。
+- **红外测距×3（GY-53 / VL53L0X ToF，资料在 `sensor_data/GY-53 VL53L0X/`）**：已实现（2026-08-23，番外线）。固件在 `STM32F407VET6_src/`，用 EXTI 双边沿中断 + DWT 周期计数器测 PWM 高电平（**距离 mm = 高电平 us ÷ 10**），引脚 PE5=前方0° / PE7=左前+45° / PE8=右前-45°；距离写入 `s21c_board.rangerA/B/C` 后经**既有 0xFA 19 字节测距帧**上行（未扩 24 字节主帧；帧内 6 个 int16 大端 mm，A/B/C 为三路，D/E/F 恒 5000）。K7 串口节点按三帧状态机（0x7B 24B / 0xFA 19B / 0x7C 8B）解析，发布**单话题 `/ir_distances`（`k7_msgs/IrDistances`，front/left45/right45 单位米）**，MPC 节点订阅之。量程/更新率随测量模式：高精度 0~1.2m / 200ms / ±1cm（默认）、一般 0~1.2m / 35ms / ±2cm、快速 0~1.2m / 22ms / ±3cm、长距离 0~2m / 35ms / ±4cm（串口命令可切、掉电保存，建议快速或一般模式）。注意：传感器离线时固件不清空 `s21c_board` 旧值（K7 读到冻结值），无遮挡读数顶到模式上限（1.2m/2m）而非 5m，MPC「视为畅通」阈值需据此标定。
 - 固件上报的 IMU 坐标轴已做 ROS 坐标系变换（X/Y 互换取负），ROS 端按 wheeltec 原逻辑解析即可。
 - 电机失能（FlagStop=1）时 gyro Z 强制上报 0。
 
@@ -692,7 +693,7 @@ PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
 主线控制方案：**APF 避障 + Stanley 循迹**，在 STM32 固件内闭环，**不经过 RK3576**（无串口往返延迟）。
 
 - **定位**：主线的一个阶段（非番外线），替代早期 `k7_mpc` 番外线的 MPC 避障验证。三路红外直接喂给 STM32 上的 APF 斥力，Stanley 沿硬编码圆（R=0.6m）循迹，控制频率 50Hz，输出 `robot_control.Vx/Vz` 经 `balance_task` 直接驱动电机（`ControlMode=0` 直驱）。
-- **代码位置**：固件 `WHEELTEC_C50X_2026.05.29_GY53_PWM/BALANCE/`（`stanley.c/.h` 循迹、`apf.c/.h` 避障、`apf_task.c/.h` 编排），`USER/main.c` 注册任务。**该固件目录在 `.gitignore` 中（完整 Keil 工程体积大），C 代码不入库。** 参考模板 `STM32F407VET6_src/` 里的 APF 脚手架（`apf.h`/`apf_sensor.h`/`apf_task.c`，缺 `apf.c` 实现、无循迹）。
+- **代码位置**：固件 `STM32F407VET6_src/BALANCE/`（`stanley.c/.h` 循迹、`apf.c/.h` 避障、`apf_task.c/.h` 编排），`USER/main.c` 注册任务。该固件目录已入库（`.gitignore` 只排除 `**/OBJ/` 编译产物），C 代码可版本管理/diff。
 - **实现讲解手册**：`stm32_data/固件架构/APF_Stanley_避障循迹说明.md`（函数逐行解释 + 参数速查表 + 调参/排错）。
 - **三路传感器不挤掉**：三路红外留在 STM32 做快速安全层（反应式、不依赖 RK3576），后续双目相机在 RK3576 做全局避障层，两层叠加不替换。
 - **后续扩展**：参考路径当前硬编码圆，测试通过后改由 RK3576 下发路点（改 `stanley.c` 的参考点计算）。
@@ -706,7 +707,7 @@ PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
 - [ ] **功能可构建**：修改的 C++/Python 代码在 K7 上 `colcon build --symlink-install` 通过，无新增 error。
 - [ ] **文档已同步**：`CLAUDE.md`、`AGENTS.md`、`README.md`、plan 文件、以及 `docs/` 下 `.md` 已反映最新决策或结构变更。
 - [ ] **目录同步**：若新建/删除/重命名了目录或文件，所有 markdown 中引用的路径已同步更新，无死链。
-- [ ] **忽略项正确**：`build/`、`install/`、`log/`、大参考目录（`camera_windows_sdk/`、`stm32_data/firmware/`、`ROS2_src/wheeltec_ros2/`）已在 `.gitignore` 中，不会被提交。
+- [ ] **忽略项正确**：`build/`、`install/`、`log/`、大参考目录（`camera_windows_sdk/`、`ROS2_src/wheeltec_ros2/`）已在 `.gitignore` 中，不会被提交；STM32 固件只忽略 `**/OBJ/`，源码入库。
 - [ ] **无敏感信息**：不提交密码、私钥、含个人凭据的配置；K7 直连 IP 等可能变动的网络信息不入文档正文。
 - [ ] **提交信息清晰**：英文简要主题 + 中文补充说明，能一眼看出本次改动范围。
 - [ ] **工作日志目录已更新**：`work_logs/工作日志汇总.md` 如有新增周次，已同步更新“按团队时间线汇总表”“当前待确认/待决策事项”和“目录”。

@@ -80,8 +80,8 @@
 #endif
 
 //断言
-#define vAssertCalled(char,int) printf("Error:%s,%d\r\n",char,int)
-#define configASSERT(x) if((x)==0) vAssertCalled(__FILE__,__LINE__)
+extern void SystemDiag_AssertFailed(const char *file,uint32_t line);
+#define configASSERT(x) do { if((x)==0) SystemDiag_AssertFailed(__FILE__,__LINE__); } while(0)
 
 /// Priority values.优先级定义
 typedef enum {
@@ -139,11 +139,11 @@ typedef enum {
 #define configUSE_MUTEXES						1                       //为1时使用互斥信号量
 #define configQUEUE_REGISTRY_SIZE				8                       //不为0时表示启用队列记录，具体的值是可以
                                                                         //记录的队列和信号量最大数目。
-#define configCHECK_FOR_STACK_OVERFLOW			0                       //大于0时启用堆栈溢出检测功能，如果使用此功能
+#define configCHECK_FOR_STACK_OVERFLOW			2                       //大于0时启用堆栈溢出检测功能，如果使用此功能
                                                                         //用户必须提供一个栈溢出钩子函数，如果使用的话
                                                                         //此值可以为1或者2，因为有两种栈溢出检测方法。
 #define configUSE_RECURSIVE_MUTEXES				1                       //为1时使用递归互斥信号量
-#define configUSE_MALLOC_FAILED_HOOK			0                       //1使用内存申请失败钩子函数
+#define configUSE_MALLOC_FAILED_HOOK			1                       //1使用内存申请失败钩子函数
 #define configUSE_APPLICATION_TASK_TAG			0                       
 #define configUSE_COUNTING_SEMAPHORES			1                       //为1时使用计数信号量
 
@@ -185,7 +185,8 @@ typedef enum {
 /***************************************************************************************************************/
 /*                                FreeRTOS可选函数配置选项                                                      */
 /***************************************************************************************************************/
-#define INCLUDE_xTaskGetSchedulerState          1                       
+#define INCLUDE_xTaskGetSchedulerState          1
+#define INCLUDE_uxTaskGetStackHighWaterMark      1                       
 #define INCLUDE_vTaskPrioritySet		        1
 #define INCLUDE_uxTaskPriorityGet		        1
 #define INCLUDE_vTaskDelete				        1

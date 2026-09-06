@@ -7,7 +7,7 @@
 #define SHOW_TASK_RATE      RATE_10_HZ
 extern TaskHandle_t show_TaskHandle;
 
-#define OLED_MAX_PAGE 4 //OLED的页数
+#define OLED_MAX_PAGE 5 //Page 4: GY53 PWM, page 5: system diagnostics //OLED的页数
 
 typedef struct{
 	u8 page;       //当前页（页数从1开始）

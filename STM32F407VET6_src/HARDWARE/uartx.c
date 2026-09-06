@@ -1,5 +1,32 @@
 #include "uartx.h"
 
+#define UARTX_TX_WAIT_LIMIT 100000U
+extern volatile u32 USART_TxTimeoutCount;
+
+static void UARTx_SendByteWithTimeout(USART_TypeDef *USARTx,u8 data)
+{
+	u32 timeout = UARTX_TX_WAIT_LIMIT;
+	while((USARTx->SR & USART_SR_TXE) == 0U)
+	{
+		if(--timeout == 0U)
+		{
+			USART_TxTimeoutCount++;
+			return;
+		}
+	}
+	USARTx->DR = data;
+	timeout = UARTX_TX_WAIT_LIMIT;
+	while((USARTx->SR & USART_SR_TC) == 0U)
+	{
+		if(--timeout == 0U)
+		{
+			USART_TxTimeoutCount++;
+			return;
+		}
+	}
+}
+
+
 //app°´¼ü¶¨Òå
 APP_CONTROL_t appkey;
 
@@ -85,8 +112,7 @@ Output  : none
 **************************************************************************/
 void uart1_send(u8 data)
 {
-    USART1->DR = data;
-    while((USART1->SR&0x40)==0);
+    UARTx_SendByteWithTimeout(USART1,data);
 }
 
 
@@ -163,8 +189,7 @@ Output  : none
 **************************************************************************/
 void uart3_send(u8 data)
 {
-    USART3->DR = data;
-    while((USART3->SR&0x40)==0);
+    UARTx_SendByteWithTimeout(USART3,data);
 }
 
 /**************************************************************************
@@ -244,8 +269,7 @@ Output  : none
 **************************************************************************/
 void uart4_send(u8 data)
 {
-    UART4->DR = data;
-    while((UART4->SR&0x40)==0);
+    UARTx_SendByteWithTimeout(UART4,data);
 }
 
 
@@ -306,6 +330,5 @@ void UART2_Init(u32 bound)
 
 void uart2_send(u8 data)
 {
-    USART2->DR = data;
-    while((USART2->SR&0x40)==0);
+    UARTx_SendByteWithTimeout(USART2,data);
 }

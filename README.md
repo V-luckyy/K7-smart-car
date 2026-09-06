@@ -36,7 +36,7 @@ K7-smart-car/
 ├── sensor_data/            # 传感器资料（GY-53 VL53L0X 红外测距手册；第三方示例已 gitignore）
 ├── camera_windows_sdk/     # USB 摄像头 PC SDK（.gitignore 已排除）
 │
-├── STM32F407VET6_src/      # STM32 完整 Keil 工程（FreeRTOS, DIFF_CAR 两轮差速）
+├── STM32F407VET6_src/      # STM32 完整 Keil 工程（FreeRTOS 两轮差速 + GY53 测距 + APF 避障 + Stanley 循迹；OBJ 已 gitignore）
 │
 └── ROS2_src/               # ROS2 源码
     ├── wheeltec_ros2/      # 第三方参考代码（.gitignore 已排除）

@@ -1,0 +1,1706 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>STM32F407 板级工作完整流程</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="STM32F407 板级工作完整流程" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;STM32F407 板级工作完整流程&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --red: light-dark(rgb(186 38 35), rgb(250 66 62));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: var(--border-radius-lg, 12.5px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+    [aria-pressed=&quot;true&quot;],
+    [aria-selected=&quot;true&quot;],
+    .is-selected
+  ) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;section id=&quot;stm32-flow-viz&quot; class=&quot;w-full&quot;&gt;
+  &lt;style&gt;
+    #stm32-flow-viz {
+      color: var(--foreground);
+      font-family: var(--font-sans);
+      line-height: 1.45;
+    }
+    #stm32-flow-viz * { box-sizing: border-box; }
+    #stm32-flow-viz .viz-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.9rem;
+    }
+    #stm32-flow-viz h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      line-height: 1.25;
+      color: var(--foreground);
+    }
+    #stm32-flow-viz .viz-subtitle {
+      margin: 0.28rem 0 0;
+      color: var(--muted-foreground);
+      font-size: 0.84rem;
+    }
+    #stm32-flow-viz .viz-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.8rem;
+    }
+    #stm32-flow-viz .viz-tab {
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) - 2px);
+      color: var(--foreground);
+      background: var(--card);
+      padding: 0.45rem 0.72rem;
+      font-size: 0.78rem;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    #stm32-flow-viz .viz-tab:hover { border-color: var(--primary); }
+    #stm32-flow-viz .viz-tab[aria-pressed=&quot;true&quot;] {
+      color: var(--primary-foreground);
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    #stm32-flow-viz .viz-stage {
+      overflow-x: auto;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 0.45rem 0 0.2rem;
+    }
+    #stm32-flow-viz svg {
+      display: block;
+      width: 100%;
+      min-width: 900px;
+      height: auto;
+    }
+    #stm32-flow-viz svg text {
+      fill: var(--foreground);
+      font-family: var(--font-sans);
+      pointer-events: none;
+    }
+    #stm32-flow-viz svg .muted { fill: var(--muted-foreground); }
+    #stm32-flow-viz svg .node rect,
+    #stm32-flow-viz svg .node polygon {
+      stroke-width: 1.5;
+      rx: 10;
+    }
+    #stm32-flow-viz svg .t1 rect,
+    #stm32-flow-viz svg .t1 polygon { fill: var(--viz-series-1); fill-opacity: .13; stroke: var(--viz-series-1); }
+    #stm32-flow-viz svg .t2 rect,
+    #stm32-flow-viz svg .t2 polygon { fill: var(--viz-series-2); fill-opacity: .13; stroke: var(--viz-series-2); }
+    #stm32-flow-viz svg .t3 rect,
+    #stm32-flow-viz svg .t3 polygon { fill: var(--viz-series-3); fill-opacity: .13; stroke: var(--viz-series-3); }
+    #stm32-flow-viz svg .t4 rect,
+    #stm32-flow-viz svg .t4 polygon { fill: var(--viz-series-4); fill-opacity: .13; stroke: var(--viz-series-4); }
+    #stm32-flow-viz svg .t5 rect,
+    #stm32-flow-viz svg .t5 polygon { fill: var(--viz-series-5); fill-opacity: .13; stroke: var(--viz-series-5); }
+    #stm32-flow-viz svg .neutral rect {
+      fill: var(--muted);
+      stroke: var(--border);
+    }
+    #stm32-flow-viz svg .edge {
+      fill: none;
+      stroke: var(--muted-foreground);
+      stroke-width: 1.5;
+      marker-end: url(#stm32-arrow);
+    }
+    #stm32-flow-viz svg .edge-dashed {
+      stroke-dasharray: 5 5;
+    }
+    #stm32-flow-viz svg .feedback {
+      stroke: var(--viz-series-4);
+      stroke-width: 2;
+      stroke-dasharray: 7 4;
+    }
+    #stm32-flow-viz svg .zone {
+      fill: var(--muted);
+      fill-opacity: .52;
+      stroke: var(--border);
+      stroke-dasharray: 4 4;
+    }
+    #stm32-flow-viz svg .priority-line {
+      stroke: var(--border);
+      stroke-width: 1;
+    }
+    #stm32-flow-viz .viz-detail {
+      margin: 0.65rem 0 0;
+      color: var(--muted-foreground);
+      font-size: 0.78rem;
+      min-height: 1.25rem;
+    }
+    #stm32-flow-viz .viz-detail strong { color: var(--foreground); }
+    #stm32-flow-viz .viz-table-wrap {
+      margin-top: 0.7rem;
+      overflow-x: auto;
+    }
+    #stm32-flow-viz table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+    }
+    #stm32-flow-viz th,
+    #stm32-flow-viz td {
+      border-bottom: 1px solid var(--border);
+      padding: 0.48rem 0.55rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    #stm32-flow-viz th {
+      color: var(--muted-foreground);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    #stm32-flow-viz td:first-child {
+      color: var(--foreground);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    #stm32-flow-viz .viz-note {
+      margin-top: 0.7rem;
+      border-left: 3px solid var(--viz-series-5);
+      padding: 0.45rem 0.65rem;
+      color: var(--muted-foreground);
+      font-size: 0.75rem;
+      background: var(--muted);
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    #stm32-flow-viz .viz-note strong { color: var(--foreground); }
+    @media (max-width: 720px) {
+      #stm32-flow-viz .viz-head { display: block; }
+      #stm32-flow-viz .viz-controls { margin-top: 0.75rem; }
+      #stm32-flow-viz .viz-tab { flex: 1 1 auto; }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;viz-head&quot;&gt;
+    &lt;div&gt;
+      &lt;h2 id=&quot;stm32-view-title&quot;&gt;STM32F407 板级工作总览&lt;/h2&gt;
+      &lt;p id=&quot;stm32-view-subtitle&quot; class=&quot;viz-subtitle&quot;&gt;以 MCU 时钟为脉络，逐层查看启动、调度、中断与控制闭环。&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;viz-controls&quot; role=&quot;group&quot; aria-label=&quot;选择板级流程视图&quot;&gt;
+    &lt;button class=&quot;btn viz-tab&quot; type=&quot;button&quot; data-view=&quot;clock&quot; aria-pressed=&quot;true&quot;&gt;1. 时钟树&lt;/button&gt;
+    &lt;button class=&quot;btn viz-tab&quot; type=&quot;button&quot; data-view=&quot;boot&quot; aria-pressed=&quot;false&quot;&gt;2. 上电启动&lt;/button&gt;
+    &lt;button class=&quot;btn viz-tab&quot; type=&quot;button&quot; data-view=&quot;tasks&quot; aria-pressed=&quot;false&quot;&gt;3. RTOS 任务&lt;/button&gt;
+    &lt;button class=&quot;btn viz-tab&quot; type=&quot;button&quot; data-view=&quot;irq&quot; aria-pressed=&quot;false&quot;&gt;4. 中断仲裁&lt;/button&gt;
+    &lt;button class=&quot;btn viz-tab&quot; type=&quot;button&quot; data-view=&quot;flow&quot; aria-pressed=&quot;false&quot;&gt;5. 通信与闭环&lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;viz-stage&quot; aria-live=&quot;polite&quot;&gt;
+    &lt;svg id=&quot;stm32-diagram&quot; viewBox=&quot;0 0 1120 540&quot; role=&quot;img&quot; aria-labelledby=&quot;stm32-svg-title stm32-svg-desc&quot;&gt;
+      &lt;title id=&quot;stm32-svg-title&quot;&gt;STM32F407 板级流程图&lt;/title&gt;
+      &lt;desc id=&quot;stm32-svg-desc&quot;&gt;可切换查看时钟树、启动过程、FreeRTOS任务、中断优先级和通信闭环。&lt;/desc&gt;
+    &lt;/svg&gt;
+  &lt;/div&gt;
+
+  &lt;p id=&quot;stm32-detail&quot; class=&quot;viz-detail&quot;&gt;&lt;/p&gt;
+  &lt;div id=&quot;stm32-table&quot; class=&quot;viz-table-wrap&quot;&gt;&lt;/div&gt;
+  &lt;div id=&quot;stm32-note&quot; class=&quot;viz-note&quot;&gt;&lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;stm32-flow-viz&#x27;);
+      const svg = root.querySelector(&#x27;#stm32-diagram&#x27;);
+      const title = root.querySelector(&#x27;#stm32-view-title&#x27;);
+      const subtitle = root.querySelector(&#x27;#stm32-view-subtitle&#x27;);
+      const detail = root.querySelector(&#x27;#stm32-detail&#x27;);
+      const tableWrap = root.querySelector(&#x27;#stm32-table&#x27;);
+      const note = root.querySelector(&#x27;#stm32-note&#x27;);
+      const NS = &#x27;http://www.w3.org/2000/svg&#x27;;
+
+      const views = {
+        clock: {
+          title: &#x27;时钟树：所有时间尺度从 8 MHz HSE 展开&#x27;,
+          subtitle: &#x27;MCU 是 STM32F407VE；MPU6050/ICM20948 是外部 IMU，不是系统时钟源。&#x27;,
+          detail: &#x27;&lt;strong&gt;主时基：&lt;/strong&gt;HCLK 168 MHz → FreeRTOS 1 ms tick、DWT 5.95 ns/计数；APB 定时器在分频不为 1 时自动 ×2。&#x27;,
+          note: &#x27;&lt;strong&gt;时钟故障要点：&lt;/strong&gt;若 HSE/PLL 未成功，芯片可能仍以约 16 MHz HSI 运行，但工程中的 SystemCoreClock 与 delay_init 仍按 168 MHz 计算，UART、RTOS tick、PWM 和 GY53 距离都会整体失真。&#x27;,
+          table: [
+            [&#x27;节点&#x27;, &#x27;计算&#x27;, &#x27;实际频率&#x27;, &#x27;直接使用者&#x27;],
+            [&#x27;PLL 输入&#x27;, &#x27;HSE 8 MHz ÷ PLLM 8&#x27;, &#x27;1 MHz&#x27;, &#x27;PLL VCO 输入&#x27;],
+            [&#x27;PLL VCO&#x27;, &#x27;1 MHz × PLLN 336&#x27;, &#x27;336 MHz&#x27;, &#x27;PLLP、PLLQ&#x27;],
+            [&#x27;SYSCLK / HCLK&#x27;, &#x27;336 MHz ÷ PLLP 2；AHB ÷1&#x27;, &#x27;168 MHz&#x27;, &#x27;Cortex-M4F、SysTick、DWT、AHB&#x27;],
+            [&#x27;PCLK1 / APB1 定时器&#x27;, &#x27;HCLK ÷4；定时器再 ×2&#x27;, &#x27;42 / 84 MHz&#x27;, &#x27;TIM2/3/4/5 编码器等&#x27;],
+            [&#x27;PCLK2 / APB2 定时器&#x27;, &#x27;HCLK ÷2；定时器再 ×2&#x27;, &#x27;84 / 168 MHz&#x27;, &#x27;TIM1 遥控捕获、TIM8 电机 PWM&#x27;],
+            [&#x27;PLL48CLK&#x27;, &#x27;336 MHz ÷ PLLQ 7&#x27;, &#x27;48 MHz&#x27;, &#x27;USB OTG FS&#x27;],
+            [&#x27;FreeRTOS tick&#x27;, &#x27;168 MHz ÷ 1000&#x27;, &#x27;1 kHz（1 ms）&#x27;, &#x27;任务延时、时间片、软件定时器&#x27;],
+            [&#x27;TIM8 PWM&#x27;, &#x27;168 MHz ÷ (16799+1)&#x27;, &#x27;10 kHz&#x27;, &#x27;四路电机占空比输出&#x27;]
+          ]
+        },
+        boot: {
+          title: &#x27;上电启动：从复位向量到稳定运行&#x27;,
+          subtitle: &#x27;大写 SystemInit 配时钟，小写 systemInit 配板载设备；两者不要混淆。&#x27;,
+          detail: &#x27;&lt;strong&gt;关键分界：&lt;/strong&gt;外设 IRQ 可在调度器前启用，但不得调用 FreeRTOS；GY53 与 USB 都特意延后到 RTOS 运行后再开放。&#x27;,
+          note: &#x27;&lt;strong&gt;硬停机点：&lt;/strong&gt;MPU6050 与 ICM20948 都识别失败时，当前诊断代码会停在板级初始化阶段，后续 OLED、任务和控制环都不会进入；HSE/PLL 锁定失败也可能让程序在 main() 前表现异常。&#x27;,
+          table: [
+            [&#x27;阶段&#x27;, &#x27;执行位置&#x27;, &#x27;完成的事情&#x27;, &#x27;典型失败表现&#x27;],
+            [&#x27;1. 复位&#x27;, &#x27;启动汇编 Reset_Handler&#x27;, &#x27;取 MSP/PC，进入 SystemInit，再由 C 运行库清 BSS/装载数据&#x27;, &#x27;向量/栈错误会直接 Fault&#x27;],
+            [&#x27;2. CMSIS 时钟&#x27;, &#x27;SystemInit → SetSysClock&#x27;, &#x27;FPU、HSE、PLL、Flash 5WS、AHB/APB、VTOR&#x27;, &#x27;main 前卡住或全板时序错误&#x27;],
+            [&#x27;3. 板级初始化&#x27;, &#x27;main → systemInit&#x27;, &#x27;NVIC 分组、延时、UART1、软件 I²C、识别 IMU/版本&#x27;, &#x27;识别失败进入诊断停机&#x27;],
+            [&#x27;4. 版本分支&#x27;, &#x27;V1.0 / V1.1 / V1.2&#x27;, &#x27;选择 MPU6050 或 ICM20948；选择电机/CAN/USB/D50A 配置&#x27;, &#x27;选错版本会出现引脚或外设不匹配&#x27;],
+            [&#x27;5. 公共外设&#x27;, &#x27;systemInit 后半段&#x27;, &#x27;GY53 配置但暂不开放、OLED、UART3/4、遥控、编码器、ADC、软件参数&#x27;, &#x27;OLED 黑屏可在此阶段定位&#x27;],
+            [&#x27;6. 内核启动&#x27;, &#x27;xTaskCreate(start) → vTaskStartScheduler&#x27;, &#x27;创建 Idle/Timer，重设 SysTick=1 ms，SVC 启动首任务&#x27;, &#x27;堆不足会导致任务创建失败&#x27;],
+            [&#x27;7. 启动任务&#x27;, &#x27;start_task，优先级 25&#x27;, &#x27;新版初始化 USB；批量创建业务任务；随后自删&#x27;, &#x27;USB或任务创建异常由诊断记录&#x27;],
+            [&#x27;8. 稳态&#x27;, &#x27;各周期任务 + IRQ&#x27;, &#x27;100 Hz 控制/IMU，20 Hz 上报，10 Hz OLED/GY53&#x27;, &#x27;看门诊断、OLED页与串口用于观测&#x27;]
+          ]
+        },
+        tasks: {
+          title: &#x27;FreeRTOS 任务：大数值优先，和 NVIC 规则相反&#x27;,
+          subtitle: &#x27;抢占与同优先级时间片均开启；任务优先级只在“线程态”之间比较。&#x27;,
+          detail: &#x27;&lt;strong&gt;调度规律：&lt;/strong&gt;高优先级任务一旦就绪就抢占低优先级任务；任何正在执行的外设中断又可以抢占所有任务。&#x27;,
+          note: &#x27;&lt;strong&gt;不要被名字误导：&lt;/strong&gt;Buzzer_task、Usart1_SendTask、CAN1_SendTask 是被其他任务调用的普通函数，不是独立 RTOS 任务。Timer Service 虽为 31，但当前几乎一直阻塞。&#x27;,
+          table: [
+            [&#x27;任务&#x27;, &#x27;优先级&#x27;, &#x27;栈（word / byte）&#x27;, &#x27;周期或阻塞&#x27;, &#x27;作用 / 条件&#x27;],
+            [&#x27;Timer Service&#x27;, &#x27;31&#x27;, &#x27;260 / 1040&#x27;, &#x27;阻塞等待 timer 队列&#x27;, &#x27;内核任务；工程无用户 xTimerCreate&#x27;],
+            [&#x27;start_task&#x27;, &#x27;25&#x27;, &#x27;512 / 2048&#x27;, &#x27;一次性&#x27;, &#x27;创建业务任务后自删&#x27;],
+            [&#x27;USBH_Queue&#x27;, &#x27;24&#x27;, &#x27;1024 / 4096&#x27;, &#x27;永久等 USB 队列&#x27;, &#x27;仅 V1.1+；处理 HID 主机事件&#x27;],
+            [&#x27;ReportErrTask&#x27;, &#x27;24&#x27;, &#x27;512 / 2048&#x27;, &#x27;500 ms 轮询&#x27;, &#x27;读取 Debug_Flag 并经 UART4 上报&#x27;],
+            [&#x27;RGB 动态灯效&#x27;, &#x27;22&#x27;, &#x27;256/512 word&#x27;, &#x27;20–2000 ms&#x27;, &#x27;按需创建，同一时刻最多一个 effect&#x27;],
+            [&#x27;Balance_task&#x27;, &#x27;4&#x27;, &#x27;512 / 2048&#x27;, &#x27;10 ms / 100 Hz&#x27;, &#x27;反馈、命令、安全、运动学、PI、PWM&#x27;],
+            [&#x27;DATA_task&#x27;, &#x27;4&#x27;, &#x27;512 / 2048&#x27;, &#x27;50 ms / 20 Hz&#x27;, &#x27;UART/CAN 统一遥测&#x27;],
+            [&#x27;PSTWO_task&#x27;, &#x27;4&#x27;, &#x27;256 / 1024&#x27;, &#x27;50 ms / 20 Hz&#x27;, &#x27;仅 V1.0 经典手柄&#x27;],
+            [&#x27;IMU_task&#x27;, &#x27;3&#x27;, &#x27;256 / 1024&#x27;, &#x27;10 ms / 100 Hz&#x27;, &#x27;MPU6050 或 ICM20948 二选一&#x27;],
+            [&#x27;show_task&#x27;, &#x27;2&#x27;, &#x27;512 / 2048&#x27;, &#x27;100 ms / 10 Hz&#x27;, &#x27;OLED 与 APP 状态显示&#x27;],
+            [&#x27;led / RGBControl&#x27;, &#x27;2&#x27;, &#x27;128/256 word&#x27;, &#x27;1–500 ms / 200 ms&#x27;, &#x27;状态灯或灯带&#x27;],
+            [&#x27;GY53_PWM_task&#x27;, &#x27;2&#x27;, &#x27;128 / 512&#x27;, &#x27;先等 300 ms，再 100 ms&#x27;, &#x27;开放 EXTI、在线判断、更新三路距离&#x27;],
+            [&#x27;D50A_task&#x27;, &#x27;2&#x27;, &#x27;256 / 1024&#x27;, &#x27;100 ms&#x27;, &#x27;仅 V1.2；串口2驱动通信&#x27;],
+            [&#x27;Idle&#x27;, &#x27;0&#x27;, &#x27;130 / 520&#x27;, &#x27;无更高任务时&#x27;, &#x27;内核空闲任务&#x27;]
+          ]
+        },
+        irq: {
+          title: &#x27;中断仲裁：数值越小越强，优先级 0 最先响应&#x27;,
+          subtitle: &#x27;NVIC_PriorityGroup_4 = 4 位抢占优先级 + 0 位子优先级；代码里的 subpriority 实际无效。&#x27;,
+          detail: &#x27;&lt;strong&gt;两个优先级域：&lt;/strong&gt;NVIC 的 0 最强；FreeRTOS 任务的 31 最强。两者不能放在同一数轴比较。&#x27;,
+          note: &#x27;&lt;strong&gt;FreeRTOS 边界：&lt;/strong&gt;IRQ 0–4 禁止调用任何 FreeRTOS API；IRQ 5–15 才能调用 *FromISR。当前只有 OTG_FS 走 FromISR 队列，且正好配置为 5，符合要求。&#x27;,
+          table: [
+            [&#x27;有效优先级&#x27;, &#x27;中断 / 异常&#x27;, &#x27;数据与动作&#x27;, &#x27;能否调用 FreeRTOS&#x27;],
+            [&#x27;固定最高&#x27;, &#x27;NMI、HardFault&#x27;, &#x27;诊断捕获后停机；高于所有可配置 IRQ&#x27;, &#x27;否&#x27;],
+            [&#x27;0&#x27;, &#x27;USART3；SVC（默认）&#x27;, &#x27;USART3 共用控制帧解析；SVC 仅启动首任务&#x27;, &#x27;USART3 禁止&#x27;],
+            [&#x27;3&#x27;, &#x27;CAN1_RX0；UART4&#x27;, &#x27;CAN/APP 命令直接写共享状态；同级互不抢占&#x27;, &#x27;禁止&#x27;],
+            [&#x27;4&#x27;, &#x27;USART1&#x27;, &#x27;ROS/串口控制与充电帧解析&#x27;, &#x27;禁止&#x27;],
+            [&#x27;5&#x27;, &#x27;EXTI9_5；TIM1_CC；USART2；OTG_FS&#x27;, &#x27;GY53、遥控捕获、D50A、USB Host&#x27;, &#x27;允许 *FromISR；当前仅 USB 使用&#x27;],
+            [&#x27;15&#x27;, &#x27;SysTick；PendSV&#x27;, &#x27;1 ms 内核 tick；任务上下文切换&#x27;, &#x27;FreeRTOS 内核路径&#x27;],
+            [&#x27;同级规则&#x27;, &#x27;异常号较小者先&#x27;, &#x27;p3: CAN1→UART4；p5: EXTI9_5→TIM1_CC→USART2→OTG_FS&#x27;, &#x27;不是 subpriority&#x27;],
+            [&#x27;临界区 BASEPRI=5&#x27;, &#x27;屏蔽 5–15，不屏蔽 0–4&#x27;, &#x27;临界区内 UART/CAN 仍可能打断任务&#x27;, &#x27;必须保持短小&#x27;]
+          ]
+        },
+        flow: {
+          title: &#x27;通信与闭环：IRQ/任务把数据汇聚到共享状态&#x27;,
+          subtitle: &#x27;实际主链是“命令 → Balance 100 Hz → PI → TIM8 PWM → 电机 → 编码器反馈”。&#x27;,
+          detail: &#x27;&lt;strong&gt;GY53 的位置：&lt;/strong&gt;三路距离会显示、上报并参与灯带告警，但当前没有接入 Balance_task，因此不会自动避障。&#x27;,
+          note: &#x27;&lt;strong&gt;并发事实：&lt;/strong&gt;大多数模块不是通过队列，而是直接共享全局结构；单个 32 位读写可以是原子的，但 Vx/Vy/Vz、IMU 三轴或整帧数据仍可能被任务读到“新旧混合快照”。&#x27;,
+          table: [
+            [&#x27;通道 / 设备&#x27;, &#x27;引脚 / 时基&#x27;, &#x27;接收路径&#x27;, &#x27;写入对象&#x27;, &#x27;主要消费者&#x27;],
+            [&#x27;MPU6050 / ICM20948&#x27;, &#x27;PB9 SCL、PB8 SDA；软件 I²C&#x27;, &#x27;IMU_task 100 Hz 轮询&#x27;, &#x27;imu&#x27;, &#x27;Balance 辅助判断、DATA、OLED&#x27;],
+            [&#x27;GY53 ×3&#x27;, &#x27;PE5/PE7/PE8；EXTI 双边沿 + DWT 168 MHz&#x27;, &#x27;IRQ 测脉宽 → task 10 Hz&#x27;, &#x27;gy53_pwm_sensor、s21c_board A/B/C&#x27;, &#x27;OLED 第4页、DATA、灯带；未进电机闭环&#x27;],
+            [&#x27;编码器 A/B/C/D&#x27;, &#x27;TIM2/3/4/5；84 MHz 定时器域&#x27;, &#x27;硬件正交计数，Balance 每10 ms读清&#x27;, &#x27;robot.MOTOR_x.Encoder&#x27;, &#x27;PI 反馈、DATA、OLED&#x27;],
+            [&#x27;电机 PWM&#x27;, &#x27;TIM8 CH1–4；168 MHz → 10 kHz&#x27;, &#x27;Balance → Set_Pwm&#x27;, &#x27;GPIO 方向 + CCR&#x27;, &#x27;电机驱动器&#x27;],
+            [&#x27;USART1 / USART3&#x27;, &#x27;PA9/10；PB10/11；115200&#x27;, &#x27;RXNE IRQ → 共用帧解析器&#x27;, &#x27;robot_control、charger&#x27;, &#x27;Balance、DATA&#x27;],
+            [&#x27;UART4 APP&#x27;, &#x27;PC10/11；9600/230400&#x27;, &#x27;RXNE IRQ 内解析&#x27;, &#x27;appkey、OLED页、参数、Debug_Flag&#x27;, &#x27;Balance、show、ReportErr&#x27;],
+            [&#x27;CAN1&#x27;, &#x27;新板 PD1/PD0；旧板 PA12/PA11&#x27;, &#x27;RX0 IRQ p3&#x27;, &#x27;robot_control、charger、s21c_board&#x27;, &#x27;Balance、DATA、show&#x27;],
+            [&#x27;航模遥控&#x27;, &#x27;TIM1 CH1–4；PE9/11/13/14&#x27;, &#x27;CC IRQ p5&#x27;, &#x27;remoter、ControlMode&#x27;, &#x27;Balance&#x27;],
+            [&#x27;USB / PS2&#x27;, &#x27;USB 48 MHz；或 V1.0 PS2&#x27;, &#x27;OTG IRQ → 队列 → USBH task；或PS2轮询&#x27;, &#x27;GamePadInterface&#x27;, &#x27;Balance&#x27;],
+            [&#x27;OLED&#x27;, &#x27;旧板 PD7/6/5/4；V1.2 PD7/PD4/PE1/PE0&#x27;, &#x27;show_task 10 Hz 位带串行写&#x27;, &#x27;oled.page / 显存&#x27;, &#x27;用户观察&#x27;],
+            [&#x27;同步机制&#x27;, &#x27;USB队列、D50A队列、RGB mutex&#x27;, &#x27;其余多为共享全局&#x27;, &#x27;无统一消息快照&#x27;, &#x27;需关注竞态与所有权&#x27;]
+          ]
+        }
+      };
+
+      function create(tag, attrs = {}, textContent = &#x27;&#x27;) {
+        const n = document.createElementNS(NS, tag);
+        Object.entries(attrs).forEach(([key, value]) =&gt; n.setAttribute(key, value));
+        if (textContent) n.textContent = textContent;
+        return n;
+      }
+
+      function clearSvg() {
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        const titleNode = create(&#x27;title&#x27;, { id: &#x27;stm32-svg-title&#x27; });
+        const descNode = create(&#x27;desc&#x27;, { id: &#x27;stm32-svg-desc&#x27; });
+        svg.append(titleNode, descNode);
+        const defs = create(&#x27;defs&#x27;);
+        const marker = create(&#x27;marker&#x27;, {
+          id: &#x27;stm32-arrow&#x27;,
+          markerWidth: &#x27;8&#x27;,
+          markerHeight: &#x27;8&#x27;,
+          refX: &#x27;7&#x27;,
+          refY: &#x27;4&#x27;,
+          orient: &#x27;auto&#x27;,
+          markerUnits: &#x27;strokeWidth&#x27;
+        });
+        marker.appendChild(create(&#x27;path&#x27;, { d: &#x27;M0,0 L8,4 L0,8 Z&#x27;, fill: &#x27;var(--muted-foreground)&#x27; }));
+        defs.appendChild(marker);
+        svg.appendChild(defs);
+        return { titleNode, descNode };
+      }
+
+      function zone(x, y, w, h, label) {
+        svg.appendChild(create(&#x27;rect&#x27;, { class: &#x27;zone&#x27;, x, y, width: w, height: h, rx: 12 }));
+        svg.appendChild(create(&#x27;text&#x27;, { x: x + 12, y: y + 20, &#x27;font-size&#x27;: 12, &#x27;font-weight&#x27;: 700, class: &#x27;muted&#x27; }, label));
+      }
+
+      function node(x, y, w, h, lines, tone = &#x27;t1&#x27;, options = {}) {
+        const g = create(&#x27;g&#x27;, { class: `node ${tone}` });
+        g.appendChild(create(&#x27;rect&#x27;, { x, y, width: w, height: h, rx: options.rx || 10 }));
+        const lineGap = options.lineGap || 17;
+        const startY = y + (h - ((lines.length - 1) * lineGap)) / 2 + 4;
+        lines.forEach((line, i) =&gt; {
+          g.appendChild(create(&#x27;text&#x27;, {
+            x: x + w / 2,
+            y: startY + i * lineGap,
+            &#x27;font-size&#x27;: i === 0 ? (options.titleSize || 14) : (options.bodySize || 11.5),
+            &#x27;font-weight&#x27;: i === 0 ? 700 : 500,
+            &#x27;text-anchor&#x27;: &#x27;middle&#x27;,
+            class: i === 0 ? &#x27;&#x27; : &#x27;muted&#x27;
+          }, line));
+        });
+        svg.appendChild(g);
+        return { x, y, w, h };
+      }
+
+      function label(x, y, textValue, anchor = &#x27;middle&#x27;, tone = &#x27;&#x27;) {
+        svg.appendChild(create(&#x27;text&#x27;, {
+          x, y,
+          &#x27;font-size&#x27;: 11,
+          &#x27;text-anchor&#x27;: anchor,
+          class: tone
+        }, textValue));
+      }
+
+      function path(d, textValue = &#x27;&#x27;, tx = 0, ty = 0, extraClass = &#x27;&#x27;) {
+        svg.appendChild(create(&#x27;path&#x27;, { d, class: `edge ${extraClass}`.trim() }));
+        if (textValue) label(tx, ty, textValue, &#x27;middle&#x27;, &#x27;muted&#x27;);
+      }
+
+      function edge(a, b, textValue = &#x27;&#x27;, extraClass = &#x27;&#x27;) {
+        const x1 = a.x + a.w;
+        const y1 = a.y + a.h / 2;
+        const x2 = b.x;
+        const y2 = b.y + b.h / 2;
+        const mid = (x1 + x2) / 2;
+        path(`M${x1},${y1} H${mid} V${y2} H${x2}`, textValue, mid, Math.min(y1, y2) - 7, extraClass);
+      }
+
+      function drawClock() {
+        const meta = clearSvg();
+        meta.titleNode.textContent = &#x27;STM32F407 时钟树&#x27;;
+        meta.descNode.textContent = &#x27;8MHz外部晶振经PLL生成168MHz内核时钟、48MHz USB时钟与APB总线时钟。&#x27;;
+        zone(15, 45, 1090, 455, &#x27;时钟产生与分配&#x27;);
+        const hse = node(35, 214, 120, 70, [&#x27;HSE 晶振&#x27;, &#x27;8 MHz&#x27;], &#x27;t1&#x27;);
+        const pllm = node(190, 214, 125, 70, [&#x27;PLLM ÷ 8&#x27;, &#x27;PLL输入 1 MHz&#x27;], &#x27;t2&#x27;);
+        const vco = node(350, 214, 130, 70, [&#x27;PLLN × 336&#x27;, &#x27;VCO 336 MHz&#x27;], &#x27;t2&#x27;);
+        const sys = node(520, 125, 145, 75, [&#x27;PLLP ÷ 2&#x27;, &#x27;SYSCLK 168 MHz&#x27;], &#x27;t3&#x27;);
+        const hclk = node(705, 125, 145, 75, [&#x27;AHB ÷ 1&#x27;, &#x27;HCLK 168 MHz&#x27;], &#x27;t3&#x27;);
+        const apb1 = node(900, 65, 165, 72, [&#x27;APB1 ÷ 4&#x27;, &#x27;PCLK1 42 MHz&#x27;, &#x27;TIM2–7 = 84 MHz&#x27;], &#x27;t4&#x27;);
+        const apb2 = node(900, 165, 165, 72, [&#x27;APB2 ÷ 2&#x27;, &#x27;PCLK2 84 MHz&#x27;, &#x27;TIM1/8 = 168 MHz&#x27;], &#x27;t4&#x27;);
+        const systick = node(900, 280, 165, 72, [&#x27;SysTick / RTOS&#x27;, &#x27;168000 周期&#x27;, &#x27;1 kHz = 1 ms&#x27;], &#x27;t5&#x27;);
+        const dwt = node(900, 385, 165, 72, [&#x27;DWT CYCCNT&#x27;, &#x27;168 计数/µs&#x27;, &#x27;单计数 5.95 ns&#x27;], &#x27;t5&#x27;);
+        const pllq = node(520, 345, 145, 72, [&#x27;PLLQ ÷ 7&#x27;, &#x27;PLL48CLK 48 MHz&#x27;], &#x27;t1&#x27;);
+        const usb = node(705, 345, 145, 72, [&#x27;USB OTG FS&#x27;, &#x27;Host 时钟域&#x27;], &#x27;t1&#x27;);
+        edge(hse, pllm);
+        edge(pllm, vco);
+        edge(vco, sys);
+        edge(sys, hclk);
+        edge(hclk, apb1);
+        edge(hclk, apb2);
+        edge(hclk, systick);
+        edge(hclk, dwt);
+        path(`M${vco.x + vco.w},${vco.y + vco.h / 2} H500 V${pllq.y + pllq.h / 2} H${pllq.x}`, &#x27;独立48MHz分支&#x27;, 507, 327);
+        edge(pllq, usb);
+        label(560, 474, &#x27;IMU 与 GY53 是被 MCU 采集的外设，不参与系统时钟生成&#x27;, &#x27;start&#x27;, &#x27;muted&#x27;);
+      }
+
+      function drawBoot() {
+        const meta = clearSvg();
+        meta.titleNode.textContent = &#x27;STM32F407 上电启动时序&#x27;;
+        meta.descNode.textContent = &#x27;复位后先配置系统时钟和板级外设，再启动FreeRTOS和业务任务。&#x27;;
+        zone(18, 45, 1084, 115, &#x27;启动汇编 / CMSIS：尚未进入 main()&#x27;);
+        zone(18, 178, 1084, 195, &#x27;应用层 systemInit：调度器尚未运行&#x27;);
+        zone(18, 390, 1084, 125, &#x27;FreeRTOS：任务与中断协同运行&#x27;);
+        const reset = node(40, 78, 125, 60, [&#x27;上电 / 复位&#x27;, &#x27;取 MSP 与 PC&#x27;], &#x27;t1&#x27;);
+        const sysinit = node(205, 78, 165, 60, [&#x27;SystemInit()&#x27;, &#x27;FPU + HSE/PLL&#x27;], &#x27;t2&#x27;);
+        const runtime = node(410, 78, 150, 60, [&#x27;C 运行库&#x27;, &#x27;数据装载 / BSS清零&#x27;], &#x27;t2&#x27;);
+        const main = node(600, 78, 120, 60, [&#x27;main()&#x27;, &#x27;进入应用&#x27;], &#x27;t3&#x27;);
+        const board = node(760, 78, 190, 60, [&#x27;systemInit()&#x27;, &#x27;板级初始化入口&#x27;], &#x27;t3&#x27;);
+        edge(reset, sysinit);
+        edge(sysinit, runtime);
+        edge(runtime, main);
+        edge(main, board);
+
+        const early = node(40, 215, 180, 68, [&#x27;基础外设&#x27;, &#x27;NVIC组4 / SysTick&#x27;, &#x27;UART1 / 软件I²C&#x27;], &#x27;t1&#x27;);
+        const detect = node(265, 215, 175, 68, [&#x27;读取 IMU ID&#x27;, &#x27;0x68 或 0xEA&#x27;, &#x27;决定板卡版本&#x27;], &#x27;t5&#x27;);
+        const v10 = node(490, 188, 185, 66, [&#x27;V1.0 分支&#x27;, &#x27;MPU6050 / PS2&#x27;, &#x27;旧板电机与CAN&#x27;], &#x27;t2&#x27;);
+        const v12 = node(490, 284, 185, 66, [&#x27;V1.1 / V1.2 分支&#x27;, &#x27;ICM20948 / USB&#x27;, &#x27;V1.2 再加D50A&#x27;], &#x27;t4&#x27;);
+        const common = node(730, 215, 200, 90, [&#x27;公共外设&#x27;, &#x27;GY53暂屏蔽 / OLED&#x27;, &#x27;UART3/4 / 遥控&#x27;, &#x27;编码器 / ADC / 参数&#x27;], &#x27;t3&#x27;);
+        const startcreate = node(965, 225, 120, 70, [&#x27;创建 start&#x27;, &#x27;优先级25&#x27;, &#x27;启动调度器&#x27;], &#x27;t5&#x27;);
+        edge(early, detect);
+        path(`M${detect.x + detect.w},${detect.y + detect.h / 2} H465 V${v10.y + v10.h / 2} H${v10.x}`, &#x27;0x68&#x27;, 466, 195);
+        path(`M${detect.x + detect.w},${detect.y + detect.h / 2} H465 V${v12.y + v12.h / 2} H${v12.x}`, &#x27;0xEA&#x27;, 466, 340);
+        edge(v10, common);
+        edge(v12, common);
+        edge(common, startcreate);
+        path(`M${board.x + board.w / 2},${board.y + board.h} V190 H${early.x + early.w / 2} V${early.y}`);
+
+        const kernel = node(40, 425, 185, 62, [&#x27;vTaskStartScheduler&#x27;, &#x27;Idle/Timer + 1ms tick&#x27;], &#x27;t2&#x27;);
+        const start = node(275, 425, 180, 62, [&#x27;start_task 运行&#x27;, &#x27;新版先初始化 USB&#x27;], &#x27;t3&#x27;);
+        const createTasks = node(505, 425, 220, 62, [&#x27;批量创建任务&#x27;, &#x27;控制 / IMU / 显示 / 通信&#x27;], &#x27;t4&#x27;);
+        const gy53 = node(775, 425, 145, 62, [&#x27;300 ms 后&#x27;, &#x27;开放 GY53 IRQ&#x27;], &#x27;t5&#x27;);
+        const steady = node(970, 425, 115, 62, [&#x27;稳定运行&#x27;, &#x27;start 自删&#x27;], &#x27;t1&#x27;);
+        edge(kernel, start);
+        edge(start, createTasks);
+        edge(createTasks, gy53);
+        edge(gy53, steady);
+        path(`M${startcreate.x + startcreate.w / 2},${startcreate.y + startcreate.h} V400 H${kernel.x + kernel.w / 2} V${kernel.y}`);
+      }
+
+      function drawTasks() {
+        const meta = clearSvg();
+        meta.titleNode.textContent = &#x27;FreeRTOS 任务优先级与周期&#x27;;
+        meta.descNode.textContent = &#x27;大数值任务优先级更高，高优先级就绪任务会抢占低优先级任务。&#x27;;
+        label(35, 35, &#x27;任务优先级&#x27;, &#x27;start&#x27;, &#x27;muted&#x27;);
+        path(&#x27;M70,500 V65&#x27;, &#x27;更高&#x27;, 92, 72);
+        const rows = [
+          { p: 31, y: 70, tone: &#x27;t5&#x27;, items: [[&#x27;Timer Service&#x27;, &#x27;阻塞等队列；无用户软件定时器&#x27;]] },
+          { p: 25, y: 125, tone: &#x27;t1&#x27;, items: [[&#x27;start_task&#x27;, &#x27;一次性：建任务后自删&#x27;]] },
+          { p: 24, y: 180, tone: &#x27;t2&#x27;, items: [[&#x27;USBH_Queue&#x27;, &#x27;V1.1+；阻塞等USB事件&#x27;], [&#x27;ReportErr&#x27;, &#x27;500 ms轮询&#x27;]] },
+          { p: 22, y: 235, tone: &#x27;t5&#x27;, items: [[&#x27;RGB effect&#x27;, &#x27;按需创建；20–2000 ms&#x27;]] },
+          { p: 4, y: 300, tone: &#x27;t3&#x27;, items: [[&#x27;Balance&#x27;, &#x27;10 ms / 100 Hz&#x27;], [&#x27;DATA&#x27;, &#x27;50 ms / 20 Hz&#x27;], [&#x27;PS2 classic&#x27;, &#x27;V1.0；50 ms&#x27;]] },
+          { p: 3, y: 365, tone: &#x27;t4&#x27;, items: [[&#x27;IMU&#x27;, &#x27;10 ms / 100 Hz；二选一&#x27;]] },
+          { p: 2, y: 420, tone: &#x27;t1&#x27;, items: [[&#x27;show&#x27;, &#x27;100 ms&#x27;], [&#x27;GY53&#x27;, &#x27;100 ms&#x27;], [&#x27;LED/RGB&#x27;, &#x27;状态周期&#x27;], [&#x27;D50A&#x27;, &#x27;V1.2；100 ms&#x27;]] },
+          { p: 0, y: 475, tone: &#x27;neutral&#x27;, items: [[&#x27;Idle&#x27;, &#x27;无其他就绪任务时&#x27;]] }
+        ];
+        rows.forEach((row) =&gt; {
+          svg.appendChild(create(&#x27;line&#x27;, { x1: 110, y1: row.y + 20, x2: 1085, y2: row.y + 20, class: &#x27;priority-line&#x27; }));
+          svg.appendChild(create(&#x27;text&#x27;, { x: 70, y: row.y + 26, &#x27;font-size&#x27;: 17, &#x27;font-weight&#x27;: 800, &#x27;text-anchor&#x27;: &#x27;middle&#x27; }, String(row.p)));
+          const usable = 930;
+          const gap = 12;
+          const w = Math.min(220, (usable - gap * (row.items.length - 1)) / row.items.length);
+          row.items.forEach((item, i) =&gt; {
+            node(130 + i * (w + gap), row.y, w, 42, item, row.tone, { titleSize: 12.5, bodySize: 10.5, lineGap: 14 });
+          });
+        });
+        label(810, 38, &#x27;同优先级：时间片轮转；被 vTaskDelay/队列阻塞后让出 CPU&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+        label(810, 527, &#x27;外设 IRQ 在更高的“异常态”执行，可打断这里的任何任务&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+      }
+
+      function drawIrq() {
+        const meta = clearSvg();
+        meta.titleNode.textContent = &#x27;NVIC 中断抢占与 FreeRTOS API 边界&#x27;;
+        meta.descNode.textContent = &#x27;中断优先级数值越小越高，0到4禁止调用FreeRTOS API，5到15允许FromISR。&#x27;;
+        zone(15, 45, 280, 435, &#x27;优先级规则&#x27;);
+        label(70, 92, &#x27;更强&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+        path(&#x27;M70,445 V110&#x27;);
+        const levels = [
+          { p: &#x27;固定&#x27;, y: 100, name: &#x27;NMI / HardFault&#x27;, desc: &#x27;故障捕获后停机&#x27;, tone: &#x27;t5&#x27; },
+          { p: &#x27;0&#x27;, y: 160, name: &#x27;USART3  |  SVC&#x27;, desc: &#x27;最高外设IRQ；SVC启动首任务&#x27;, tone: &#x27;t5&#x27; },
+          { p: &#x27;3&#x27;, y: 230, name: &#x27;CAN1_RX0  |  UART4&#x27;, desc: &#x27;同级：CAN异常号更小&#x27;, tone: &#x27;t2&#x27; },
+          { p: &#x27;4&#x27;, y: 300, name: &#x27;USART1&#x27;, desc: &#x27;可抢占所有p5来源&#x27;, tone: &#x27;t3&#x27; },
+          { p: &#x27;5&#x27;, y: 370, name: &#x27;EXTI9_5 | TIM1_CC | USART2 | OTG_FS&#x27;, desc: &#x27;同级互不抢占；异常号小者先&#x27;, tone: &#x27;t4&#x27; },
+          { p: &#x27;15&#x27;, y: 440, name: &#x27;SysTick  |  PendSV&#x27;, desc: &#x27;内核最低优先级&#x27;, tone: &#x27;t1&#x27; }
+        ];
+        levels.forEach((item) =&gt; {
+          svg.appendChild(create(&#x27;text&#x27;, { x: 250, y: item.y + 25, &#x27;font-size&#x27;: 17, &#x27;font-weight&#x27;: 800, &#x27;text-anchor&#x27;: &#x27;middle&#x27; }, item.p));
+          node(330, item.y, 520, 48, [item.name, item.desc], item.tone, { titleSize: 13, bodySize: 10.5, lineGap: 14 });
+        });
+        svg.appendChild(create(&#x27;rect&#x27;, { x: 885, y: 120, width: 205, height: 210, rx: 12, fill: &#x27;var(--viz-series-5)&#x27;, &#x27;fill-opacity&#x27;: &#x27;.12&#x27;, stroke: &#x27;var(--viz-series-5)&#x27; }));
+        label(988, 150, &#x27;IRQ 0–4&#x27;, &#x27;middle&#x27;);
+        label(988, 176, &#x27;禁止调用 FreeRTOS API&#x27;, &#x27;middle&#x27;);
+        label(988, 202, &#x27;临界区也不会屏蔽它们&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+        label(988, 238, &#x27;USART3 可嵌套 USART1&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+        label(988, 260, &#x27;且两者共用解析状态&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+        label(988, 292, &#x27;ISR 必须短且有边界检查&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+        svg.appendChild(create(&#x27;rect&#x27;, { x: 885, y: 345, width: 205, height: 145, rx: 12, fill: &#x27;var(--viz-series-4)&#x27;, &#x27;fill-opacity&#x27;: &#x27;.12&#x27;, stroke: &#x27;var(--viz-series-4)&#x27; }));
+        label(988, 375, &#x27;IRQ 5–15&#x27;, &#x27;middle&#x27;);
+        label(988, 401, &#x27;允许调用 *FromISR&#x27;, &#x27;middle&#x27;);
+        label(988, 427, &#x27;BASEPRI=5 临界区会屏蔽&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+        label(988, 456, &#x27;当前仅 USB 实际使用&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+        label(610, 522, &#x27;同优先级不互相嵌套；同时 pending 时按异常号固定仲裁，subpriority 参数不生效&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+      }
+
+      function drawFlow() {
+        const meta = clearSvg();
+        meta.titleNode.textContent = &#x27;输入、共享状态、控制闭环与输出&#x27;;
+        meta.descNode.textContent = &#x27;传感器和通信输入通过中断或任务写入共享状态，Balance任务生成电机PWM并读取编码器反馈。&#x27;;
+        zone(15, 55, 250, 435, &#x27;输入与采集&#x27;);
+        zone(285, 55, 210, 435, &#x27;通信 / 共享状态&#x27;);
+        zone(515, 55, 335, 435, &#x27;100 Hz 电机闭环&#x27;);
+        zone(870, 55, 235, 435, &#x27;显示与上报&#x27;);
+
+        const cmd = node(35, 90, 205, 75, [&#x27;控制命令&#x27;, &#x27;UART1/3 · UART4 · CAN&#x27;, &#x27;RC · USB/PS2&#x27;], &#x27;t1&#x27;);
+        const imu = node(35, 195, 205, 65, [&#x27;IMU 100 Hz&#x27;, &#x27;PB8/PB9 软件I²C&#x27;], &#x27;t2&#x27;);
+        const gy = node(35, 290, 205, 76, [&#x27;GY53 ×3&#x27;, &#x27;PE5/7/8 EXTI&#x27;, &#x27;DWT测PWM脉宽&#x27;], &#x27;t4&#x27;);
+        const adc = node(35, 400, 205, 60, [&#x27;ADC + 编码器&#x27;, &#x27;电压 / 模式 / TIM2–5&#x27;], &#x27;t5&#x27;);
+
+        const irq = node(305, 115, 170, 72, [&#x27;IRQ / 驱动回调&#x27;, &#x27;字节、CAN帧、捕获边沿&#x27;], &#x27;t5&#x27;);
+        const globals = node(305, 225, 170, 116, [&#x27;共享全局状态&#x27;, &#x27;robot_control · imu&#x27;, &#x27;remoter · charger&#x27;, &#x27;s21c_board · robot&#x27;], &#x27;t3&#x27;);
+        const queues = node(305, 385, 170, 66, [&#x27;少量显式同步&#x27;, &#x27;USB/D50A队列&#x27;, &#x27;RGB mutex&#x27;], &#x27;t2&#x27;);
+
+        const balance = node(540, 155, 180, 78, [&#x27;Balance_task&#x27;, &#x27;10 ms / 100 Hz&#x27;, &#x27;命令选择 + 安全&#x27;], &#x27;t1&#x27;);
+        const drive = node(540, 285, 180, 70, [&#x27;Drive_Motor&#x27;, &#x27;限幅 / 平滑 / 逆运动学&#x27;], &#x27;t2&#x27;);
+        const pi = node(540, 405, 180, 62, [&#x27;增量 PI&#x27;, &#x27;Target − Encoder&#x27;], &#x27;t3&#x27;);
+        const pwm = node(750, 405, 80, 62, [&#x27;TIM8&#x27;, &#x27;10 kHz&#x27;], &#x27;t4&#x27;, { titleSize: 12 });
+        const motors = node(750, 270, 80, 62, [&#x27;电机&#x27;, &#x27;A–D&#x27;], &#x27;t5&#x27;, { titleSize: 12 });
+        const enc = node(750, 155, 80, 62, [&#x27;编码器&#x27;, &#x27;CNT读清&#x27;], &#x27;t2&#x27;, { titleSize: 12 });
+
+        const show = node(895, 105, 185, 76, [&#x27;show_task 10 Hz&#x27;, &#x27;OLED 第1–4页&#x27;, &#x27;APP状态输出&#x27;], &#x27;t1&#x27;);
+        const data = node(895, 225, 185, 76, [&#x27;DATA_task 20 Hz&#x27;, &#x27;UART1/3 + CAN&#x27;, &#x27;统一遥测帧&#x27;], &#x27;t3&#x27;);
+        const alerts = node(895, 345, 185, 76, [&#x27;诊断 / 灯带&#x27;, &#x27;ReportErr · LED&#x27;, &#x27;GY53 &lt;0.5m 告警&#x27;], &#x27;t5&#x27;);
+
+        edge(cmd, irq);
+        path(`M${imu.x + imu.w},${imu.y + imu.h / 2} H280 V${globals.y + globals.h / 2} H${globals.x}`);
+        path(`M${gy.x + gy.w},${gy.y + gy.h / 2} H280 V${globals.y + globals.h / 2 + 25} H${globals.x}`);
+        path(`M${adc.x + adc.w},${adc.y + adc.h / 2} H280 V${globals.y + globals.h / 2 + 45} H${globals.x}`);
+        edge(irq, globals);
+        path(`M${irq.x + irq.w / 2},${irq.y + irq.h} V${queues.y}`);
+        edge(globals, balance);
+        edge(balance, drive);
+        edge(drive, pi);
+        edge(pi, pwm);
+        path(`M${pwm.x + pwm.w / 2},${pwm.y} V${motors.y + motors.h}`);
+        path(`M${motors.x + motors.w / 2},${motors.y} V${enc.y + enc.h}`);
+        path(`M${enc.x},${enc.y + enc.h / 2} H735 V125 H625 V${balance.y}`, &#x27;速度反馈&#x27;, 680, 118, &#x27;feedback&#x27;);
+        path(`M${globals.x + globals.w},${globals.y + 15} H860 V${show.y + show.h / 2} H${show.x}`);
+        path(`M${globals.x + globals.w},${globals.y + globals.h / 2} H860 V${data.y + data.h / 2} H${data.x}`);
+        path(`M${globals.x + globals.w},${globals.y + globals.h - 15} H860 V${alerts.y + alerts.h / 2} H${alerts.x}`);
+        label(680, 505, &#x27;GY53 → 显示 / 上报 / 告警；当前没有连到 Balance → PI 路径&#x27;, &#x27;middle&#x27;, &#x27;muted&#x27;);
+      }
+
+      function renderTable(rows) {
+        const [head, ...body] = rows;
+        tableWrap.innerHTML = `
+          &lt;table&gt;
+            &lt;thead&gt;&lt;tr&gt;${head.map((cell) =&gt; `&lt;th&gt;${cell}&lt;/th&gt;`).join(&#x27;&#x27;)}&lt;/tr&gt;&lt;/thead&gt;
+            &lt;tbody&gt;${body.map((row) =&gt; `&lt;tr&gt;${row.map((cell) =&gt; `&lt;td&gt;${cell}&lt;/td&gt;`).join(&#x27;&#x27;)}&lt;/tr&gt;`).join(&#x27;&#x27;)}&lt;/tbody&gt;
+          &lt;/table&gt;`;
+      }
+
+      const draw = { clock: drawClock, boot: drawBoot, tasks: drawTasks, irq: drawIrq, flow: drawFlow };
+
+      function render(viewName) {
+        const view = views[viewName];
+        title.textContent = view.title;
+        subtitle.textContent = view.subtitle;
+        detail.innerHTML = view.detail;
+        note.innerHTML = view.note;
+        renderTable(view.table);
+        draw[viewName]();
+        root.querySelectorAll(&#x27;.viz-tab&#x27;).forEach((button) =&gt; {
+          button.setAttribute(&#x27;aria-pressed&#x27;, button.dataset.view === viewName ? &#x27;true&#x27; : &#x27;false&#x27;);
+        });
+      }
+
+      root.querySelectorAll(&#x27;.viz-tab&#x27;).forEach((button) =&gt; {
+        button.addEventListener(&#x27;click&#x27;, () =&gt; render(button.dataset.view));
+      });
+
+      render(&#x27;clock&#x27;);
+    })();
+  &lt;/script&gt;
+&lt;/section&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

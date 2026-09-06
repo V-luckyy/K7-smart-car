@@ -28,54 +28,103 @@ Output  : none
 TaskHandle_t show_TaskHandle = NULL;
 void show_task(void *pvParameters)
 {
-    u32 lastWakeTime = getSysTickCnt();
-    while(1)
-    {
-        vTaskDelayUntil(&lastWakeTime, F2T(SHOW_TASK_RATE));//This task runs at 10Hz //此任务以10Hz的频率运行
+	u32 lastWakeTime;
+	uint8_t i;
+	uint8_t valid_samples;
+	u32 adc_timeout_before;
+	float sample;
+	float tmp;
+	UBaseType_t stack_words;
 
-        //蜂鸣器任务,使用 Buzzer_AddTask(a,b) 函数可添加蜂鸣器任务
+	(void)pvParameters;
+	g_system_diag.runtime_flags |= SYSTEM_DIAG_RUNTIME_SHOW_TASK;
+	SystemDiag_SetStage(SYSTEM_DIAG_STAGE_RTOS_RUNNING);
+	g_system_diag.show_step = 1;
+
+	/* First RTOS-owned frame: proves scheduler and show_task are running. */
+	OLED_ClearBuf();
+	OLED_ShowString(0,0,(const u8 *)"RTOS RUNNING");
+	OLED_ShowString(0,16,(const u8 *)"TASK FAIL:");
+	OLED_ShowNumber(72,16,g_system_diag.task_fail_mask,4,12);
+	OLED_ShowString(0,32,(const u8 *)"FREE HEAP:");
+	OLED_ShowNumber(80,32,g_system_diag.free_heap_after_create,5,12);
+	OLED_ShowString(0,48,(const u8 *)"PWM:");
+	OLED_ShowNumber(32,48,gy53_pwm_capture_enabled,1,12);
+	g_system_diag.oled_refresh_enter++;
+	OLED_Refresh_Gram();
+	g_system_diag.oled_refresh_exit++;
+	vTaskDelay(M2T(SYSTEM_DIAG_BOOT_SCREEN_MS));
+	lastWakeTime = getSysTickCnt();
+
+	while(1)
+	{
+		g_system_diag.show_step = 2;
+		vTaskDelayUntil(&lastWakeTime,F2T(SHOW_TASK_RATE));
+		g_system_diag.show_heartbeat++;
+		stack_words = uxTaskGetStackHighWaterMark(NULL);
+		if(stack_words < g_system_diag.show_stack_min_words)
+		{
+			g_system_diag.show_stack_min_words = stack_words;
+		}
+		if((USART_TxTimeoutCount != 0U) || (g_system_diag.uart1_timeout_count != 0U))
+		{
+			SystemDiag_SetError(SYSTEM_DIAG_ERROR_UART_TIMEOUT);
+		}
+
+		g_system_diag.show_step = 3;
 		Buzzer_task(SHOW_TASK_RATE);
-		
-        //读取电池电压任务
-		uint8_t i=0;
-		float tmp = 0;
-        for(i=0; i<100; i++)
-        {
-            tmp+=Get_battery_volt();
-        }
-        robot.voltage=tmp/100.0f;
-        robot.voltage = VolMean_Filter(robot.voltage);
-		
-		
-		if( robot.voltage<20 && robot.LowPower==0 ) robot.LowPower=1;
-		if( robot.voltage>21.0f ) robot.LowPower = 0;
-		
-		//低电量1hz频率蜂鸣
-		if(robot.LowPower && robot.voltage > 18.0f&& robot.voltage < 20.0f)
+
+		g_system_diag.show_step = 4;
+		tmp = 0;
+		valid_samples = 0U;
+		adc_timeout_before = ADC1_TimeoutCount;
+		for(i=0;i<100;i++)
+		{
+			sample = Get_battery_volt();
+			if(ADC1_TimeoutCount != adc_timeout_before) break;
+			tmp += sample;
+			valid_samples++;
+		}
+		if(ADC1_TimeoutCount != adc_timeout_before)
+		{
+			SystemDiag_SetError(SYSTEM_DIAG_ERROR_ADC_TIMEOUT);
+		}
+		if(valid_samples > 0U)
+		{
+			robot.voltage = tmp/(float)valid_samples;
+			robot.voltage = VolMean_Filter(robot.voltage);
+		}
+
+		if(robot.voltage < 20 && robot.LowPower == 0) robot.LowPower = 1;
+		if(robot.voltage > 21.0f) robot.LowPower = 0;
+
+		if(robot.LowPower && robot.voltage > 18.0f && robot.voltage < 20.0f)
 		{
 			static uint16_t buzzer_timer = 0;
 			buzzer_timer++;
-			if( buzzer_timer >= 10 )  // 保持1秒添加一次
+			if(buzzer_timer >= 10)
 			{
-				Buzzer_AddTask(1,50);  // 响1次 50*10ms=500ms
+				Buzzer_AddTask(1,50);
 				buzzer_timer = 0;
 			}
 		}
-		//电量低,存在回充装备且收到充电桩的红外信号,自动开启回充功能
-		if( 1 == robot.LowPower && 1 == SysVal.HardWare_charger && charger.RED_STATE>=2 )
-		{
-			if( SysVal.Time_count>CONTROL_DELAY ) charger.AllowRecharge = 1;
-		}
-		
-        //APP显示数据任务
-		if( Debug_Flag == 0 )
-			APP_ShowTask();
-		
-		//OLED显示数据任务
-		OLED_ShowTask();
-    }
-}
 
+		if(1 == robot.LowPower && 1 == SysVal.HardWare_charger && charger.RED_STATE >= 2)
+		{
+			if(SysVal.Time_count > CONTROL_DELAY) charger.AllowRecharge = 1;
+		}
+
+		/* Refresh OLED before APP output so a UART fault cannot hide the display. */
+		g_system_diag.show_step = 5;
+		g_system_diag.oled_refresh_enter++;
+		OLED_ShowTask();
+		g_system_diag.oled_refresh_exit++;
+
+		g_system_diag.show_step = 6;
+		if(Debug_Flag == 0) APP_ShowTask();
+		g_system_diag.show_step = 0;
+	}
+}
 
 /**************************************************************************
 Function: Send data to the APP
@@ -253,36 +302,36 @@ static void OLED_ShowTask(void)
 		TypeNum = Get_ADC1_Average(CarMode_Ch,10)/TypeNum;
 		
 		//第一行左半部分,显示电位器车型.同时带显示是否正在自动回充功能
-		if( 0 == charger.AllowRecharge) OLED_ShowString(0,0,"TYPE:");
-		else                           OLED_ShowString(0,0,"RCM :");
+		if( 0 == charger.AllowRecharge) OLED_ShowString(0,0,(const u8 *)"TYPE:");
+		else                           OLED_ShowString(0,0,(const u8 *)"RCM :");
 		
 		//车型号,报错则显示X
 		if( 0 == robot_check.errorflag) OLED_ShowNumber(40,0,TypeNum,2,12);
-		else                           OLED_ShowString(38,0," X");
+		else                           OLED_ShowString(38,0,(const u8 *)" X");
 		
 		//第一行右半部分,Z轴角速度
-		OLED_ShowString(60,0,"GZ");
-		if( imu.gyro.z < 0)  OLED_ShowString(80,0,"-"),OLED_ShowNumber(90,0,-imu.gyro.z,5,12);
-		else                 OLED_ShowString(80,0,"+"),OLED_ShowNumber(90,0, imu.gyro.z,5,12);
+		OLED_ShowString(60,0,(const u8 *)"GZ");
+		if( imu.gyro.z < 0)  OLED_ShowString(80,0,(const u8 *)"-"),OLED_ShowNumber(90,0,-imu.gyro.z,5,12);
+		else                 OLED_ShowString(80,0,(const u8 *)"+"),OLED_ShowNumber(90,0, imu.gyro.z,5,12);
 		//oled_showfloat(debug.u8_val,80,0,3,2);
 		
 		
 		//最后一行左半部分,显示控制类型 和 显示小车是否允许被控制
-			  if( Get_Control_Mode(_ROS_Control) )    OLED_ShowString(0,50,"ROS  ");
-		else if(  Get_Control_Mode(_PS2_Control) )   OLED_ShowString(0,50,"PS2  ");
-		else if(  Get_Control_Mode(_APP_Control) )   OLED_ShowString(0,50,"APP  ");
-		else if(  Get_Control_Mode(_RC_Control)  )   OLED_ShowString(0,50,"R-C  ");
-		else if(  Get_Control_Mode(_CAN_Control) )   OLED_ShowString(0,50,"CAN  ");
-		else if(  Get_Control_Mode(_USART_Control) ) OLED_ShowString(0,50,"USART");
+			  if( Get_Control_Mode(_ROS_Control) )    OLED_ShowString(0,50,(const u8 *)"ROS  ");
+		else if(  Get_Control_Mode(_PS2_Control) )   OLED_ShowString(0,50,(const u8 *)"PS2  ");
+		else if(  Get_Control_Mode(_APP_Control) )   OLED_ShowString(0,50,(const u8 *)"APP  ");
+		else if(  Get_Control_Mode(_RC_Control)  )   OLED_ShowString(0,50,(const u8 *)"R-C  ");
+		else if(  Get_Control_Mode(_CAN_Control) )   OLED_ShowString(0,50,(const u8 *)"CAN  ");
+		else if(  Get_Control_Mode(_USART_Control) ) OLED_ShowString(0,50,(const u8 *)"USART");
 		
 		//显示小车是否允许被控制
-		if( 0 == robot_control.FlagStop ) OLED_ShowString(45,50," ON");
-		else                              OLED_ShowString(45,50,"OFF");
+		if( 0 == robot_control.FlagStop ) OLED_ShowString(45,50,(const u8 *)" ON");
+		else                              OLED_ShowString(45,50,(const u8 *)"OFF");
 			
 		//右半部分显示电池电压
 		oled_showfloat(robot.voltage,75,50,2,2);
-		OLED_ShowString(75,50," ");
-		OLED_ShowString(120,50,"V");
+		OLED_ShowString(75,50,(const u8 *)" ");
+		OLED_ShowString(120,50,(const u8 *)"V");
 		
 		//第2、3、4、5行非公共区域,根据车型不同显示的特定信息
 		#if defined AKM_CAR
@@ -298,13 +347,13 @@ static void OLED_ShowTask(void)
 	else if( 2 == oled.page ) 
 	{
 		//自动回充套件Debug信息
-		OLED_ShowString(07,00,"LA  LB  RB  RA");
+		OLED_ShowString(07,00,(const u8 *)"LA  LB  RB  RA");
 		OLED_ShowNumber(0+9,10,charger.L_A,1,12);
 		OLED_ShowNumber(30+9,10,charger.L_B,1,12);
 		OLED_ShowNumber(60+9,10,charger.R_B,1,12);
 		OLED_ShowNumber(90+9,10,charger.R_A,1,12);
-		OLED_ShowString(0,30,"cur:"); 
-		OLED_ShowString(75,30,"A"); 
+		OLED_ShowString(0,30,(const u8 *)"cur:"); 
+		OLED_ShowString(75,30,(const u8 *)"A"); 
 		oled_showfloat(charger.ChargingCurrent/1000.0f,30,30,2,2);
 	}
 	
@@ -312,11 +361,11 @@ static void OLED_ShowTask(void)
 	else if( 3 == oled.page )
 	{
 		//第1行 显示是哪种车
-		OLED_ShowString(0,0,"CarMode:");
+		OLED_ShowString(0,0,(const u8 *)"CarMode:");
 		#if defined AKM_CAR
 			OLED_ShowString(66,0,"AKM");
 		#elif defined DIFF_CAR
-			OLED_ShowString(66,0,"DIFF");
+			OLED_ShowString(66,0,(const u8 *)"DIFF");
 		#elif defined MEC_CAR
 			OLED_ShowString(66,0,"MEC");
 		#elif defined _4WD_CAR
@@ -326,19 +375,19 @@ static void OLED_ShowTask(void)
 		#endif
 		
 		//第二行显示车型代号
-		OLED_ShowString(0,12,"CarType:");
+		OLED_ShowString(0,12,(const u8 *)"CarType:");
 		OLED_ShowNumber(66,12,robot.type,2,12);
 		
 		//第三行显示硬件版本
-		OLED_ShowString(0,24,"HW_Ver:");
+		OLED_ShowString(0,24,(const u8 *)"HW_Ver:");
 		OLED_ShowString(66,24,getHW_Ver(SysVal.HardWare_Ver));
 		
 		//第四行显示软件版本
-		OLED_ShowString(0,36,"SW_Ver:");
+		OLED_ShowString(0,36,(const u8 *)"SW_Ver:");
 		OLED_ShowString(66,36,getSW_Ver(SysVal.SoftWare_Ver));
 		
 		//IP显示
-		OLED_ShowString(0,48,"IP:");
+		OLED_ShowString(0,48,(const u8 *)"IP:");
 		OLED_ShowNumber(24,48,Received_IP[0],3,12);
 		OLED_ShowNumber(48,48,Received_IP[1],3,12);
 		OLED_ShowNumber(72,48,Received_IP[2],3,12);
@@ -347,27 +396,79 @@ static void OLED_ShowTask(void)
 	
 	else if( 4 == oled.page )
 	{
-		OLED_ShowString(0,0,"A:");
-		OLED_ShowString(0,10,"B:");
-		OLED_ShowString(0,20,"C:");
-		OLED_ShowString(0,30,"D:");
-		OLED_ShowString(0,40,"E:");
-		OLED_ShowString(0,50,"F:");
-		oled_showfloat(s21c_board.rangerA,20,0,2,2);
-		oled_showfloat(s21c_board.rangerB,20,10,2,2);
-		oled_showfloat(s21c_board.rangerC,20,20,2,2);
-		oled_showfloat(s21c_board.rangerD,20,30,2,2);
-		oled_showfloat(s21c_board.rangerE,20,40,2,2);
-		oled_showfloat(s21c_board.rangerF,20,50,2,2);
+		/* F/L/R: distance and online state. P/N: pulse width and valid update count. */
+		OLED_ShowString(0,0,(const u8 *)"F:");
+		OLED_ShowNumber(16,0,gy53_pwm_sensor[GY53_PWM_FRONT].distance_mm,5,12);
+		OLED_ShowString(48,0,(const u8 *)"mm");
+		OLED_ShowString(72,0,gy53_pwm_sensor[GY53_PWM_FRONT].online ? (const u8 *)"ON " : (const u8 *)"OFF");
+		OLED_ShowString(0,10,(const u8 *)"P:");
+		OLED_ShowNumber(16,10,gy53_pwm_sensor[GY53_PWM_FRONT].last_pulse_us,5,12);
+		OLED_ShowString(48,10,(const u8 *)"us");
+		OLED_ShowString(72,10,(const u8 *)"N:");
+		OLED_ShowNumber(88,10,gy53_pwm_sensor[GY53_PWM_FRONT].update_count%10000U,4,12);
+
+		OLED_ShowString(0,20,(const u8 *)"L:");
+		OLED_ShowNumber(16,20,gy53_pwm_sensor[GY53_PWM_LEFT].distance_mm,5,12);
+		OLED_ShowString(48,20,(const u8 *)"mm");
+		OLED_ShowString(72,20,gy53_pwm_sensor[GY53_PWM_LEFT].online ? (const u8 *)"ON " : (const u8 *)"OFF");
+		OLED_ShowString(0,30,(const u8 *)"P:");
+		OLED_ShowNumber(16,30,gy53_pwm_sensor[GY53_PWM_LEFT].last_pulse_us,5,12);
+		OLED_ShowString(48,30,(const u8 *)"us");
+		OLED_ShowString(72,30,(const u8 *)"N:");
+		OLED_ShowNumber(88,30,gy53_pwm_sensor[GY53_PWM_LEFT].update_count%10000U,4,12);
+
+		OLED_ShowString(0,40,(const u8 *)"R:");
+		OLED_ShowNumber(16,40,gy53_pwm_sensor[GY53_PWM_RIGHT].distance_mm,5,12);
+		OLED_ShowString(48,40,(const u8 *)"mm");
+		OLED_ShowString(72,40,gy53_pwm_sensor[GY53_PWM_RIGHT].online ? (const u8 *)"ON " : (const u8 *)"OFF");
+		OLED_ShowString(0,50,(const u8 *)"P:");
+		OLED_ShowNumber(16,50,gy53_pwm_sensor[GY53_PWM_RIGHT].last_pulse_us,5,12);
+		OLED_ShowString(48,50,(const u8 *)"us");
+		OLED_ShowString(72,50,(const u8 *)"N:");
+		OLED_ShowNumber(88,50,gy53_pwm_sensor[GY53_PWM_RIGHT].update_count%10000U,4,12);
 	}
-	
-	//0页,用户无法自行访问的页,用于提示 usb ps2 手柄状态
+
+	else if( 5 == oled.page )
+	{
+		/* Compact labels avoid overlap on the 128-pixel display. */
+		OLED_ShowString(0,0,(const u8 *)"S:");
+		OLED_ShowNumber(16,0,g_system_diag.stage,5,12);
+		OLED_ShowString(56,0,(const u8 *)"E:");
+		OLED_ShowNumber(72,0,g_system_diag.error_flags%10000U,4,12);
+
+		OLED_ShowString(0,10,(const u8 *)"T:");
+		OLED_ShowNumber(16,10,g_system_diag.task_fail_mask,4,12);
+		OLED_ShowString(56,10,(const u8 *)"H:");
+		OLED_ShowNumber(72,10,g_system_diag.free_heap_after_create,5,12);
+
+		OLED_ShowString(0,20,(const u8 *)"OI:");
+		OLED_ShowNumber(24,20,g_system_diag.oled_refresh_enter%10000U,4,12);
+		OLED_ShowString(64,20,(const u8 *)"OO:");
+		OLED_ShowNumber(88,20,g_system_diag.oled_refresh_exit%10000U,4,12);
+
+		OLED_ShowString(0,30,(const u8 *)"SH:");
+		OLED_ShowNumber(24,30,g_system_diag.show_heartbeat%10000U,4,12);
+		OLED_ShowString(64,30,(const u8 *)"ST:");
+		OLED_ShowNumber(88,30,g_system_diag.show_step,1,12);
+
+		OLED_ShowString(0,40,(const u8 *)"PW:");
+		OLED_ShowNumber(24,40,gy53_pwm_capture_enabled,1,12);
+		OLED_ShowString(56,40,(const u8 *)"IQ:");
+		OLED_ShowNumber(80,40,g_system_diag.pwm_irq_count%10000U,4,12);
+
+		OLED_ShowString(0,50,(const u8 *)"AD:");
+		OLED_ShowNumber(24,50,ADC1_TimeoutCount%1000U,3,12);
+		OLED_ShowString(56,50,(const u8 *)"UR:");
+		OLED_ShowNumber(80,50,(USART_TxTimeoutCount+g_system_diag.uart1_timeout_count)%1000U,3,12);
+	}
+
+	/* Page 0 is reserved for USB gamepad status. */
 	else if( 0 == oled.page )
 	{
 		if( GamePadDebug.enmu_state == EnumWait ) //枚举等待中
 		{
 			OLED_DrawBMP(32,1,96,7,gImage_usb_bmp);//插入usb提示
-			OLED_ShowString(12,50,"USB Init..");
+			OLED_ShowString(12,50,(const u8 *)"USB Init..");
 			OLED_Refresh_Line();
 			return;
 		}
@@ -390,32 +491,32 @@ static void OLED_ShowTask(void)
 			OLED_ClearBuf();
 			
 			//ps2初始化情况
-			OLED_ShowString(0,0,"USB Init OK.");
-			OLED_ShowString(0,15,"PS2 Info:");
+			OLED_ShowString(0,0,(const u8 *)"USB Init OK.");
+			OLED_ShowString(0,15,(const u8 *)"PS2 Info:");
 			
 			if( GamePadDebug.type == PS2_USB_Wired || GamePadDebug.type == PS2_USB_WiredV2 )
 			{
-				OLED_ShowString(0,30,"Wired USBPS2");
+				OLED_ShowString(0,30,(const u8 *)"Wired USBPS2");
 			}
 			else if( GamePadDebug.type == PS2_USB_Wiredless )
 			{
-				OLED_ShowString(0,30,"2.4G USBPS2 ");
+				OLED_ShowString(0,30,(const u8 *)"2.4G USBPS2 ");
 			}
 			else if( GamePadDebug.type == Xbox360 )
 			{
-				OLED_ShowString(0,30,"xbox 360    ");
+				OLED_ShowString(0,30,(const u8 *)"xbox 360    ");
 			}
-			else OLED_ShowString(0,30,"UnKnown Dev ");
+			else OLED_ShowString(0,30,(const u8 *)"UnKnown Dev ");
 			
 			//是否成功获取到ps2的数据
-			OLED_ShowString(0,45,"Data Ready:");
+			OLED_ShowString(0,45,(const u8 *)"Data Ready:");
 			if( 1 == GamePadDebug.ready ) //成功获取ps2数据
 			{
-				OLED_ShowString(90,45,"Yes");
+				OLED_ShowString(90,45,(const u8 *)"Yes");
 			}
 			else //无数据
 			{
-				OLED_ShowString(90,45,"No ");
+				OLED_ShowString(90,45,(const u8 *)"No ");
 			}
 			
 		}
@@ -499,48 +600,48 @@ static void oled_akm_show(void)
 static void oled_diff_show(void)
 {
 	//显示加速度z轴数据
-	OLED_ShowString(00,10,"ACCEL ");
+	OLED_ShowString(00,10,(const u8 *)"ACCEL ");
 	oled_showfloat(imu.accel.z/1671.84f,80,10,2,2);
 	
 	//The third line of the display displays the content//
 	//显示屏第3行显示内容//
 	//Display the target speed and current speed of motor A
 	//显示电机A的目标速度和当前速度	 
-	OLED_ShowString(0,20,"DL:");
-	if( robot.MOTOR_A.Target<0)	OLED_ShowString(15,20,"-"),
+	OLED_ShowString(0,20,(const u8 *)"DL:");
+	if( robot.MOTOR_A.Target<0)	OLED_ShowString(15,20,(const u8 *)"-"),
 	                            OLED_ShowNumber(20,20,-robot.MOTOR_A.Target*1000,5,12);
-	else                 	    OLED_ShowString(15,20,"+"),
+	else                 	    OLED_ShowString(15,20,(const u8 *)"+"),
 	                            OLED_ShowNumber(20,20, robot.MOTOR_A.Target*1000,5,12); 
 
-	if( robot.MOTOR_A.Encoder<0) OLED_ShowString(60,20,"-"),
+	if( robot.MOTOR_A.Encoder<0) OLED_ShowString(60,20,(const u8 *)"-"),
 	                             OLED_ShowNumber(75,20,-robot.MOTOR_A.Encoder*1000,5,12);
-	else                 	     OLED_ShowString(60,20,"+"),
+	else                 	     OLED_ShowString(60,20,(const u8 *)"+"),
 	                             OLED_ShowNumber(75,20, robot.MOTOR_A.Encoder*1000,5,12);
 
 	//The fourth line of the display displays the content//
 	//显示屏第4行显示内容//	
 	//Display the target speed and current speed of motor B
 	//显示电机B的目标速度和当前速度
-	OLED_ShowString(0,30,"DR:");
-	if( robot.MOTOR_B.Target<0)	OLED_ShowString(15,30,"-"),
+	OLED_ShowString(0,30,(const u8 *)"DR:");
+	if( robot.MOTOR_B.Target<0)	OLED_ShowString(15,30,(const u8 *)"-"),
 	                            OLED_ShowNumber(20,30,- robot.MOTOR_B.Target*1000,5,12);
-	else                 	    OLED_ShowString(15,30,"+"),
+	else                 	    OLED_ShowString(15,30,(const u8 *)"+"),
 	                            OLED_ShowNumber(20,30,  robot.MOTOR_B.Target*1000,5,12); 
 
-	if( robot.MOTOR_B.Encoder<0)OLED_ShowString(60,30,"-"),
+	if( robot.MOTOR_B.Encoder<0)OLED_ShowString(60,30,(const u8 *)"-"),
 	                            OLED_ShowNumber(75,30,-robot.MOTOR_B.Encoder*1000,5,12);
-	else                 	    OLED_ShowString(60,30,"+"),
+	else                 	    OLED_ShowString(60,30,(const u8 *)"+"),
 	                            OLED_ShowNumber(75,30, robot.MOTOR_B.Encoder*1000,5,12);
 	
-	OLED_ShowString(00,40,"MA");
-	if( robot.MOTOR_A.Output < 0 )   OLED_ShowString(20,40,"-"),
+	OLED_ShowString(00,40,(const u8 *)"MA");
+	if( robot.MOTOR_A.Output < 0 )   OLED_ShowString(20,40,(const u8 *)"-"),
 	                                 OLED_ShowNumber(30,40,-robot.MOTOR_A.Output,4,12);
-	else                 	         OLED_ShowString(20,40,"+"),
+	else                 	         OLED_ShowString(20,40,(const u8 *)"+"),
 	                                 OLED_ShowNumber(30,40, robot.MOTOR_A.Output,4,12); 
-	OLED_ShowString(60,40,"MB");
-	if(robot.MOTOR_B.Output<0)       OLED_ShowString(80,40,"-"),
+	OLED_ShowString(60,40,(const u8 *)"MB");
+	if(robot.MOTOR_B.Output<0)       OLED_ShowString(80,40,(const u8 *)"-"),
 	                                 OLED_ShowNumber(90,40,-robot.MOTOR_B.Output,4,12);
-	else                 	         OLED_ShowString(80,40,"+"),
+	else                 	         OLED_ShowString(80,40,(const u8 *)"+"),
 	                                 OLED_ShowNumber(90,40, robot.MOTOR_B.Output,4,12);
 	
 }

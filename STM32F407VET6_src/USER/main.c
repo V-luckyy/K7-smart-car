@@ -1,11 +1,11 @@
 /***********************************************
-¹«Ë¾£ºÂÖÈ¤¿Æ¼¼£¨¶«Ý¸£©ÓÐÏÞ¹«Ë¾
-Æ·ÅÆ£ºWHEELTEC
-¹ÙÍø£ºwheeltec.net
-ÌÔ±¦µêÆÌ£ºshop114407458.taobao.com 
-ËÙÂôÍ¨: https://minibalance.aliexpress.com/store/4455017
-°æ±¾£ºV1.01
-ÐÞ¸ÄÊ±¼ä£º2024-06-25
+ï¿½ï¿½Ë¾ï¿½ï¿½ï¿½ï¿½È¤ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½ï¿½Ý¸ï¿½ï¿½ï¿½ï¿½ï¿½Þ¹ï¿½Ë¾
+Æ·ï¿½Æ£ï¿½WHEELTEC
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½wheeltec.net
+ï¿½Ô±ï¿½ï¿½ï¿½ï¿½Ì£ï¿½shop114407458.taobao.com 
+ï¿½ï¿½ï¿½ï¿½Í¨: https://minibalance.aliexpress.com/store/4455017
+ï¿½æ±¾ï¿½ï¿½V1.01
+ï¿½Þ¸ï¿½Ê±ï¿½ä£º2024-06-25
 
 Company: WHEELTEC Co.Ltd
 Brand: WHEELTEC
@@ -13,204 +13,146 @@ Website: wheeltec.net
 Taobao shop: shop114407458.taobao.com 
 Aliexpress: https://minibalance.aliexpress.com/store/4455017
 Version: V1.01
-Update£º2024-06-25
+Updateï¿½ï¿½2024-06-25
 
 All rights reserved
 ***********************************************/
 #include "system.h"
 
-//Task priority    //ÈÎÎñÓÅÏÈ¼¶
-#define START_TASK_PRIO	1
+//Task priority    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½
+#define START_TASK_PRIO	25  // Must stay above USBH_PROCESS_PRIO (osPriorityNormal = 24).
 
-//Task stack size //ÈÎÎñ¶ÑÕ»´óÐ¡	
+//Task stack size //ï¿½ï¿½ï¿½ï¿½ï¿½Õ»ï¿½ï¿½Ð¡	
 #define START_STK_SIZE 	512  
 
-//Task handle     //ÈÎÎñ¾ä±ú
+//Task handle     //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 TaskHandle_t StartTask_Handler;
 
 TaskHandle_t g_reportErrTaskHandle = NULL;
 
-//Task function   //ÈÎÎñº¯Êý
+//Task function   //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 void start_task(void *pvParameters);
 void ReportErrTask(void* param);
 
+static void ShowRtosInitStep(const char *title)
+{
+	OLED_ClearBuf();
+	OLED_ShowString(0,0,(const u8 *)title);
+	OLED_ShowString(0,20,(const u8 *)"STAGE:");
+	OLED_ShowNumber(48,20,g_system_diag.stage,5,12);
+	OLED_ShowString(0,40,(const u8 *)"WATCH DIAG");
+	g_system_diag.oled_refresh_enter++;
+	OLED_Refresh_Gram();
+	g_system_diag.oled_refresh_exit++;
+}
 
+static BaseType_t CreateTaskChecked(TaskFunction_t task,
+                                    const char *name,
+                                    uint16_t stack_depth,
+                                    void *argument,
+                                    UBaseType_t priority,
+                                    TaskHandle_t *handle,
+                                    u32 task_bit)
+{
+	BaseType_t result;
 
+	g_system_diag.task_create_active_bit = task_bit;
+	g_system_diag.failed_task_name = name;
+	result = xTaskCreate(task,name,stack_depth,argument,priority,handle);
+	if(result == pdPASS)
+	{
+		g_system_diag.task_ok_mask |= task_bit;
+		g_system_diag.task_create_active_bit = 0U;
+		g_system_diag.failed_task_name = NULL;
+	}
+	else
+	{
+		g_system_diag.task_fail_mask |= task_bit;
+		SystemDiag_SetError(SYSTEM_DIAG_ERROR_TASK_CREATE);
+		if(task_bit == SYSTEM_DIAG_TASK_START) SystemDiag_SetError(SYSTEM_DIAG_ERROR_START_TASK);
+		SystemDiag_Halt(SYSTEM_DIAG_ERROR_TASK_CREATE);
+	}
+	return result;
+}
 
-float Balance_Kp=295,Balance_Kd=1.48;
-float Velocity_Kp=103.27,Velocity_Ki=0.56;
-u16 PID_Parameter[10];
-u16 Flash_Parameter[10];
-
-
-#include "sensor_uart.h"       /* sensor_uart_init, g_sensor_dist_* */
-#include "sensor_fusion.h"     /* APF_SensorFusion */
-#include "apf.h"               /* apf_follow */
- #include "apf_sensor.h"
-
-/* -- ??? -- */
-CarState get_car_state(void);
-CarState filter_car_state(CarState raw);
-
-/* -- ?????? -- */
-WayPoint waypoint_get_next(void);
-void    wv_to_target(float v_cmd, float omega_cmd);
-
-/* -- ??? (ROS-compatible) -- */
-void ros_recv_target_callback(void);
-void ros_send_car_state(CarState state, SensorObs obs);
-
-/* -- ??? -- */
-void update_oled(CarState state, WayPoint target, SensorObs obs);
-
-
-
-
-
-//Main function //Ö÷º¯Êý
+//Main function //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 int main(void)
-{ 
-	systemInit(); //Hardware initialization //Ó²¼þ³õÊ¼»¯
+{
+	systemInit();
 
-	//Create the start task //´´½¨¿ªÊ¼ÈÎÎñ
-	xTaskCreate((TaskFunction_t )start_task,            //Task function   //ÈÎÎñº¯Êý
-							(const char*    )"start_task",          //Task name       //ÈÎÎñÃû³Æ
-							(uint16_t       )START_STK_SIZE,        //Task stack size //ÈÎÎñ¶ÑÕ»´óÐ¡
-							(void*          )NULL,                  //Arguments passed to the task function //´«µÝ¸øÈÎÎñº¯ÊýµÄ²ÎÊý
-							(UBaseType_t    )START_TASK_PRIO,       //Task priority   //ÈÎÎñÓÅÏÈ¼¶
-							(TaskHandle_t*  )&StartTask_Handler);   //Task handle     //ÈÎÎñ¾ä±ú    					
-	vTaskStartScheduler();  //Enables task scheduling //¿ªÆôÈÎÎñµ÷¶È	
-							
-							
-							
-	 while(1)
-    {
-        /* ================== ??? ================== */
+	if(CreateTaskChecked(start_task,
+	                     "start_task",
+	                     START_STK_SIZE,
+	                     NULL,
+	                     START_TASK_PRIO,
+	                     &StartTask_Handler,
+	                     SYSTEM_DIAG_TASK_START) != pdPASS)
+	{
+		SystemDiag_Halt(SYSTEM_DIAG_ERROR_START_TASK);
+	}
 
-        /*
-         * 1.1 ??????????
-         *
-         *     ??? USART2/USART3/UART5 ??ISR?????,
-         *     ?????????? g_sensor_dist_*?
-         *
-         *     ????????? (??? = 40.0 = ???)?
-         */
-        float dist_front = g_sensor_dist_front;
-        float dist_left  = g_sensor_dist_left;
-        float dist_right = g_sensor_dist_right;
+	SystemDiag_SetStage(SYSTEM_DIAG_STAGE_START_TASK_READY);
+	SystemDiag_SetStage(SYSTEM_DIAG_STAGE_SCHEDULER_START);
+	SystemDiag_Log("[BOOT] starting FreeRTOS scheduler\r\n");
+	vTaskStartScheduler();
 
-        /* 1.2 ???? + IMU ???????? */
-        CarState car_raw = get_car_state();
-
-        /* 1.3 ???????, ???????? */
-        CarState car_filt = filter_car_state(car_raw);
-
-
-        /* ================== ?????? ================== */
-
-        /*
-         * 2.1 ???????
-         *     ???: ros_recv_target_callback() ?CAN/?????
-         *             ????WayPoint, ??????
-         *     ???: waypoint_get_next() ??????????
-         */
-        WayPoint target = waypoint_get_next();
-
-        /* 2.2 ????????? ? ?????????? */
-        SensorObs obs = APF_SensorFusion(dist_front, dist_left, dist_right);
-
-        /*
-         * 2.3 APF ?????
-         *
-         *     ??:
-         *         target    — ???
-         *         car_filt  — ??????? (x,y,?,v,?)
-         *         obs       — ???????? (??)
-         *
-         *     ??:
-         *         v_cmd     — ????? (cm/s)
-         *         omega_cmd — ????? (rad/s)
-         */
-        float v_cmd = 0.0f, omega_cmd = 0.0f;
-        if(target.is_valid) {
-					  APF_CircObs apf_obs[1];
-            int obs_num = APF_SensorToCircObs(&obs, &car_filt, apf_obs, 1);
-					 APF_Vec2 apf_target = {target.x, target.y};
-					 APF_Car apf_car = {car_filt.x, car_filt.y, car_filt.theta};
-            apf_follow(apf_target, &apf_car, apf_obs,obs_num,	 &v_cmd, &omega_cmd);
-        }
-
-        /*
-         * 2.4 ?????: (v, ?) ? ???????
-         *
-         *     Target_Left  = v - omega * WHEEL_BASE_HALF
-         *     Target_Right = v + omega * WHEEL_BASE_HALF
-         *
-         *     Target_Left/Target_Right ?????,
-         *     5ms ISR ?? Incremental_PI ?????
-         */
-        wv_to_target(v_cmd, omega_cmd);
-
-
-        /* ================== ??? ================== */
-
-        /*
-         * 3.1 ?????? + ???? ROS (CAN ID=0x100)
-         *
-         *     ????:
-         *       ?1 (type=0x01): ???+??+?? (???????)
-         *       ?2 (type=0x02): ???? (x,y,?,v)
-         *       ?3 (type=0x03): ??? (x,y,???) — ?obs.valid???
-         */
-        ros_send_car_state(car_filt, obs);
-
-
-        /* ================== ??? ================== */
-
-        /* 4.1 OLED ?? */
-        update_oled(car_filt, target, obs);
-
-
-        /* ---- ???? ~20ms (50Hz) ---- */
-        delay_ms(20);
-    }
+	/* The scheduler must never return during normal operation. */
+	SystemDiag_Halt(SYSTEM_DIAG_ERROR_SCHEDULER_RETURN);
+	return 0;
 }
  
-//Start task task function //¿ªÊ¼ÈÎÎñÈÎÎñº¯Êý
+//Start task task function //ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 void start_task(void *pvParameters)
 {
-    taskENTER_CRITICAL(); //Enter the critical area //½øÈëÁÙ½çÇø
-	
-    //Create the task //´´½¨ÈÎÎñ
-	xTaskCreate(Balance_task,  "Balance_task",  BALANCE_STK_SIZE,  NULL, BALANCE_TASK_PRIO,  NULL);	//Vehicle motion control task //Ð¡³µÔË¶¯¿ØÖÆÈÎÎñ
-	xTaskCreate(show_task,     "show_task",     SHOW_STK_SIZE,     NULL, SHOW_TASK_PRIO,     NULL);  //User interaction tasks related to data display //ÓëÊý¾ÝÏÔÊ¾Ïà¹ØµÄÓÃ»§½»»¥ÈÎÎñ
-	xTaskCreate(led_task,      "led_task",      LED_STK_SIZE,      NULL, LED_TASK_PRIO,      NULL);	 //LED light flashing task //LEDµÆÉÁË¸ÈÎÎñ
-	xTaskCreate(data_task,     "DATA_task",     DATA_STK_SIZE,     NULL, DATA_TASK_PRIO,     &data_TaskHandle); //Send data to each interface task
-	if(SysVal.HardWare_Ver==V1_2)
+	(void)pvParameters;
+	SystemDiag_SetStage(SYSTEM_DIAG_STAGE_START_TASK_RUN);
+
+	if(SysVal.HardWare_Ver >= V1_1)
 	{
-		xTaskCreate(D50A_Task,    "D50A_task",    D50A_STK_SIZE,    NULL, D50A_TASK_PRIO,    &d50a_TaskHandle); //D50A driver management task
-	}
-	if(SysVal.HardWare_Ver==V1_0) 	//IMU data read task //IMUÊý¾Ý¶ÁÈ¡ÈÎÎñ,¸ù¾Ý²»Í¬µÄÓ²¼þ°æ±¾Æô¶¯²»Í¬µÄÈÎÎñ.
-	{
-		xTaskCreate(MPU6050_task,  "IMU_task",  IMU_STK_SIZE,  NULL, IMU_TASK_PRIO,  NULL);
-		xTaskCreate(pstwo_task,    "PSTWO_task",    PS2_STK_SIZE,      NULL, PS2_TASK_PRIO,      &show_TaskHandle);	 //Read the PS2 controller task //¶ÁÈ¡PS2ÊÖ±úÈÎÎñ
-	}
-		
-	else if( SysVal.HardWare_Ver>=V1_1 )
-	{
-		xTaskCreate(ICM20948_task,  "IMU_task",  IMU_STK_SIZE,  NULL, IMU_TASK_PRIO,  NULL);
+		SystemDiag_SetStage(SYSTEM_DIAG_STAGE_USB_START);
+		ShowRtosInitStep("RTOS: USB INIT");
+		SystemDiag_Log("[RTOS] USB host init start\r\n");
+		g_system_diag.task_create_active_bit = SYSTEM_DIAG_TASK_USB;
+		g_system_diag.failed_task_name = "USBH_Queue";
+		MX_USB_HOST_Init();
+		g_system_diag.task_create_active_bit = 0U;
+		g_system_diag.failed_task_name = NULL;
+		g_system_diag.task_ok_mask |= SYSTEM_DIAG_TASK_USB;
+		SystemDiag_SetStage(SYSTEM_DIAG_STAGE_USB_READY);
+		SystemDiag_Log("[RTOS] USB host init ready\r\n");
 	}
 
-	  //Ð¡³µ×Ô¼ìÉÏ±¨µ÷ÊÔÈÎÎñ
-	  xTaskCreate(ReportErrTask,"ReportErrTask",128*4,NULL,osPriorityNormal,&g_reportErrTaskHandle);
-	
-    vTaskDelete(StartTask_Handler); //Delete the start task //É¾³ý¿ªÊ¼ÈÎÎñ
+	ShowRtosInitStep("RTOS: TASK INIT");
+	taskENTER_CRITICAL();
 
-    taskEXIT_CRITICAL();            //Exit the critical section//ÍË³öÁÙ½çÇø
+	CreateTaskChecked(Balance_task,  "Balance_task", BALANCE_STK_SIZE, NULL, BALANCE_TASK_PRIO, NULL,                 SYSTEM_DIAG_TASK_BALANCE);
+	CreateTaskChecked(show_task,     "show_task",    SHOW_STK_SIZE,    NULL, SHOW_TASK_PRIO,    &show_TaskHandle,    SYSTEM_DIAG_TASK_SHOW);
+	CreateTaskChecked(led_task,      "led_task",     LED_STK_SIZE,     NULL, LED_TASK_PRIO,     NULL,                 SYSTEM_DIAG_TASK_LED);
+	CreateTaskChecked(data_task,     "DATA_task",    DATA_STK_SIZE,    NULL, DATA_TASK_PRIO,    &data_TaskHandle,     SYSTEM_DIAG_TASK_DATA);
+	CreateTaskChecked(GY53_PWM_task, "GY53_PWM_task",GY53_PWM_STK_SIZE,NULL, GY53_PWM_TASK_PRIO,NULL,                 SYSTEM_DIAG_TASK_GY53);
+	CreateTaskChecked(APF_task,      "APF_task",     APF_STK_SIZE,       NULL, APF_TASK_PRIO,    NULL,                 SYSTEM_DIAG_TASK_APF);
+
+	if(SysVal.HardWare_Ver == V1_2)
+	{
+		CreateTaskChecked(D50A_Task, "D50A_task", D50A_STK_SIZE, NULL, D50A_TASK_PRIO, &d50a_TaskHandle, SYSTEM_DIAG_TASK_D50A);
+	}
+
+	if(SysVal.HardWare_Ver == V1_0)
+	{
+		CreateTaskChecked(MPU6050_task, "IMU_task",   IMU_STK_SIZE, NULL, IMU_TASK_PRIO, NULL, SYSTEM_DIAG_TASK_IMU);
+		CreateTaskChecked(pstwo_task,   "PSTWO_task", PS2_STK_SIZE, NULL, PS2_TASK_PRIO, NULL, SYSTEM_DIAG_TASK_PS2);
+	}
+	else if(SysVal.HardWare_Ver >= V1_1)
+	{
+		CreateTaskChecked(ICM20948_task, "IMU_task", IMU_STK_SIZE, NULL, IMU_TASK_PRIO, NULL, SYSTEM_DIAG_TASK_IMU);
+	}
+
+	CreateTaskChecked(ReportErrTask, "ReportErrTask", 128*4, NULL, osPriorityNormal, &g_reportErrTaskHandle, SYSTEM_DIAG_TASK_REPORT);
+
+	g_system_diag.free_heap_after_create = xPortGetFreeHeapSize();
+	SystemDiag_SetStage(SYSTEM_DIAG_STAGE_TASKS_CREATED);
+	taskEXIT_CRITICAL();
+
+	SystemDiag_Log("[RTOS] task creation complete\r\n");
+	vTaskDelete(NULL);
 }
-
-
-
-
-
-

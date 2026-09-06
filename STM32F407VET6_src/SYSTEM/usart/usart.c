@@ -1,4 +1,23 @@
-#include "usart.h"	
+#include "usart.h"
+
+#define USART_TX_WAIT_LIMIT 100000U
+volatile u32 USART_TxTimeoutCount = 0;
+
+static u8 USART_SendByteWithTimeout(USART_TypeDef *USARTx,u8 data)
+{
+	u32 timeout = USART_TX_WAIT_LIMIT;
+	while((USARTx->SR & 0x40U) == 0U)
+	{
+		if(--timeout == 0U)
+		{
+			USART_TxTimeoutCount++;
+			return 0;
+		}
+	}
+	USARTx->DR = data;
+	return 1;
+}
+	
 ////////////////////////////////////////////////////////////////////////////////// 	 
 //如果使用ucos,则包括下面的头文件即可.
 #if SYSTEM_SUPPORT_OS
@@ -24,39 +43,42 @@ void _sys_exit(int x)
 } 
 //重定义fputc函数 
 int fputc(int ch, FILE *f)
-{ 	
-	while((UART4->SR&0X40)==0);//循环发送,直到发送完毕   
-	UART4->DR = (u8) ch;      
+{
+	(void)f;
+	(void)USART_SendByteWithTimeout(UART4,(u8)ch);
 	return ch;
-
-//	while((USART1->SR&0X40)==0);//循环发送,直到发送完毕   
-//	USART1->DR = (u8) ch;      
-//	return ch;
-	
-//	while((USART3->SR&0X40)==0);//循环发送,直到发送完毕   
-//	USART3->DR = (u8) ch;      
-//	return ch;
-
 }
 
-//任意串口printf
+// Bounded UART formatting output: a disconnected/broken UART cannot block OLED forever.
 #include "stdarg.h"
 uint8_t Ux_TxBuff[256];     //串口x发送缓冲区
 void any_printf(USART_TypeDef* USARTx,char *format,...)
-{	
-	uint8_t i;                                           //用于for循环
-	
-	va_list listdata;                                     //建立一个va_list变量listdata
-	va_start(listdata,format);                            //向listdata加载...代表的不定长的参数
-	vsprintf((char *)Ux_TxBuff,format,listdata);          //格式化输出到缓冲区U0_TxBuff
-	va_end(listdata);                                     //释放listdata
+{
+	u16 i;
+	u32 timeout;
+	int length;
+	va_list listdata;
 
-	for(i=0;i<strlen((const char*)Ux_TxBuff);i++){        //根据U0_TxBuff缓冲区数据量，一个字节一个字节的循环发送
-		while((USARTx->SR&0x40)==0);
-		USARTx->DR = Ux_TxBuff[i];
-			
+	va_start(listdata,format);
+	length = vsnprintf((char *)Ux_TxBuff,sizeof(Ux_TxBuff),format,listdata);
+	va_end(listdata);
+	if(length < 0) return;
+	if(length >= (int)sizeof(Ux_TxBuff)) length = (int)sizeof(Ux_TxBuff) - 1;
+
+	for(i=0;i<(u16)length;i++)
+	{
+		if(!USART_SendByteWithTimeout(USARTx,Ux_TxBuff[i])) return;
 	}
-	while((USARTx->SR&0x40)==0);	     //等到最后一个字节数据发送完毕，再退出函数
+
+	timeout = USART_TX_WAIT_LIMIT;
+	while((USARTx->SR & 0x40U) == 0U)
+	{
+		if(--timeout == 0U)
+		{
+			USART_TxTimeoutCount++;
+			return;
+		}
+	}
 }
 
 #endif
