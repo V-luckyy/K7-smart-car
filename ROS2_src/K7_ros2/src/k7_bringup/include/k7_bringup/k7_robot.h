@@ -48,6 +48,7 @@
 #include <turtlesim/srv/spawn.hpp>
 
 #include "k7_msgs/msg/ir_distances.hpp"
+#include "k7_msgs/msg/apf_debug.hpp"   // APF/Stanley 0xFB 调参调试帧
 
 using namespace std;
 
@@ -77,6 +78,11 @@ using namespace std;
 #define AutoCharge_HEADER      0X7C //Frame_header //自动回充数据帧头
 #define AutoCharge_TAIL        0X7F //Frame_tail   //自动回充数据帧尾
 #define AutoCharge_DATA_SIZE    8   //下位机发送过来的自动回充数据的长度
+
+// APF/Stanley 调参调试帧（0xFB，27B，int16 大端 ×1000，BCC=前25字节异或）
+#define APFDebug_HEADER      0XFB // Frame_header // APF 调试帧头
+#define APFDebug_TAIL        0X7D // Frame_tail   // APF 调试帧尾
+#define APFDebug_DATA_SIZE    27 // 1头 + 12×2数据 + 1BCC + 1尾
 
 //Relative to the range set by the IMU gyroscope, the range is ±500°, corresponding data range is ±32768
 //The gyroscope raw data is converted in radian (rad) units, 1/65.5/57.30=0.00026644
@@ -216,7 +222,7 @@ class K7SerialNode : public rclcpp::Node
         rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr voltage_publisher;        
         rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher;
         rclcpp::Publisher<k7_msgs::msg::IrDistances>::SharedPtr ir_distances_publisher; //红外测距单话题发布者
-
+        rclcpp::Publisher<k7_msgs::msg::ApfDebug>::SharedPtr apf_debug_publisher;     // APF/Stanley 调参调试发布者(/apf_debug)
 		//回充相关发布者
 		rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr Charging_publisher;
 		rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr Charging_current_publisher;
@@ -255,6 +261,7 @@ class K7SerialNode : public rclcpp::Node
         bool Get_Sensor_Data();   
 		bool Get_Sensor_Data_New();
 		void Publish_IrDistances(); //Pub the 3-way IR distance topic //发布三路红外测距话题
+		void Publish_ApfDebug();    //Pub APF/Stanley debug (/apf_debug) //发布 APF/Stanley 调参调试话题
         unsigned char Check_Sum(unsigned char Count_Number,unsigned char mode); //BBC check function //BBC校验函数
         unsigned char Check_Sum_AutoCharge(unsigned char Count_Number,unsigned char mode); //BBC check function //BBC校验函数
         short IMU_Trans(uint8_t Data_High,uint8_t Data_Low);  //IMU data conversion read //IMU数据转化读取
@@ -263,6 +270,7 @@ class K7SerialNode : public rclcpp::Node
         string usart_port_name, robot_frame_id, gyro_frame_id, odom_frame_id; //Define the related variables //定义相关变量
         int serial_baud_rate;      //Serial communication baud rate //串口通信波特率
         int cmd_vel_timeout_ms;    //cmd_vel watchdog timeout in ms //cmd_vel看门狗超时时间，单位ms
+        bool enable_downlink = true;   // false=只收不发（纯上行记录调参数据，避免看门狗/指令干扰 STM32 自跑）
         RECEIVE_DATA Receive_Data; //The serial port receives the data structure //串口接收数据结构体
         SEND_DATA Send_Data;       //The serial port sends the data structure //串口发送数据结构体
         DISTANCE_DATA Distance_Data; //超声波数据
@@ -272,16 +280,24 @@ class K7SerialNode : public rclcpp::Node
         Vel_Pos_Data Robot_Vel;    //The speed of the robot //机器人的速度
         MPU6050_DATA Mpu6050_Data; //IMU data //IMU数据
 
-        //三帧状态机解析器（方案 B：按帧头/帧长/帧尾/BCC 显式分帧，不靠数据字节猜帧头）
-        uint8_t parse_state_ = 0;      // 0=等帧头, 1=主帧(24B), 2=测距帧(19B), 3=回充帧(8B)
+        //四帧状态机解析器（按帧头/帧长/帧尾/BCC 显式分帧，不靠数据字节猜帧头）
+        uint8_t parse_state_ = 0;      // 0=等帧头, 1=主帧(24B), 2=测距帧(19B), 3=回充帧(8B), 4=APF调试帧(27B)
         uint8_t parse_expected_ = 0;   // 当前帧总长
         uint8_t parse_idx_ = 0;        // 已收集字节数
-        uint8_t parse_buf_[RECEIVE_DATA_SIZE]; // 帧缓冲（最长 24B，覆盖三种帧）
+        uint8_t parse_buf_[APFDebug_DATA_SIZE]; // 帧缓冲（最长 27B，覆盖四种帧）
 
         //三路红外距离（米），由 0xFA 测距帧解析
         float ir_dist_front_ = 0.0f;
         float ir_dist_left45_ = 0.0f;
         float ir_dist_right45_ = 0.0f;
+
+        //APF/Stanley 调参调试量（0xFB 帧解析缓存，Publish_ApfDebug 发布）
+        bool   apf_debug_new_ = false;      // 有新一帧 APF 调试数据待发布
+        double apf_x_ = 0, apf_y_ = 0, apf_theta_ = 0;
+        double apf_v_cmd_ = 0, apf_w_cmd_ = 0;
+        double apf_w_stanley_ = 0, apf_w_apf_ = 0;
+        double apf_v_act_ = 0, apf_w_act_ = 0;
+        float  apf_d_front_ = 5.0f, apf_d_left_ = 5.0f, apf_d_right_ = 5.0f;
 
 		int8_t AutoRecharge=0;
         float Power_voltage;       //Power supply voltage //电源电压

@@ -24,6 +24,7 @@ stm32_data/
 │   ├── PROJECT_ARCHITECTURE.md         ← STM32 固件详细架构
 │   └── APF_Stanley_避障循迹说明.md     ← APF避障 + Stanley循迹 实现讲解（函数/参数/调参）
 ├── 协议参考/
+│   ├── 串口协议_K7-STM32.md            ← 协议速查（下行/上行帧格式、字节序、BCC、命令字节）
 │   ├── data_task.h                     ← 上行帧结构体定义（24 字节传感器帧）
 │   └── uartx_callback.h               ← 下行帧结构体定义（11 字节控制帧）
 └── 源码工程使用指南.pdf

@@ -79,6 +79,7 @@ Function: Frame the velocity command and send it to the lower computer through t
 ***************************************/
 void K7SerialNode::Send_Cmd_Vel(double linear_x, double linear_y, double angular_z)
 {
+  if(!enable_downlink) return;   // enable_downlink=false（纯记录模式）：不下发任何速度指令
   short  transition;  //intermediate variable //中间变量
 
   Send_Data.tx[0]=FRAME_HEADER; //frame head 0x7B //帧头0X7B
@@ -237,6 +238,30 @@ void K7SerialNode::Publish_IrDistances()
     msg.left45 = ir_dist_left45_;
     msg.right45 = ir_dist_right45_;
     ir_distances_publisher->publish(msg);
+}
+
+/**************************************
+Function: Publish APF/Stanley tuning debug (/apf_debug)
+功能: 发布 APF/Stanley 调参调试话题（STM32 0xFB 帧，实车调参记录用）
+***************************************/
+void K7SerialNode::Publish_ApfDebug()
+{
+    k7_msgs::msg::ApfDebug msg;
+    msg.header.stamp = this->now();
+    msg.header.frame_id = robot_frame_id;
+    msg.x         = apf_x_;
+    msg.y         = apf_y_;
+    msg.theta     = apf_theta_;
+    msg.v_cmd     = apf_v_cmd_;
+    msg.w_cmd     = apf_w_cmd_;
+    msg.w_stanley = apf_w_stanley_;
+    msg.w_apf     = apf_w_apf_;
+    msg.v_act     = apf_v_act_;
+    msg.w_act     = apf_w_act_;
+    msg.d_front   = apf_d_front_;
+    msg.d_left    = apf_d_left_;
+    msg.d_right   = apf_d_right_;
+    apf_debug_publisher->publish(msg);
 }
 
 /**************************************
@@ -558,12 +583,13 @@ bool K7SerialNode::Get_Sensor_Data_New()
 
   if(Stm32_Serial.read(&b,1)!=1) return false; //读1字节，无数据/超时则返回
 
-  //等帧头：只认 0x7B(主帧)/0xFA(测距帧)/0x7C(回充帧)，其余丢弃（字节级重同步）
+  //等帧头：只认 0x7B(主帧)/0xFA(测距帧)/0x7C(回充帧)/0xFB(APF调试帧)，其余丢弃（字节级重同步）
   if(parse_state_==0)
   {
     if(b==FRAME_HEADER)          { parse_state_=1; parse_expected_=RECEIVE_DATA_SIZE; }
     else if(b==Distance_HEADER)  { parse_state_=2; parse_expected_=Distance_DATA_size; }
     else if(b==AutoCharge_HEADER){ parse_state_=3; parse_expected_=AutoCharge_DATA_SIZE; }
+    else if(b==APFDebug_HEADER)  { parse_state_=4; parse_expected_=APFDebug_DATA_SIZE; }
     else return false; //非帧头，丢弃
 
     parse_idx_=1;
@@ -651,6 +677,31 @@ bool K7SerialNode::Get_Sensor_Data_New()
     return false;
   }
 
+  if(frame_type==4) //APF/Stanley 调试帧 27B 0xFB..0x7D（int16 大端 ×1000）
+  {
+    if(parse_buf_[APFDebug_DATA_SIZE-1]!=APFDebug_TAIL) return false;
+    check=0; for(k=0;k<25;k++) check^=parse_buf_[k];   // BCC over bytes 0..24
+    if(check!=parse_buf_[25]) return false;
+
+    //字段偏移：x[1:2] y[3:4] theta[5:6] v_cmd[7:8] w_cmd[9:10] w_stanley[11:12]
+    //         w_apf[13:14] v_act[15:16] w_act[17:18] d_front[19:20] d_left[21:22] d_right[23:24]
+    apf_x_         = (double)(short)((parse_buf_[1]<<8)|parse_buf_[2])  / 1000.0;
+    apf_y_         = (double)(short)((parse_buf_[3]<<8)|parse_buf_[4])  / 1000.0;
+    apf_theta_     = (double)(short)((parse_buf_[5]<<8)|parse_buf_[6])  / 1000.0;
+    apf_v_cmd_     = (double)(short)((parse_buf_[7]<<8)|parse_buf_[8])  / 1000.0;
+    apf_w_cmd_     = (double)(short)((parse_buf_[9]<<8)|parse_buf_[10]) / 1000.0;
+    apf_w_stanley_ = (double)(short)((parse_buf_[11]<<8)|parse_buf_[12])/ 1000.0;
+    apf_w_apf_     = (double)(short)((parse_buf_[13]<<8)|parse_buf_[14])/ 1000.0;
+    apf_v_act_     = (double)(short)((parse_buf_[15]<<8)|parse_buf_[16])/ 1000.0;
+    apf_w_act_     = (double)(short)((parse_buf_[17]<<8)|parse_buf_[18])/ 1000.0;
+    apf_d_front_   = (float)(short)((parse_buf_[19]<<8)|parse_buf_[20]) / 1000.0f;  // mm -> m
+    apf_d_left_    = (float)(short)((parse_buf_[21]<<8)|parse_buf_[22]) / 1000.0f;
+    apf_d_right_   = (float)(short)((parse_buf_[23]<<8)|parse_buf_[24]) / 1000.0f;
+
+    apf_debug_new_ = true;   // 由 Control() 发布 /apf_debug
+    return false;
+  }
+
   return false;
 }
 
@@ -707,6 +758,13 @@ void K7SerialNode::Control()
       check_ranger_data = false;
     }
 
+    //APF/Stanley 调参调试话题（STM32 0xFB 帧）
+    if(apf_debug_new_)
+    {
+      Publish_ApfDebug();
+      apf_debug_new_ = false;
+    }
+
     rclcpp::spin_some(this->get_node_base_interface());   //The loop waits for the callback function //循环等待回调函数
 
     // 节流：无数据时短暂休眠，避免空转烧 CPU（原循环每圈读1字节无节流，实测 33% CPU）
@@ -749,6 +807,7 @@ K7SerialNode::K7SerialNode():rclcpp::Node ("k7_serial_node")
   this->declare_parameter<std::string>("robot_frame_id", "base_footprint");
   this->declare_parameter<std::string>("gyro_frame_id", "gyro_link");
   this->declare_parameter<int>("cmd_vel_timeout_ms", 500); //cmd_vel watchdog timeout //cmd_vel看门狗超时时间
+  this->declare_parameter<bool>("enable_downlink", true); // 只收不发(纯记录模式)开关
 
   this->get_parameter("serial_baud_rate", serial_baud_rate);//Communicate baud rate 115200 to the lower machine //和下位机通信波特率115200
   this->get_parameter("usart_port_name", usart_port_name);//Fixed serial port number //固定串口号
@@ -756,10 +815,12 @@ K7SerialNode::K7SerialNode():rclcpp::Node ("k7_serial_node")
   this->get_parameter("robot_frame_id", robot_frame_id);//The odometer topic corresponds to sub-TF coordinates //里程计话题对应子TF坐标
   this->get_parameter("gyro_frame_id", gyro_frame_id);//IMU topics correspond to TF coordinates //IMU话题对应TF坐标
   this->get_parameter("cmd_vel_timeout_ms", cmd_vel_timeout_ms);//cmd_vel watchdog timeout in ms //cmd_vel看门狗超时时间，单位ms
+  this->get_parameter("enable_downlink", enable_downlink);//纯记录模式(只收不发)开关
 
   odom_publisher = create_publisher<nav_msgs::msg::Odometry>("odom", 2);//Create the odometer topic publisher //创建里程计话题发布者
   imu_publisher = create_publisher<sensor_msgs::msg::Imu>("imu/data_raw", 2); //Create an IMU topic publisher //创建IMU话题发布者
   ir_distances_publisher = create_publisher<k7_msgs::msg::IrDistances>("ir_distances", 10); //红外测距单话题发布者
+  apf_debug_publisher = create_publisher<k7_msgs::msg::ApfDebug>("apf_debug", 10); //APF/Stanley 调参调试话题发布者
   voltage_publisher = create_publisher<std_msgs::msg::Float32>("PowerVoltage", 1);//Create a battery-voltage topic publisher //创建电池电压话题发布者
 
   //回充发布者

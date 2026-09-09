@@ -8,12 +8,18 @@
 # - static_transform_publisher 使用 Jazzy 新式参数（--x/--frame-id 等），wheeltec 旧式位置参数在 Jazzy 已废弃
 # - base_footprint->base_link 平移 z=0.0625（K7 轮半径，见 URDF 注释）
 # - imu_filter_madgwick 与 wheeltec 一样不做 remap：默认订阅 imu/data_raw、发布 imu/data，与 k7_serial_node 输出对得上
+# - 多机编队（2026-09-06）：新增 namespace 参数，默认空串（单机行为不变）。
+#   多台车在同网段运行时各自传 namespace:=leader / follower1 / follower2，
+#   全部节点话题（odom/imu/cmd_vel/…）自动落到 /<ns>/…，避免互相覆盖。
 import os
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, GroupAction
+from launch.substitutions import LaunchConfiguration
 import launch_ros.actions
+from launch_ros.actions import PushRosNamespace
 
 
 def generate_launch_description():
@@ -21,12 +27,14 @@ def generate_launch_description():
     ekf_config = Path(bringup_dir, 'config', 'ekf.yaml')
     imu_config = Path(bringup_dir, 'config', 'imu.yaml')
 
+    namespace = LaunchConfiguration('namespace')
+
     urdf_path = os.path.join(
         get_package_share_directory('k7_description'), 'urdf', 'k7_robot.urdf')
     with open(urdf_path, 'r', encoding='utf-8') as urdf_file:
         robot_description = urdf_file.read()
 
-    # STM32(C50X) 串口通信节点：/cmd_vel -> 串口下发，串口上行 -> /odom、/imu/data_raw、/PowerVoltage
+    # STM32(C50X) 串口通信节点：cmd_vel -> 串口下发，串口上行 -> odom、imu/data_raw、PowerVoltage
     k7_serial_node = launch_ros.actions.Node(
         package='k7_bringup',
         executable='k7_serial_node',
@@ -68,7 +76,7 @@ def generate_launch_description():
                    '--frame-id', 'base_footprint', '--child-frame-id', 'gyro_link'],
     )
 
-    # EKF 融合 /odom + /imu/data_raw，输出 /odometry/filtered remap 到 /odom_combined（与 wheeltec 一致）
+    # EKF 融合 odom + imu/data_raw，输出 /odometry/filtered remap 到 odom_combined（与 wheeltec 一致）
     robot_ekf = launch_ros.actions.Node(
         package='robot_localization',
         executable='ekf_node',
@@ -85,11 +93,18 @@ def generate_launch_description():
     )
 
     ld = LaunchDescription()
-    ld.add_action(k7_serial_node)
-    ld.add_action(robot_state_publisher_node)
-    ld.add_action(base_to_link)
-    ld.add_action(base_to_gyro)
-    ld.add_action(robot_ekf)
-    ld.add_action(imu_filter_node)
+    ld.add_action(DeclareLaunchArgument(
+        'namespace', default_value='',
+        description='节点命名空间：单机留空；多机编队传 leader/follower1/follower2 等',
+    ))
+    ld.add_action(GroupAction(
+        actions=[PushRosNamespace(namespace),
+                 k7_serial_node,
+                 robot_state_publisher_node,
+                 base_to_link,
+                 base_to_gyro,
+                 robot_ekf,
+                 imu_filter_node],
+    ))
 
     return ld

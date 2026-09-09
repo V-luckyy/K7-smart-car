@@ -14,22 +14,15 @@ static float wrap_pi(float a)
 
 float stanley_steering(const APF_Car *car)
 {
-    /* 1. 车相对圆心的位置 */
-    float dx = car->x - STANLEY_CIRCLE_CX;
-    float dy = car->y - STANLEY_CIRCLE_CY;
-    float r  = sqrtf(dx * dx + dy * dy);
-    if (r < 1e-4f) r = 1e-4f;
+    /* 1. 航向误差：参考方向 = +x（0 rad），psi_e = 0 - theta（theta>0 为左偏，需右回） */
+    float psi_e = wrap_pi(STANLEY_LINE_HEADING - car->theta);
 
-    /* 2. 横向误差：正=圆外，负=圆内 */
-    float cte = r - STANLEY_CIRCLE_R;
+    /* 2. 横向误差 cte：到直线 y=0 的有向距离。
+     *    约定：车偏左(+y，即 theta 为正时前进会偏向的那一侧)取负，
+     *    使 cte>0 时指令左转有收敛性。若实车方向反了，把 K_PSI/K_CTE 取负。 */
+    float cte = -car->y;
 
-    /* 3. 逆时针圆在最近点处的切线方向（垂直于半径向量 (dx,dy)，逆时针切线 = (-dy,dx)） */
-    float tangent = atan2f(-dy, dx);
-
-    /* 4. 航向误差（归一化到 [-pi, pi]） */
-    float psi_e = wrap_pi(tangent - car->theta);
-
-    /* 5. Stanley：航向误差 + 前视横向修正（atan2 平滑有界） */
+    /* 3. Stanley：航向误差 + 前视横向修正（atan2 平滑有界） */
     float v = (car->v > 0.15f) ? car->v : 0.15f;
     float omega = STANLEY_K_PSI * psi_e + STANLEY_K_CTE * atan2f(cte, v);
 

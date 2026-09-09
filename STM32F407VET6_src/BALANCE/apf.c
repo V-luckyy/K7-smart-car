@@ -29,6 +29,22 @@ float apf_repulsive(float dist_front, float dist_left, float dist_right)
     omega += rep_force(dist_left)  * (-sinf(SENSOR_ANGLE_LEFT));
     omega += rep_force(dist_right) * (-sinf(SENSOR_ANGLE_RIGHT));
 
+#if APF_FRONT_STEER_EN
+    /* 正前近障：上面三项在"障碍正中、两侧还没探到"时不产生转向，车会顶上去。
+     * 这里按"哪边更空往哪边绕"补一个小转向（越近越强），保证能提前躲开正前方障碍。 */
+    if (dist_front < APF_RHO_0)
+    {
+        float room = dist_left - dist_right;            /* >0 → 左边更空 */
+        float dir;
+        if      (room >  APF_FRONT_SIDE_DEAD) dir =  1.0f;         /* 左空 → 左绕 */
+        else if (room < -APF_FRONT_SIDE_DEAD) dir = -1.0f;         /* 右空 → 右绕 */
+        else    dir = (float)APF_FRONT_DEFAULT_DIR;                /* 居中 → 默认方向 */
+
+        float k = (APF_RHO_0 - dist_front) / APF_RHO_0;           /* 越近越强 (0~1) */
+        omega += dir * APF_FRONT_STEER_MAX * k;
+    }
+#endif /* APF_FRONT_STEER_EN */
+
     return clampf(omega, -APF_W_MAX, APF_W_MAX);
 }
 

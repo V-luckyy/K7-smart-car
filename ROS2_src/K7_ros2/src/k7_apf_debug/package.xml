@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>k7_apf_debug</name>
+  <version>0.1.0</version>
+  <description>APF+Stanley 实车调参工具：订阅 STM32 0xFB 上行帧发布出的 /apf_debug，落 CSV（含 cte/航向误差），并提供绘图脚本对标参考圆调参</description>
+  <maintainer email="user@todo.todo">k7</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>k7_msgs</depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

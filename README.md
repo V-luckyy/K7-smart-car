@@ -13,6 +13,7 @@
 | `docs/K7_上手操作指南.md` | 从零上手：烧录固件、串口调试、WiFi/SSH、VSCode 远程开发 |
 | `docs/K7_开发架构方案.md` | ROS2 Jazzy 架构蓝图：节点图、话题流、TF 树、分阶段路线 |
 | `docs/ROS2_命令速查.md` | ROS2 板端命令速查：构建/话题/节点/录包/多终端/跑车流程 |
+| `docs/多机编队_LeaderFollower_说明.md` | 多机编队：namespace 方案、跟随节点、部署/调参/排错 |
 
 ---
 
@@ -28,7 +29,9 @@ K7-smart-car/
 │
 ├── docs/                   # 文档
 │   ├── K7_上手操作指南.md
-│   └── K7_开发架构方案.md
+│   ├── K7_开发架构方案.md
+│   ├── ROS2_命令速查.md
+│   └── 多机编队_LeaderFollower_说明.md
 │
 ├── K7/                     # K7 板原理图+机械图 (V1.1/V2.0/V2.1)
 ├── rk3576_data/            # KICKPI 开发资料（规格书/NPU工具链/数据手册）
@@ -44,12 +47,14 @@ K7-smart-car/
         ├── setup_env.sh    # 一键安装 ROS2 Jazzy + 项目依赖
         ├── setup/          # GPG 密钥等安装资源
         └── src/
-            ├── k7_bringup/     # C++ 串口底盘节点（含看门狗）+ EKF/IMU + udev
+            ├── k7_bringup/     # C++ 串口底盘节点（含看门狗）+ EKF/IMU + udev + /apf_debug(0xFB)
             ├── k7_camera/      # Python 双目 splitter + 标定
             ├── k7_description/ # URDF 机器人模型
+            ├── k7_follower/    # 多机编队：Leader-Follower 跟随节点（速度复刻+间距保持）
             ├── k7_mpc/         # 番外线：MPC 避障实车验证（仿真 V1 控制器移植）
             ├── k7_nav/         # [Phase 4] Nav2 导航参数
-            └── k7_npu/         # [Phase 5] RKNN 检测节点
+            ├── k7_npu/         # [Phase 5] RKNN 检测节点
+            └── k7_apf_debug/   # APF+Stanley 实车调参：/apf_debug 记录 CSV + 绘图
 ```
 
 ---

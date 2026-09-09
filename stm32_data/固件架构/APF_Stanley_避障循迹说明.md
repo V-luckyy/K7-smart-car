@@ -10,8 +10,8 @@
 
 小车在 STM32 上**自己闭环**跑两件事：
 
-1. **循迹（Stanley）**：让车沿着一个**圆**走（圆半径 0.6m，圆心在里程计原点）。车偏离圆了、车头方向不对了，Stanley 算出该转多少。
-2. **避障（APF）**：车头的三路测距传感器（前 / 左前 45° / 右前 45°）发现障碍物时，产生一个「排斥力」，让车往没障碍的方向绕开，同时减速。
+1. **循迹（Stanley）**：让车沿一条**参考路径**走。当前参考是**沿 +x 的直线段**：从起点 (0,0) 直行 **3 米**（`STANLEY_LINE_LEN`），走满里程后自动停车。车偏离直线了、车头方向不对了，Stanley 算出该转多少把它拉回直线上。
+2. **避障（APF）**：车头的三路测距传感器（前 / 左前 45° / 右前 45°）发现障碍物时，产生一个「排斥力」，让车往没障碍的方向绕开，同时减速。（早期版本参考路径是逆时针圆 R=0.6m，2026-09-06 起改为直线 3m。）
 
 **关键点**：这套东西**全在 STM32 上跑**，不经过 RK3576，所以没有串口往返延迟。控制频率 50Hz（每秒算 50 次），够快够稳。
 
@@ -30,7 +30,7 @@
 | 想了解什么 | 去哪个文件 | 位置 |
 |-----------|-----------|------|
 | 循迹算法（Stanley） | `stanley.c` | `BALANCE/` |
-| 循迹参数（增益、圆半径） | `stanley.h` | `BALANCE/Inc/` |
+| 循迹参数（增益、直线长） | `stanley.h` | `BALANCE/Inc/` |
 | 避障算法（APF 斥力） | `apf.c` | `BALANCE/` |
 | 避障参数（斥力、量程、速度） | `apf.h` | `BALANCE/Inc/` |
 | 任务编排（读传感器→算→写电机） | `apf_task.c` | `BALANCE/` |
@@ -67,12 +67,18 @@ typedef struct {
 
 ```c
 #define APF_K_REP      2.0f    /* 斥力增益：越大绕障越猛 */
-#define APF_RHO_0      0.5f    /* 斥力作用半径 (m)：障碍在此范围内才产生斥力 */
+#define APF_RHO_0      0.9f    /* 斥力作用半径 (m)：障碍在此范围内才产生斥力 */
 #define APF_SAFETY_DIST 0.15f  /* 安全距离 (m) */
 #define APF_W_MAX      1.5f    /* 最大角速度限幅 (rad/s) */
 #define APF_V_MAX      0.3f    /* 最大线速度 (m/s) */
 #define APF_V_MIN      0.13f   /* 最小线速度 */
 #define APF_WHEEL_BASE 0.329f  /* 轮距 (m)，差分运动学用 */
+
+/* "正前近障朝空侧绕"：前方障碍正中、两侧还没探到时也能提前转向（1=开 0=关）*/
+#define APF_FRONT_STEER_EN      1
+#define APF_FRONT_STEER_MAX     0.6f   /* 该项最大转向角速度 (rad/s) */
+#define APF_FRONT_SIDE_DEAD     0.12f  /* 左右读数差(m)<此值视为"居中" */
+#define APF_FRONT_DEFAULT_DIR   1      /* 居中兜底绕向：1=左绕, -1=右绕 */
 
 /* 三路传感器角度（车身系，弧度）*/
 #define SENSOR_ANGLE_FRONT   0.0f              /* 前 0° */
@@ -80,20 +86,19 @@ typedef struct {
 #define SENSOR_ANGLE_RIGHT  -0.7853981634f     /* 右前 -45° */
 ```
 
-> **调参第一站**：想改「绕障猛不猛」调 `APF_K_REP`；想改「多远开始避」调 `APF_RHO_0`；想改「跑多快」调 `APF_V_MAX/V_MIN`。
+> **调参第一站**：想改「绕障猛不猛」调 `APF_K_REP`；想改「多远开始避」调 `APF_RHO_0`（实测 0.9 比默认 0.5 触发早很多）；障碍物若总是**正中顶着才绕**，说明 ±45° 探不到，开 `APF_FRONT_STEER_EN=1` 用前方直接转向；绕错方向就翻 `APF_FRONT_DEFAULT_DIR` 或 `-sin` 符号。想改「跑多快」调 `APF_V_MAX/V_MIN`。
 
 ### 3.2 `BALANCE/Inc/stanley.h` —— 循迹参数
 
 ```c
-#define STANLEY_K_PSI     1.0f    /* 航向误差增益 */
-#define STANLEY_K_CTE     1.5f    /* 横向误差增益 */
+#define STANLEY_K_PSI       0.6f   /* 航向误差增益 */
+#define STANLEY_K_CTE       0.8f   /* 横向误差增益 */
 
-#define STANLEY_CIRCLE_R   0.6f   /* 圆半径 (m) */
-#define STANLEY_CIRCLE_CX  0.0f   /* 圆心 X */
-#define STANLEY_CIRCLE_CY  0.0f   /* 圆心 Y */
+#define STANLEY_LINE_LEN      3.0f   /* 直线行驶长度 (m)，里程 ≥ 此值即停车 */
+#define STANLEY_LINE_HEADING  0.0f   /* 直线方向 (rad)：沿 +x */
 ```
 
-> **调参第二站**：圆多大改 `STANLEY_CIRCLE_R`；循迹「跟得紧不紧、会不会抖」调 `K_PSI/K_CTE`。以后要把「硬编码圆」换成「RK3576 下发路径」，就改 `stanley.c` 里算参考点的那几行。
+> **调参第二站**：直线走多长改 `STANLEY_LINE_LEN`（想一直走就改大）；循迹「跟得紧不紧、会不会抖」调 `K_PSI/K_CTE`（实测调小到 0.6/0.8 后过障回线过冲明显减小）。以后要把「硬编码直线」换成「RK3576 下发路径」，就改 `stanley.c` 里算参考点的那几行。
 
 ### 3.3 `BALANCE/stanley.c` —— 循迹算法实现（核心）
 
@@ -102,21 +107,13 @@ typedef struct {
 ```c
 float stanley_steering(const APF_Car *car)
 {
-    /* 1. 车相对圆心的位置 */
-    float dx = car->x - STANLEY_CIRCLE_CX;   // 车心到圆心 X 差
-    float dy = car->y - STANLEY_CIRCLE_CY;   // 车心到圆心 Y 差
-    float r  = sqrtf(dx*dx + dy*dy);         // 车到圆心的距离
+    /* 1. 航向误差：参考方向 = +x(0 rad)，psi_e = 0 - theta */
+    float psi_e = wrap_pi(STANLEY_LINE_HEADING - car->theta);
 
-    /* 2. 横向误差：正=车在圆外，负=车在圆内 */
-    float cte = r - STANLEY_CIRCLE_R;
+    /* 2. 横向误差：到直线 y=0 的有向距离（偏左 +y 取负，使左偏需右回） */
+    float cte = -car->y;
 
-    /* 3. 圆上最近点的切线方向（逆时针圆的切线） */
-    float tangent = atan2f(-dy, dx);
-
-    /* 4. 航向误差 = 期望切线方向 - 车头方向，归一化到 [-π,π] */
-    float psi_e = wrap_pi(tangent - car->theta);
-
-    /* 5. Stanley 公式：航向误差 + 横向误差修正 */
+    /* 3. Stanley 公式：航向误差 + 横向误差修正 */
     float v = (car->v > 0.15f) ? car->v : 0.15f;   // 防除零
     float omega = STANLEY_K_PSI * psi_e
                 + STANLEY_K_CTE * atan2f(cte, v);
@@ -125,13 +122,13 @@ float stanley_steering(const APF_Car *car)
 ```
 
 **逐行解释**：
-- **第 1 步**：算车在圆外还是圆内、离圆多远。
-- **第 2 步**：`cte`（cross-track error，横向误差）是「车离圆周的距离」，车在圆外是正、圆内是负。
-- **第 3 步**：算车应该朝哪个方向走（圆的切线方向）。
-- **第 4 步**：`psi_e` 是「车头方向」和「该走方向」的夹角，这个角越大车转得越猛。
-- **第 5 步**：**Stanley 核心公式** `ω = K_psi·ψe + K_cte·atan(cte/v)`。前半段纠正车头方向，后半段纠正横向位置。`atan` 让横向修正有上限（不会无限增大），所以平滑。
+- **第 1 步**：参考方向是 `+x`（角度 0）。`psi_e` = 「该走的方向(0) − 车头方向」，车头左偏（θ>0）时它为负 → 指令右回。
+- **第 2 步**：`cte`（cross-track error，横向误差）是「车到直线 y=0 的距离」。车偏左（+y）时取负 → 指令把车往右拉回直线。
+- **第 3 步**：**Stanley 核心公式** `ω = K_psi·ψe + K_cte·atan(cte/v)`。前半段纠正车头方向，后半段纠正横向位置。`atan` 让横向修正有上限（不会无限增大），所以平滑。
 
-> **看懂这一句就懂了循迹**：Stanley = 「车头摆正」+「往轨道上拉」，两股力加权求和。
+> **看懂这一句就懂了循迹**：Stanley = 「车头摆正」+「往直线上拉」，两股力加权求和。
+> **停车的另一半逻辑在 `apf_task.c`**：每周期把编码器实际速度 `v` 积分进 `dist`，`dist ≥ STANLEY_LINE_LEN` 时把 `v_cmd/ω_cmd` 清零并一直保持——所以车走满 3m 会自动停。
+> 若实车转向方向反了（车往错误一侧越偏越远），把 `stanley.h` 里 `STANLEY_K_PSI` 和 `STANLEY_K_CTE` 同时取负。
 
 ### 3.4 `BALANCE/apf.c` —— 避障算法实现（核心）
 
@@ -249,12 +246,15 @@ CreateTaskChecked(APF_task, "APF_task", APF_STK_SIZE, NULL, APF_TASK_PRIO, NULL,
 
 | 想达到的效果 | 改哪个参数 | 在哪个文件 | 默认值 |
 |-------------|-----------|-----------|--------|
-| 圆更大/更小 | `STANLEY_CIRCLE_R` | `stanley.h` | 0.6 |
-| 圆心位置 | `STANLEY_CIRCLE_CX/CY` | `stanley.h` | (0,0) |
-| 循迹更紧/更抖 | `STANLEY_K_PSI`、`STANLEY_K_CTE` | `stanley.h` | 1.0 / 1.5 |
+| 直线走多长 / 想改终点 | `STANLEY_LINE_LEN` | `stanley.h` | 3.0 |
+| 直线方向 | `STANLEY_LINE_HEADING` | `stanley.h` | 0（+x） |
+| 循迹更紧/更抖 | `STANLEY_K_PSI`、`STANLEY_K_CTE` | `stanley.h` | 0.6 / 0.8 |
 | 绕障更猛/更柔 | `APF_K_REP` | `apf.h` | 2.0 |
-| 多远开始避障 | `APF_RHO_0` | `apf.h` | 0.5 |
+| 多远开始避障 | `APF_RHO_0` | `apf.h` | 0.9 |
 | 安全距离 | `APF_SAFETY_DIST` | `apf.h` | 0.15 |
+| 正前近障自动转向 | `APF_FRONT_STEER_EN` | `apf.h` | 1（开） |
+| 该项最大转向 | `APF_FRONT_STEER_MAX` | `apf.h` | 0.6 |
+| 居中兜底绕向 | `APF_FRONT_DEFAULT_DIR` | `apf.h` | 1（左绕） |
 | 最快/最慢速度 | `APF_V_MAX` / `APF_V_MIN` | `apf.h` | 0.3 / 0.13 |
 | 最大角速度 | `APF_W_MAX` | `apf.h` | 1.5 |
 | 轮距（里程计） | `APF_WHEEL_BASE` | `apf.h` | 0.329 |
@@ -267,12 +267,12 @@ CreateTaskChecked(APF_task, "APF_task", APF_STK_SIZE, NULL, APF_TASK_PRIO, NULL,
 ### 1. 车一启动就往反方向转 / 往外跑
 这是**转向正负号反了**。把 `stanley.h` 里的 `STANLEY_K_PSI` 和 `STANLEY_K_CTE` 都取负号：
 ```c
-#define STANLEY_K_PSI   -1.0f
-#define STANLEY_K_CTE   -1.5f
+#define STANLEY_K_PSI   -0.6f
+#define STANLEY_K_CTE   -0.8f
 ```
 
 ### 2. 避障绕错方向（左前有障碍却往左拐）
-把 `apf.c` 里的 `-sinf(...)` 改成 `+sinf(...)`（三处都改）。
+把 `apf.c` 里的 `-sinf(...)` 改成 `+sinf(...)`（三处都改）。若用的是新增的"正前近障转向"，把 `APF_FRONT_DEFAULT_DIR` 取反（1↔−1）。
 
 ### 3. 车根本不走
 检查：
@@ -280,18 +280,86 @@ CreateTaskChecked(APF_task, "APF_task", APF_STK_SIZE, NULL, APF_TASK_PRIO, NULL,
 - `robot_control.ControlMode = 0` 是不是被别的代码改掉了（比如 RK3576 还在下发 cmd_vel 会设成 `_APP_Control`，抢控制权）。**测 APF 时别跑 RK3576 的 cmd_vel/twist_mux**。
 - 三路测距是不是一直读 0（gy53_pwm.c 没正常工作），导致 `apf_speed_limit` 一直压到最低速。
 
-### 4. 车绕圆越绕越偏（不收敛成圆）
-- 里程计漂移：编码器积分会慢慢累积误差，这是正常现象，跑几圈会偏。
-- 可先调大 `STANLEY_K_CTE` 让横向修正更强，把车「拉回圆上」。
+### 4. 直行时越走越偏（不沿直线）
+- 里程计漂移：编码器积分会慢慢累积误差，这是正常现象。
+- 可先调大 `STANLEY_K_CTE` 让横向修正更强，把车「拉回直线上」；若车是**越偏越往错的方向拐**，那是转向符号反了，把 `STANLEY_K_PSI/K_CTE` 同时取负。
 
 ---
 
 ## 六、以后怎么扩展
 
-1. **换参考路径**（把圆换成别的轨迹、或接 RK3576 下发路点）：改 `stanley.c` 里算 `cte` 和 `tangent` 的几行，改成「查最近路点 + 路点切线」。
+1. **换参考路径**（把直线改长度、或接 RK3576 下发路点）：改 `stanley.c` 里算参考点/`cte`/航向误差的几行（直线现在只需距离），需要多段或曲线时改成「查最近路点 + 路点切线」。
 2. **加双目相机避障**：在 `apf_task.c` 里再多加一路「相机障碍」，和现有的三路测距斥力叠加，**不用删三路测距**——它们是 STM32 上的快速安全层，相机是 RK3576 上的全局层。
 3. **调参自动化**：把参数放到串口/蓝牙可下发，避免每次改宏重烧固件。
 
 ---
 
-> 一句话总结：**`apf_task.c` 是大脑（调度），`stanley.c` 管循迹，`apf.c` 管避障，`apf.h`/`stanley.h` 是旋钮（参数），`main.c` 是开关（注册任务）。**
+## 七、实车调参：记录数据 + 看什么（0xFB 调试帧，2026-09-06）
+
+STM32 上电自跑时，控制器**内部**的量（指令速度、Stanley/APF 分量）原本不外发，没法看。为此加了一条**自定义上行调试帧 0xFB**，把小车在跑什么、控制器怎么想的，实时发到 K7 上记录。
+
+### 7.1 帧里有什么（对应文件：`apf_task.c` 采样、`data_task.c` 组装）
+
+| 数据 | 含义 | 调什么参数用它 |
+|------|------|----------------|
+| `x, y, θ` | 里程计位姿 | 画实际轨迹 vs 参考圆 |
+| `cte, ψe`（K7 侧算出） | 横向误差 / 航向误差 | `STANLEY_K_PSI`、`STANLEY_K_CTE` |
+| `v_cmd` | 指令线速度 | `APF_V_MAX/MIN` 限幅是否生效 |
+| `w_cmd / w_stanley / w_apf` | 总角速度 = 循迹 + 避障分量 | 看转弯**是不是 APF 推过头**、避障猛不猛 → `APF_K_REP/RHO_0` |
+| `v_act / w_act` | 实际速度 | 指令和实际是否跟上（饱和/打滑） |
+| `dA/dB/dC` | 三路测距 | 遇障时传感器实际读数、触发点 |
+
+数据流：`apf_task` 每 50Hz 采样进 `g_apf_debug` → `data_task` 每 20Hz 组装 **0xFB 帧**（27B，int16 大端 ×1000，BCC）经 USART3 上行 → K7 `k7_serial_node` 解析发布 **`/apf_debug`**（`k7_msgs/ApfDebug`）。
+
+> 只在这份**带 APF_task 的固件**里才发：`g_apf_debug_valid` 置 1 才发。从机 ROS 模式固件没有 APF_task，不会发、不干扰。
+
+### 7.2 怎么记录（ROS 侧，K7 板）
+
+固件烧好自跑后，在 K7 上（工作区 `colcon build --symlink-install` 过）一条命令：
+
+```bash
+./run/record_apf.sh            # = listen-only 串口节点 + apf_recorder，CSV 落在 ~/apf_log/
+```
+
+脚本内部关键点：`k7_serial_node` 以 **`enable_downlink:=false`**（只收不发）运行——避免它那 10Hz 零速看门狗帧把 STM32 从 APF 自跑切到串口模式。对应代码在 `k7_bringup`（`enable_downlink` 参数 + `k7_serial_node.cpp` 的 `Send_Cmd_Vel` 开头判断、`k7_robot.h` 成员）。
+
+CSV 列：`t, x, y, theta, cte, psi_e, v_cmd, w_cmd, w_stanley, w_apf, v_act, w_act, d_front, d_left, d_right`。
+
+### 7.3 怎么画（PC 或 K7 上都行）
+
+```bash
+# 在装有 k7_apf_debug 的机器（PC 上跑则先 colcon build，或直接在 K7 上）：
+ros2 run k7_apf_debug plot_apf ~/apf_log/apf_xxxx.csv        # 存 png
+ros2 run k7_apf_debug plot_apf ~/apf_log/apf_xxxx.csv --interactive  # PC 上有显示时弹窗
+```
+
+### 7.4 看图怎么调（速查）
+
+| 现象 | 看哪张图 | 怎么调 |
+|------|---------|--------|
+| 实际轨迹比圆小/大一圈（恒定 cte 不为 0） | 左上 轨迹图 / 右上 cte | 先检查起点和圆心；仍偏大改 `K_CTE` |
+| cte 正弦来回、车"画蛇" | 右上 cte 曲线 | `K_PSI`/`K_CTE` 太大，调小 |
+| 压弯、切线跟不上（cte 波动大） | 右上 cte/ψe | `K_CTE`、`K_PSI` 调大 |
+| 遇障时 w_apf 一下顶到限幅、太猛 | 右下 w 分量 | `APF_K_REP` 调小、或 `APF_RHO_0` 调小 |
+| 绕障不够、贴太近（d_xxx 已很小 w_apf 还小） | 右下 w 分量 + 距离图 | `APF_K_REP` 调大 |
+| v_cmd 长期顶在 V_MAX 下不来 | 左下 v 图 | 场地太小，改小 `APF_V_MAX` |
+| v_act/w_act 跟不上指令 | 左下/右下 | 检查是否打滑或 `APF_V_MIN` 太小 |
+
+> 参考路径类型由 `apf_recorder` 的 `reference` 参数控制（默认 `circle`）。**当前固件参考是直线**，记录时应传 `reference:=line`（`run/record_apf.sh` 第二参数传 `line`），cte/ψe 才按直线算；画图用 `plot_apf xxx.csv --ref line --line-len 3`。若固件改回参考圆，记录用默认 `circle` 且 `circle_radius` 与 `stanley.h` 一致（原默认 0.6m）。
+
+### 7.5 相关文件速查
+
+| 文件 | 位置 | 作用 |
+|------|------|------|
+| 0xFB 帧数据源结构 `APF_Debug_t` | 固件 `BALANCE/Inc/apf.h` | 定义采样结构 + extern |
+| 每 50Hz 采样填入 | 固件 `BALANCE/apf_task.c` | 步骤 6 |
+| 20Hz 组装 + USART3 发送 | 固件 `BALANCE/data_task.c` | `apfdbgbuffer` / `Usart3_SendTask` |
+| 消息定义 | ROS `k7_msgs/msg/ApfDebug.msg` | `/apf_debug` 话题类型 |
+| 串口解析 + 发布 `/apf_debug` | ROS `k7_bringup` `k7_serial_node` | 状态机 `frame_type==4`，`Publish_ApfDebug`；`enable_downlink` 纯记录开关 |
+| CSV 记录 + 算 cte/ψe | ROS `k7_apf_debug` `apf_recorder` | `ros2 run k7_apf_debug apf_recorder` |
+| 一键记录 launch/脚本 | ROS `k7_apf_debug/launch/record.launch.py`、`run/record_apf.sh` | |
+| 绘图 | ROS `k7_apf_debug` `plot_apf_log.py` | `ros2 run k7_apf_debug plot_apf xxx.csv` |
+
+---
+
+> 一句话总结：**`apf_task.c` 是大脑（调度），`stanley.c` 管循迹，`apf.c` 管避障，`apf.h`/`stanley.h` 是旋钮（参数），`main.c` 是开关（注册任务）；要"看清旋钮转得对不对"，STM32 发 0xFB 调试帧 → K7 记 CSV → `plot_apf` 看图调参。**

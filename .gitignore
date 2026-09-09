@@ -16,10 +16,11 @@ rk3576_data/3-SoftwareData/Linux_rknn_yolov5/rknn_model_zoo.tar.gz
 msg.txt
 err_msg.txt
 
-# 标定图片与 MPC 运行日志（数据文件，不入库）
+# 标定图片与 MPC/APF 运行日志（数据文件，不入库）
 calibration_images/
 calibration_images.zip
 mpc_*.csv
+apf_*.csv
 
 # USB 摄像头 Windows SDK（PC端调试用，不在 K7 上运行）
 camera_windows_sdk/

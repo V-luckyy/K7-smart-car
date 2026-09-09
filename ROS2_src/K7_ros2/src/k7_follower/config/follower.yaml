@@ -1,0 +1,25 @@
+# k7_follower/config/follower.yaml
+# follower_node 默认参数（launch 里可被命令行 / ros2 param set 覆盖）。
+# 所有话题名相对 follower_node 所在命名空间（launch 里已 PushRosNamespace(namespace)）。
+follower_node:
+  ros__parameters:
+    # 订阅 leader 融合位姿：绝对话题，跨命名空间（leader 那台车传 namespace:=leader）
+    leader_topic: /leader/odom_combined
+    # 本机话题（相对，自动落到 /<ns>/…）
+    own_odom_topic: odom_combined
+    ir_topic: ir_distances
+    cmd_topic: cmd_vel_follower
+
+    rate: 20.0
+
+    # 编队：保持的纵向间距与回位增益
+    target_gap: 1.2
+    kp_gap: 0.8
+    v_max: 0.5
+    w_max: 1.2
+    leader_timeout: 1.0
+
+    # 前红外安全（复用到 GY53 三路测距，防追尾/防撞）
+    use_ir: true
+    ir_safe: 0.35
+    ir_slow: 0.6

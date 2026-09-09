@@ -1,6 +1,6 @@
 # K7 智能小车主板 — RK3576 项目文档
 
-> **最后更新**: 2026-08-31（新增主线阶段：STM32 APF+Stanley 避障循迹，见第 13.4 节）
+> **最后更新**: 2026-09-06（新增多机 Leader-Follower 编队初版，见第 14 节）
 > **板卡型号**: KICKPI K7 V2.0
 > **主控芯片**: Rockchip RK3576
 > **项目用途**: 智能小车主控 — 运行 Ubuntu + ROS2，负责路径规划、深度图计算、上位机通信、底层 STM32 驱动
@@ -692,15 +692,29 @@ PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
 
 主线控制方案：**APF 避障 + Stanley 循迹**，在 STM32 固件内闭环，**不经过 RK3576**（无串口往返延迟）。
 
-- **定位**：主线的一个阶段（非番外线），替代早期 `k7_mpc` 番外线的 MPC 避障验证。三路红外直接喂给 STM32 上的 APF 斥力，Stanley 沿硬编码圆（R=0.6m）循迹，控制频率 50Hz，输出 `robot_control.Vx/Vz` 经 `balance_task` 直接驱动电机（`ControlMode=0` 直驱）。
+- **定位**：主线的一个阶段（非番外线），替代早期 `k7_mpc` 番外线的 MPC 避障验证。三路红外直接喂给 STM32 上的 APF 斥力，Stanley 沿硬编码参考路径循迹（早期为逆时针圆 R=0.6m；2026-09-06 起改为**沿 +x 直线走 3m 后停车**，参数在 `stanley.h` 的 `STANLEY_LINE_LEN/HEADING`），控制频率 50Hz，输出 `robot_control.Vx/Vz` 经 `balance_task` 直接驱动电机（`ControlMode=0` 直驱）。
 - **代码位置**：固件 `STM32F407VET6_src/BALANCE/`（`stanley.c/.h` 循迹、`apf.c/.h` 避障、`apf_task.c/.h` 编排），`USER/main.c` 注册任务。该固件目录已入库（`.gitignore` 只排除 `**/OBJ/` 编译产物），C 代码可版本管理/diff。
 - **实现讲解手册**：`stm32_data/固件架构/APF_Stanley_避障循迹说明.md`（函数逐行解释 + 参数速查表 + 调参/排错）。
 - **三路传感器不挤掉**：三路红外留在 STM32 做快速安全层（反应式、不依赖 RK3576），后续双目相机在 RK3576 做全局避障层，两层叠加不替换。
-- **后续扩展**：参考路径当前硬编码圆，测试通过后改由 RK3576 下发路点（改 `stanley.c` 的参考点计算）。
+- **调参数据记录（2026-09-06）**：APF_task 每 50Hz 把内部量（x/y/θ、v_cmd/w_cmd、Stanley&APF 分量、三路距离、实际 v/ω）采样进 `g_apf_debug` → `data_task` 每 20Hz 组装 **0xFB 上行帧**（27B，int16 大端×1000，BCC）→ K7 `k7_serial_node` 解析发布 `/apf_debug`（`k7_msgs/ApfDebug`）。新包 `k7_apf_debug`：`apf_recorder`（记 CSV，含 cte/航向误差）+ `plot_apf`（画轨迹 vs 参考圆/误差/指令实际/距离）。串口节点新增 **`enable_downlink`** 参数：记录自跑车时设 `false`（只收不发），避免 10Hz 零速看门狗帧把 STM32 从 APF 直驱切回串口模式。详见 APF 手册第七节。
+- **后续扩展**：参考路径当前硬编码直线段，测试通过后改由 RK3576 下发路点（改 `stanley.c` 的参考点计算）。
 
 ---
 
-## 14. Push 前检查清单
+## 14. 多机 Leader-Follower 编队（ROS2 层，2026-09-06 初版）
+
+三台 K7 同网段组简易编队：**leader 发布自身状态，从机订阅并隔固定间距跟随**。方案与代码全记录在 `docs/多机编队_LeaderFollower_说明.md`，此处只记结论。
+
+- **分工定位**：这是"多机"功能的**初版/演示版**（v1，速度复刻），不是番外线。本板=leader（也负责拿底盘状态）；另两块板=从机。将来可从 v1 升级到"统一坐标系位置闭环"（用 set_pose 对齐三车 odom）或"相对位姿闭环"。
+- **架构**：三台车跑**同一份 `K7_ros2`**，靠 `ROS_DOMAIN_ID`(一致) + **namespace**（`leader`/`follower1`/`follower2`）区分，话题互不覆盖。这是对现有 `k7_core.launch.py`/`k7_twist_mux.launch.py` 新增 `namespace` 参数（默认空=单机行为不变）的原因。
+- **跟随节点**：新包 `k7_follower`，节点 `follower_node`。算法=角速度复刻 leader + 间距积分 `ḋ=v_l−v_f` 加比例项 + 前红外防追尾 + leader 断链 1s 急停。输出 `cmd_vel_follower` → twist_mux（优先级 70，键盘 80/手柄 100 可随时接管）→ `cmd_vel` → 串口 → STM32。
+- **关键坑（已处理）**：EKF 配置里 `imu0` 原本是绝对话题 `/imu/data_raw`，namespace 下会找不到 → 已改相对 `imu/data_raw`。
+- **固件前置（重要）**：`balance_task` 只在非 `_APP_Control` 时才用 `robot_control.Vx/Vz`（APF_task 直驱）；收到 11 字节串口帧即切 `_APP_Control` 走串口速度。→ 从机**必须烧"ROS 模式"固件**（main.c 里注释 `CreateTaskChecked(APF_task,...)`），leader 可选 APF 独立固件自己跑圆。
+- **校验**：launch/节点 py_compile 通过；代码逻辑依赖 K7 上 `colcon build --symlink-install` 实编 + 实车验证（本机无 ROS 环境）。
+
+---
+
+## 15. Push 前检查清单
 
 向 GitHub push 前，逐条确认：
 
