@@ -1,6 +1,6 @@
 # K7 智能小车主板 — RK3576 项目文档
 
-> **最后更新**: 2026-09-06（新增多机 Leader-Follower 编队初版，见第 14 节）
+> **最后更新**: 2026-09-09（轻量链式多机编队，见第 14 节）
 > **板卡型号**: KICKPI K7 V2.0
 > **主控芯片**: Rockchip RK3576
 > **项目用途**: 智能小车主控 — 运行 Ubuntu + ROS2，负责路径规划、深度图计算、上位机通信、底层 STM32 驱动
@@ -699,18 +699,25 @@ PC 端：ONNX/PyTorch → rknn-toolkit2 转换 → .rknn 模型文件
 - **调参数据记录（2026-09-06）**：APF_task 每 50Hz 把内部量（x/y/θ、v_cmd/w_cmd、Stanley&APF 分量、三路距离、实际 v/ω）采样进 `g_apf_debug` → `data_task` 每 20Hz 组装 **0xFB 上行帧**（27B，int16 大端×1000，BCC）→ K7 `k7_serial_node` 解析发布 `/apf_debug`（`k7_msgs/ApfDebug`）。新包 `k7_apf_debug`：`apf_recorder`（记 CSV，含 cte/航向误差）+ `plot_apf`（画轨迹 vs 参考圆/误差/指令实际/距离）。串口节点新增 **`enable_downlink`** 参数：记录自跑车时设 `false`（只收不发），避免 10Hz 零速看门狗帧把 STM32 从 APF 直驱切回串口模式。详见 APF 手册第七节。
 - **后续扩展**：参考路径当前硬编码直线段，测试通过后改由 RK3576 下发路点（改 `stanley.c` 的参考点计算）。
 
+### 13.5 Stanley/差速控制修正决策（2026-09-09）
+
+- 直线段终点按 `car.x >= STANLEY_LINE_LEN` 判断，不按行驶弧长判断。
+- Stanley 改为标准形式：使用参考路径切线方向、前方控制点横向误差和 `atan2(k*cte, v)` 项，先得到等效转向角/曲率，再转换为差速车角速度。
+- APF 和 Stanley 输出的基础前进速度、角速度必须在差速轮速层联合限幅，避免近障时低 `Vx` 配合高 `Vz` 导致一侧轮反转、车辆表现为原地转弯。控制顺序为先依据障碍物降低基础速度，再计算并限制角速度，最终生成左右轮速度。
+- 当前直线跟踪出现 S 形过冲的原因判断为：原实现使用车体中心 `cte=-car.y`，车体中心回到 `y=0` 时车头仍可能偏离参考航向；采用前方控制点横向误差可提前修正，但仍需通过控制点距离、速度相关增益和实车延迟验证。
+
 ---
 
-## 14. 多机 Leader-Follower 编队（ROS2 层，2026-09-06 初版）
+## 14. 多机 Leader-Follower 编队（ROS2 层）
 
-三台 K7 同网段组简易编队：**leader 发布自身状态，从机订阅并隔固定间距跟随**。方案与代码全记录在 `docs/多机编队_LeaderFollower_说明.md`，此处只记结论。
+完整测试说明见 `docs/多机编队_LeaderFollower_说明.md`，此处只保留长期有效结论。
 
-- **分工定位**：这是"多机"功能的**初版/演示版**（v1，速度复刻），不是番外线。本板=leader（也负责拿底盘状态）；另两块板=从机。将来可从 v1 升级到"统一坐标系位置闭环"（用 set_pose 对齐三车 odom）或"相对位姿闭环"。
-- **架构**：三台车跑**同一份 `K7_ros2`**，靠 `ROS_DOMAIN_ID`(一致) + **namespace**（`leader`/`follower1`/`follower2`）区分，话题互不覆盖。这是对现有 `k7_core.launch.py`/`k7_twist_mux.launch.py` 新增 `namespace` 参数（默认空=单机行为不变）的原因。
-- **跟随节点**：新包 `k7_follower`，节点 `follower_node`。算法=角速度复刻 leader + 间距积分 `ḋ=v_l−v_f` 加比例项 + 前红外防追尾 + leader 断链 1s 急停。输出 `cmd_vel_follower` → twist_mux（优先级 70，键盘 80/手柄 100 可随时接管）→ `cmd_vel` → 串口 → STM32。
-- **关键坑（已处理）**：EKF 配置里 `imu0` 原本是绝对话题 `/imu/data_raw`，namespace 下会找不到 → 已改相对 `imu/data_raw`。
-- **固件前置（重要）**：`balance_task` 只在非 `_APP_Control` 时才用 `robot_control.Vx/Vz`（APF_task 直驱）；收到 11 字节串口帧即切 `_APP_Control` 走串口速度。→ 从机**必须烧"ROS 模式"固件**（main.c 里注释 `CreateTaskChecked(APF_task,...)`），leader 可选 APF 独立固件自己跑圆。
-- **校验**：launch/节点 py_compile 通过；代码逻辑依赖 K7 上 `colcon build --symlink-install` 实编 + 实车验证（本机无 ROS 环境）。
+- 三车使用相同 `ROS_DOMAIN_ID` 和不同 namespace；采用链式 `leader -> follower1 -> follower2`，后车订阅前一台车的原始 `odom`。
+- 主车 STM32 执行硬编码路径 + Stanley + APF；K7 串口节点以 `serial_only=true, enable_downlink=false` 只上报状态，不发送控制帧。
+- 从车只启动串口、twist_mux 和 `k7_follower`。节点用有界轨迹队列沿前车实际路径保持弧长间距，并叠加本车三路 GY-53 APF，输出前执行差速轮速联合限幅。
+- 从车必须使用禁用 STM32 `APF_task` 的 ROS 控制固件，否则 STM32 自主任务会与 ROS 下行控制冲突。
+- 当前没有车间相对定位：启动时三车必须同向、按 `target_gap` 摆放并保持静止；编码器长期漂移不能由本方案消除。
+- 关键数据超时即停车；实车先架空、再单从车低速、最后三车测试。
 
 ---
 

@@ -5,26 +5,107 @@
 #define M_PI 3.14159265358979323846f
 #endif
 
-static float wrap_pi(float a)
+static float clampf(float value, float low, float high)
 {
-    while (a >  M_PI) a -= 2.0f * M_PI;
-    while (a < -M_PI) a += 2.0f * M_PI;
-    return a;
+    if (value < low)
+    {
+        return low;
+    }
+
+    if (value > high)
+    {
+        return high;
+    }
+
+    return value;
 }
 
-float stanley_steering(const APF_Car *car)
+static float wrap_pi(float angle)
 {
-    /* 1. 航向误差：参考方向 = +x（0 rad），psi_e = 0 - theta（theta>0 为左偏，需右回） */
-    float psi_e = wrap_pi(STANLEY_LINE_HEADING - car->theta);
+    while (angle > M_PI)
+    {
+        angle -= 2.0f * M_PI;
+    }
 
-    /* 2. 横向误差 cte：到直线 y=0 的有向距离。
-     *    约定：车偏左(+y，即 theta 为正时前进会偏向的那一侧)取负，
-     *    使 cte>0 时指令左转有收敛性。若实车方向反了，把 K_PSI/K_CTE 取负。 */
-    float cte = -car->y;
+    while (angle < -M_PI)
+    {
+        angle += 2.0f * M_PI;
+    }
 
-    /* 3. Stanley：航向误差 + 前视横向修正（atan2 平滑有界） */
-    float v = (car->v > 0.15f) ? car->v : 0.15f;
-    float omega = STANLEY_K_PSI * psi_e + STANLEY_K_CTE * atan2f(cte, v);
+    return angle;
+}
+
+float stanley_steering(const APF_Car *car, float v_forward)
+{
+    float control_y;
+    float cte;
+    float psi_e;
+    float v_eff;
+    float delta;
+    float omega;
+
+    if (car == 0)
+    {
+        return 0.0f;
+    }
+
+    /*
+     * Stanley control point:
+     *
+     *   x_control = x + L * cos(theta)
+     *   y_control = y + L * sin(theta)
+     *
+     * For the current straight path y = 0, only y_control is required.
+     */
+    control_y = car->y +
+                STANLEY_CONTROL_DISTANCE * sinf(car->theta);
+
+    /*
+     * Signed cross-track error.
+     *
+     * Positive cte means the control point is to the right of the path,
+     * so the resulting steering correction is positive/left.
+     *
+     * For this coordinate convention:
+     *   control point left of path  -> cte < 0 -> right correction
+     *   control point right of path -> cte > 0 -> left correction
+     */
+    cte = -control_y;
+
+    /*
+     * Reference heading is +x. The error is always wrapped to [-pi, pi].
+     */
+    psi_e = wrap_pi(STANLEY_LINE_HEADING - car->theta);
+
+    /*
+     * Use the planned forward speed rather than stale measured speed.
+     * This makes the speed and steering commands generated in the same
+     * control cycle consistent with each other.
+     */
+    v_eff = fabsf(v_forward);
+
+    if (v_eff < STANLEY_SPEED_MIN)
+    {
+        v_eff = STANLEY_SPEED_MIN;
+    }
+
+    /*
+     * Standard Stanley equivalent steering angle:
+     *
+     *   delta = psi_e + atan2(k * cte, v)
+     */
+    delta = psi_e + atan2f(STANLEY_K * cte, v_eff);
+    delta = clampf(delta,
+                   -STANLEY_DELTA_MAX,
+                    STANLEY_DELTA_MAX);
+
+    /*
+     * Convert the equivalent steering angle to angular velocity for a
+     * differential-drive vehicle.
+     */
+    omega = v_forward *
+            tanf(delta) /
+            STANLEY_VIRTUAL_WHEELBASE;
 
     return omega;
 }

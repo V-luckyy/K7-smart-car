@@ -18,7 +18,7 @@ setup(
     zip_safe=True,
     maintainer='k7',
     maintainer_email='user@todo.todo',
-    description='多机编队跟随包（Leader-Follower v1）',
+    description='轻量多机轨迹跟随与本地 APF 避障',
     license='MIT',
     tests_require=['pytest'],
     entry_points={

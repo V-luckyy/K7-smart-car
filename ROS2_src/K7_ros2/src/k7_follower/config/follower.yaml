@@ -1,25 +1,27 @@
-# k7_follower/config/follower.yaml
-# follower_node 默认参数（launch 里可被命令行 / ros2 param set 覆盖）。
-# 所有话题名相对 follower_node 所在命名空间（launch 里已 PushRosNamespace(namespace)）。
+# Lightweight predecessor-trail follower parameters.
 follower_node:
   ros__parameters:
-    # 订阅 leader 融合位姿：绝对话题，跨命名空间（leader 那台车传 namespace:=leader）
-    leader_topic: /leader/odom_combined
-    # 本机话题（相对，自动落到 /<ns>/…）
-    own_odom_topic: odom_combined
+    leader_topic: /leader/odom
+    own_odom_topic: odom
     ir_topic: ir_distances
     cmd_topic: cmd_vel_follower
-
     rate: 20.0
 
-    # 编队：保持的纵向间距与回位增益
+    # Cars must start parallel and approximately target_gap metres apart.
     target_gap: 1.2
+    path_spacing: 0.03
+    lookahead: 0.30
     kp_gap: 0.8
-    v_max: 0.5
+    k_heading: 1.5
+    k_lateral: 1.0
+    v_max: 0.4
     w_max: 1.2
-    leader_timeout: 1.0
+    track_width: 0.329
+    leader_timeout: 0.5
+    sensor_timeout: 0.5
 
-    # 前红外安全（复用到 GY53 三路测距，防追尾/防撞）
-    use_ir: true
-    ir_safe: 0.35
-    ir_slow: 0.6
+    use_apf: true
+    apf_influence: 0.7
+    apf_stop: 0.18
+    apf_turn_gain: 0.8
+    apf_side_deadband: 0.12

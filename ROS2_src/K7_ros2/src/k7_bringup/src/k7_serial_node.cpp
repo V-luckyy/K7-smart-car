@@ -875,6 +875,13 @@ Function: Destructor, executed only once and called by the system when an object
 ***************************************/
 K7SerialNode::~K7SerialNode()
 {
+  if(!enable_downlink)
+  {
+    Stm32_Serial.close();
+    RCLCPP_INFO(this->get_logger(),"Shutting down");
+    return;
+  }
+
   //Sends the stop motion command to the lower machine before the K7SerialNode object ends
   //对象K7SerialNode结束前向下位机发送停止运动命令
   Send_Data.tx[0]=FRAME_HEADER;

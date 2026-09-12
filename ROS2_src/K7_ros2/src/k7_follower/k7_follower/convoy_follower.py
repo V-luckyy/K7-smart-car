@@ -1,168 +1,342 @@
 #!/usr/bin/env python3
 # coding=utf-8
-"""K7 多机编队 —— 跟随者节点（Leader-Follower v1，速度复刻 + 纵向间距保持）。
+"""Lightweight predecessor-trail following with local three-sensor APF."""
 
-为什么不用"位置闭环"：
-  leader 与 follower 各自的 odom 原点（开机点）不同、朝向不同，坐标系不重合，
-  follower 直接拿 leader 的绝对坐标做跟踪在数学上无意义（除非先统一坐标系）。
-  v1 采用最简单的"速度复刻"思路，让队形在运动中被拉开/挤压时能自动回稳到目标间距：
-    - 角速度：完全复刻 leader（转向跟着转，保持姿态一致）；
-    - 线速度：在 leader 线速度上叠加"间距误差"比例项，远了加速、近了减速。
-  间距 d 由 ḋ = v_leader − v_follower 积分得到（沿车头方向的一维近似），转弯时会
-  有少量误差，属 v1 已知局限；后续可升级为"共同坐标系 / 相对位姿"方案。
-
-控制链：/leader/odom_combined ─┐
-        /odom_combined(自身)  ─┼→ follower_node → cmd_vel_follower → twist_mux → cmd_vel → STM32
-        /ir_distances(自身)   ─┘
-"""
-
+from collections import deque
 import math
 
 import rclpy
-from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
-
 from geometry_msgs.msg import Twist
 from k7_msgs.msg import IrDistances
 from nav_msgs.msg import Odometry
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
+
+
+def clamp(value, low, high):
+    return max(low, min(value, high))
+
+
+def wrap_angle(angle):
+    return math.atan2(math.sin(angle), math.cos(angle))
+
+
+def yaw_from_quaternion(q):
+    return math.atan2(
+        2.0 * (q.w * q.z + q.x * q.y),
+        1.0 - 2.0 * (q.y * q.y + q.z * q.z),
+    )
 
 
 class ConvoyFollower(Node):
+    """Follow the predecessor's odometry trail and avoid local obstacles."""
+
     def __init__(self):
         super().__init__('follower_node')
 
-        # ---- 参数（可被 launch / ros2 param set / config yaml 覆盖）----
-        self.declare_parameter('leader_topic', '/leader/odom_combined')  # 绝对话题：跨命名空间订阅 leader
-        self.declare_parameter('own_odom_topic', 'odom_combined')        # 相对话题：自动落到本机 /<ns>/odom_combined
-        self.declare_parameter('ir_topic', 'ir_distances')               # 本机三路红外（前/左45/右45，单位 m）
-        self.declare_parameter('cmd_topic', 'cmd_vel_follower')          # 发给 twist_mux 的仲裁输入话题
-        self.declare_parameter('rate', 20.0)                             # 控制频率 Hz
+        self.declare_parameter('leader_topic', '/leader/odom')
+        self.declare_parameter('own_odom_topic', 'odom')
+        self.declare_parameter('ir_topic', 'ir_distances')
+        self.declare_parameter('cmd_topic', 'cmd_vel_follower')
+        self.declare_parameter('rate', 20.0)
 
-        # 跟随策略
-        self.declare_parameter('target_gap', 1.2)     # 目标间距 (m)：期望车头到前车车尾保持多远
-        self.declare_parameter('kp_gap', 0.8)         # 间距误差比例增益：越大回位越快，过大易振荡
-        self.declare_parameter('v_max', 0.5)          # 最大线速度 (m/s)
-        self.declare_parameter('w_max', 1.2)          # 最大角速度 (rad/s)
-        self.declare_parameter('leader_timeout', 1.0) # leader 断链秒数，超时急停（安全）
-        self.declare_parameter('use_ir', True)        # 是否启用前红外安全刹停
-        self.declare_parameter('ir_safe', 0.35)       # 前方 < 此距离(m)：立即停（包括不追尾前车）
-        self.declare_parameter('ir_slow', 0.6)        # 前方 < 此距离(m)：限速慢行
+        self.declare_parameter('target_gap', 1.2)
+        self.declare_parameter('path_spacing', 0.03)
+        self.declare_parameter('lookahead', 0.30)
+        self.declare_parameter('kp_gap', 0.8)
+        self.declare_parameter('k_heading', 1.5)
+        self.declare_parameter('k_lateral', 1.0)
+        self.declare_parameter('v_max', 0.4)
+        self.declare_parameter('w_max', 1.2)
+        self.declare_parameter('track_width', 0.329)
+        self.declare_parameter('leader_timeout', 0.5)
+        self.declare_parameter('sensor_timeout', 0.5)
+
+        self.declare_parameter('use_apf', True)
+        self.declare_parameter('apf_influence', 0.7)
+        self.declare_parameter('apf_stop', 0.18)
+        self.declare_parameter('apf_turn_gain', 0.8)
+        self.declare_parameter('apf_side_deadband', 0.12)
 
         self._leader_topic = self.get_parameter('leader_topic').value
-        self._own_odom_topic = self.get_parameter('own_odom_topic').value
+        self._own_topic = self.get_parameter('own_odom_topic').value
         self._ir_topic = self.get_parameter('ir_topic').value
         self._cmd_topic = self.get_parameter('cmd_topic').value
-        self._rate = float(self.get_parameter('rate').value)
-        self._gap_t = float(self.get_parameter('target_gap').value)
-        self._kp = float(self.get_parameter('kp_gap').value)
-        self._v_max = float(self.get_parameter('v_max').value)
-        self._w_max = float(self.get_parameter('w_max').value)
-        self._lead_timeout = float(self.get_parameter('leader_timeout').value)
-        self._use_ir = bool(self.get_parameter('use_ir').value)
-        self._ir_safe = float(self.get_parameter('ir_safe').value)
-        self._ir_slow = float(self.get_parameter('ir_slow').value)
+        self._rate = max(1.0, float(self.get_parameter('rate').value))
 
-        # ---- 运行状态 ----
-        self._gap = self._gap_t          # 当前估计间距 (m)，初始假定已停在目标间距
-        self._have_lead = False
-        self._lead_last = None           # leader 最近一次消息时刻
-        self._v_l = 0.0                  # leader 线速度
-        self._w_l = 0.0                  # leader 角速度
-        self._v_f = 0.0                  # 自身线速度（来自本机 odom）
-        self._own_odom_ok = False
-        self._front = float('inf')       # 前方红外距离
-        self._warned_no_odom = False
-        self._log_t = 0.0
+        self._gap_target = max(0.1, float(self.get_parameter('target_gap').value))
+        self._path_spacing = max(0.01, float(self.get_parameter('path_spacing').value))
+        self._lookahead = max(self._path_spacing, float(self.get_parameter('lookahead').value))
+        self._kp_gap = float(self.get_parameter('kp_gap').value)
+        self._k_heading = float(self.get_parameter('k_heading').value)
+        self._k_lateral = float(self.get_parameter('k_lateral').value)
+        self._v_max = max(0.01, float(self.get_parameter('v_max').value))
+        self._w_max = max(0.01, float(self.get_parameter('w_max').value))
+        self._track_width = max(0.01, float(self.get_parameter('track_width').value))
+        self._leader_timeout = float(self.get_parameter('leader_timeout').value)
+        self._sensor_timeout = float(self.get_parameter('sensor_timeout').value)
 
-        # QoS：控制类用可靠传输；间距 2 帧足够
-        qos = QoSProfile(depth=2, reliability=ReliabilityPolicy.RELIABLE)
+        self._use_apf = bool(self.get_parameter('use_apf').value)
+        self._apf_influence = float(self.get_parameter('apf_influence').value)
+        self._apf_stop = float(self.get_parameter('apf_stop').value)
+        self._apf_gain = float(self.get_parameter('apf_turn_gain').value)
+        self._apf_deadband = float(self.get_parameter('apf_side_deadband').value)
 
-        self.create_subscription(Odometry, self._leader_topic, self._on_leader, qos)
-        self.create_subscription(Odometry, self._own_odom_topic, self._on_own_odom, qos)
-        self.create_subscription(IrDistances, self._ir_topic, self._on_ir, qos)
+        # About four meters beyond the requested gap is sufficient history for recovery.
+        path_capacity = max(64, int((self._gap_target + 4.0) / self._path_spacing) + 4)
+        self._path = deque(maxlen=path_capacity)
 
-        self._pub = self.create_publisher(Twist, self._cmd_topic, 2)
+        self._leader_origin = None
+        self._own_origin = None
+        self._leader_raw = None
+        self._own_raw = None
+        self._leader_pose = None
+        self._own_pose = None
+        self._leader_s = 0.0
+        self._leader_v = 0.0
+        self._leader_w = 0.0
+        self._leader_last = None
+        self._own_last = None
+
+        self._distances = (float('inf'), float('inf'), float('inf'))
+        self._ir_last = None
+        self._last_log = 0.0
+        self._last_stop_reason = None
+
+        sensor_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+        self.create_subscription(Odometry, self._leader_topic, self._on_leader, sensor_qos)
+        self.create_subscription(Odometry, self._own_topic, self._on_own_odom, sensor_qos)
+        self.create_subscription(IrDistances, self._ir_topic, self._on_ir, sensor_qos)
+        self._publisher = self.create_publisher(Twist, self._cmd_topic, 1)
         self.create_timer(1.0 / self._rate, self._control)
 
         self.get_logger().info(
-            f'编队跟随节点就绪: 跟随 <{self._leader_topic}> → 发 <{self._cmd_topic}>, '
-            f'目标间距 {self._gap_t:.2f} m, 控率 {self._rate:.0f} Hz')
+            f'跟随节点就绪: 前车={self._leader_topic}, 间距={self._gap_target:.2f} m, '
+            f'本地APF={self._use_apf}')
 
-    # ---------------- 订阅回调 ----------------
-    def _on_leader(self, msg: Odometry):
-        self._v_l = msg.twist.twist.linear.x
-        self._w_l = msg.twist.twist.angular.z
-        if not self._have_lead:
-            self._have_lead = True
-            # 收到第一帧 leader：假定当时已按目标间距排好，间距从目标值开始积分
-            self._gap = self._gap_t
-            self.get_logger().info('已收到 leader 消息，开始跟随')
-        self._lead_last = self.get_clock().now()
+    @staticmethod
+    def _raw_pose(msg):
+        pose = msg.pose.pose
+        return (pose.position.x, pose.position.y, yaw_from_quaternion(pose.orientation))
 
-    def _on_own_odom(self, msg: Odometry):
-        self._v_f = msg.twist.twist.linear.x
-        self._own_odom_ok = True
+    @staticmethod
+    def _relative_pose(raw, origin, x_offset=0.0):
+        dx = raw[0] - origin[0]
+        dy = raw[1] - origin[1]
+        c = math.cos(origin[2])
+        s = math.sin(origin[2])
+        return (
+            x_offset + c * dx + s * dy,
+            -s * dx + c * dy,
+            wrap_angle(raw[2] - origin[2]),
+        )
 
-    def _on_ir(self, msg: IrDistances):
-        self._front = msg.front
+    def _on_leader(self, msg):
+        self._leader_raw = self._raw_pose(msg)
+        if self._leader_origin is None:
+            self._leader_origin = self._leader_raw
+        self._leader_v = float(msg.twist.twist.linear.x)
+        self._leader_w = float(msg.twist.twist.angular.z)
+        self._leader_last = self.get_clock().now()
+        self._initialize_path_if_ready()
+        if self._path:
+            self._leader_pose = self._relative_pose(
+                self._leader_raw, self._leader_origin, self._gap_target)
+            self._append_leader_point()
 
-    # ---------------- 控制主循环 ----------------
+    def _on_own_odom(self, msg):
+        self._own_raw = self._raw_pose(msg)
+        if self._own_origin is None:
+            self._own_origin = self._own_raw
+        self._own_last = self.get_clock().now()
+        self._initialize_path_if_ready()
+        if self._path:
+            self._own_pose = self._relative_pose(self._own_raw, self._own_origin)
+
+    def _on_ir(self, msg):
+        def distance(value):
+            value = float(value)
+            return value if math.isfinite(value) and value >= 0.0 else 0.0
+
+        self._distances = (
+            distance(msg.front),
+            distance(msg.left45),
+            distance(msg.right45),
+        )
+        self._ir_last = self.get_clock().now()
+
+    def _initialize_path_if_ready(self):
+        if self._path or self._leader_origin is None or self._own_origin is None:
+            return
+
+        # Both odometers start in their own frame. The cars must be placed parallel,
+        # with the predecessor target_gap meters ahead, before these first samples.
+        steps = max(1, math.ceil(self._gap_target / self._path_spacing))
+        for index in range(steps + 1):
+            s = self._gap_target * index / steps
+            self._path.append((s, s, 0.0, 0.0, 0.0))
+        self._leader_s = self._gap_target
+        self._leader_pose = (self._gap_target, 0.0, 0.0)
+        self._own_pose = (0.0, 0.0, 0.0)
+        self.get_logger().info('前车与本车里程计已就绪，开始记录前车轨迹')
+
+    def _append_leader_point(self):
+        last = self._path[-1]
+        ds = math.hypot(self._leader_pose[0] - last[1], self._leader_pose[1] - last[2])
+        if ds < self._path_spacing:
+            return
+
+        curvature = 0.0
+        if abs(self._leader_v) > 0.05:
+            curvature = clamp(self._leader_w / self._leader_v, -4.0, 4.0)
+        self._leader_s = last[0] + ds
+        self._path.append((
+            self._leader_s,
+            self._leader_pose[0],
+            self._leader_pose[1],
+            self._leader_pose[2],
+            curvature,
+        ))
+
+    @staticmethod
+    def _sample_path(points, target_s):
+        if target_s <= points[0][0]:
+            return points[0]
+        for first, second in zip(points, points[1:]):
+            if target_s <= second[0]:
+                span = second[0] - first[0]
+                ratio = 0.0 if span <= 0.0 else (target_s - first[0]) / span
+                yaw_delta = wrap_angle(second[3] - first[3])
+                return (
+                    target_s,
+                    first[1] + ratio * (second[1] - first[1]),
+                    first[2] + ratio * (second[2] - first[2]),
+                    wrap_angle(first[3] + ratio * yaw_delta),
+                    first[4] + ratio * (second[4] - first[4]),
+                )
+        return points[-1]
+
+    def _tracking_command(self):
+        points = list(self._path)
+        own_x, own_y, own_yaw = self._own_pose
+        nearest = min(points, key=lambda p: (own_x - p[1]) ** 2 + (own_y - p[2]) ** 2)
+        target = self._sample_path(
+            points, min(nearest[0] + self._lookahead, self._leader_s))
+
+        gap = max(0.0, self._leader_s - nearest[0])
+        v_cmd = self._leader_v + self._kp_gap * (gap - self._gap_target)
+        v_cmd = clamp(v_cmd, 0.0, self._v_max)
+
+        dx = target[1] - own_x
+        dy = target[2] - own_y
+        along = math.cos(target[3]) * dx + math.sin(target[3]) * dy
+        lateral = -math.sin(target[3]) * dx + math.cos(target[3]) * dy
+        heading_error = wrap_angle(target[3] - own_yaw)
+        lateral_angle = math.atan2(lateral, max(0.20, abs(along)))
+        w_cmd = (
+            v_cmd * target[4]
+            + self._k_heading * heading_error
+            + self._k_lateral * lateral_angle
+        )
+        return v_cmd, w_cmd, gap
+
+    def _apf_command(self):
+        front, left, right = self._distances
+        span = max(0.01, self._apf_influence - self._apf_stop)
+
+        def strength(distance):
+            return clamp((self._apf_influence - distance) / span, 0.0, 1.0)
+
+        front_force = strength(front)
+        left_force = strength(left)
+        right_force = strength(right)
+        w_apf = self._apf_gain * (right_force * right_force - left_force * left_force)
+
+        if front_force > 0.0:
+            room = left - right
+            if room > self._apf_deadband:
+                direction = 1.0
+            elif room < -self._apf_deadband:
+                direction = -1.0
+            else:
+                direction = 1.0
+            w_apf += direction * self._apf_gain * front_force
+
+        nearest = min(front, left, right)
+        if nearest <= self._apf_stop:
+            speed_scale = 0.0
+        elif nearest >= self._apf_influence:
+            speed_scale = 1.0
+        else:
+            ratio = (nearest - self._apf_stop) / span
+            speed_scale = 0.25 + 0.75 * ratio
+        return speed_scale, w_apf
+
+    def _limit_diff_drive(self, v_cmd, w_cmd):
+        v_cmd = clamp(v_cmd, 0.0, self._v_max)
+        if v_cmd <= 0.0:
+            return 0.0, 0.0
+
+        omega_limit = min(self._w_max, 2.0 * v_cmd / self._track_width)
+        w_cmd = clamp(w_cmd, -omega_limit, omega_limit)
+        outer_speed = v_cmd + abs(w_cmd) * self._track_width * 0.5
+        if outer_speed > self._v_max:
+            scale = self._v_max / outer_speed
+            v_cmd *= scale
+            w_cmd *= scale
+        return v_cmd, w_cmd
+
     def _control(self):
-        # 1. leader 断链保护：超过 leader_timeout 未收到 → 急停
-        if not self._have_lead or self._lead_last is None:
-            self._stop('等待 leader 数据…')
+        now = self.get_clock().now()
+        if not self._path or self._own_pose is None:
+            self._stop('等待前车和本车里程计')
             return
-        if (self.get_clock().now() - self._lead_last).nanoseconds * 1e-9 > self._lead_timeout:
-            self._stop('leader 超时(断链)，急停')
+        if self._leader_last is None or self._age(now, self._leader_last) > self._leader_timeout:
+            self._stop('前车状态超时')
+            return
+        if self._own_last is None or self._age(now, self._own_last) > self._sensor_timeout:
+            self._stop('本车里程计超时')
+            return
+        if self._use_apf and (
+                self._ir_last is None or self._age(now, self._ir_last) > self._sensor_timeout):
+            self._stop('本车测距超时')
             return
 
-        # 2. 间距积分：ḋ = v_leader − v_follower（一维近似，沿各自车头方向）
-        dt = 1.0 / self._rate
-        self._gap += (self._v_l - self._v_f) * dt
-        self._gap = max(0.05, min(self._gap, 10.0))          # 钳制防发散
-
-        # 3. 基础控制
-        v_cmd = self._v_l + self._kp * (self._gap - self._gap_t)   # 远了加速 / 近了减速
-        w_cmd = self._w_l                                          # 角速度复刻
-
-        # 4. 限幅（线速度只允许前向跟随 leader；leader 倒车时允许跟随小倒车）
-        v_lo = min(0.0, self._v_l)
-        v_cmd = max(v_lo, min(v_cmd, self._v_max))
-        w_cmd = max(-self._w_max, min(w_cmd, self._w_max))
-
-        # 5. 前红外安全：太近直接停（防追尾 / 防撞物）
-        if self._use_ir and self._front < self._ir_safe:
-            v_cmd, w_cmd = 0.0, 0.0
-        elif self._use_ir and self._front < self._ir_slow:
-            v_cmd = min(v_cmd, self._v_max * 0.3)
-
+        v_cmd, w_track, gap = self._tracking_command()
+        speed_scale, w_apf = self._apf_command() if self._use_apf else (1.0, 0.0)
+        v_cmd *= speed_scale
+        v_cmd, w_cmd = self._limit_diff_drive(v_cmd, w_track + w_apf)
         self._publish(v_cmd, w_cmd)
-        self._log(v_cmd, w_cmd)
+        self._last_stop_reason = None
+        self._log_status(now, gap, v_cmd, w_cmd, w_track, w_apf)
 
-    def _publish(self, v, w):
-        twist = Twist()
-        twist.linear.x = v
-        twist.angular.z = w
-        self._pub.publish(twist)
+    @staticmethod
+    def _age(now, timestamp):
+        return (now - timestamp).nanoseconds * 1e-9
 
-    def _stop(self, why):
-        if self._have_lead:
-            self.get_logger().warn(why)
-            self._have_lead = False   # 只告警一次；收到新 leader 帧自动恢复
+    def _publish(self, v_cmd, w_cmd):
+        command = Twist()
+        command.linear.x = v_cmd
+        command.angular.z = w_cmd
+        self._publisher.publish(command)
+
+    def _stop(self, reason):
         self._publish(0.0, 0.0)
+        if reason != self._last_stop_reason:
+            self.get_logger().warn(reason)
+            self._last_stop_reason = reason
 
-    def _log(self, v, w):
-        if not self._own_odom_ok and not self._warned_no_odom:
-            self.get_logger().warn(
-                f'未收到本机 odom <{self._own_odom_topic}>，v_f 视为 0，间距积分会不准；请确认 k7_core 已启动')
-            self._warned_no_odom = True
-        now = self.get_clock().now().nanoseconds * 1e-9
-        if now - self._log_t >= 2.0:   # 2 秒打印一次运行状态，方便观察
-            self._log_t = now
-            self.get_logger().info(
-                f'lead(v={self._v_l:+.2f},w={self._w_l:+.2f}) | 自身v={self._v_f:+.2f} | '
-                f'间距≈{self._gap:.2f}/{self._gap_t:.2f}m | out(v={v:+.2f},w={w:+.2f}) | '
-                f'前红外={self._front if self._front < 5 else ">5"}m')
+    def _log_status(self, now, gap, v_cmd, w_cmd, w_track, w_apf):
+        seconds = now.nanoseconds * 1e-9
+        if seconds - self._last_log < 2.0:
+            return
+        self._last_log = seconds
+        front, left, right = self._distances
+        self.get_logger().info(
+            f'gap={gap:.2f}/{self._gap_target:.2f} m, '
+            f'lead_v={self._leader_v:.2f}, out=({v_cmd:.2f},{w_cmd:.2f}), '
+            f'w(track/apf)=({w_track:.2f}/{w_apf:.2f}), '
+            f'ir=({front:.2f},{left:.2f},{right:.2f})')
 
 
 def main(args=None):

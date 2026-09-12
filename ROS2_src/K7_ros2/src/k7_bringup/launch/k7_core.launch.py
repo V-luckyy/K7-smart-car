@@ -8,9 +8,8 @@
 # - static_transform_publisher 使用 Jazzy 新式参数（--x/--frame-id 等），wheeltec 旧式位置参数在 Jazzy 已废弃
 # - base_footprint->base_link 平移 z=0.0625（K7 轮半径，见 URDF 注释）
 # - imu_filter_madgwick 与 wheeltec 一样不做 remap：默认订阅 imu/data_raw、发布 imu/data，与 k7_serial_node 输出对得上
-# - 多机编队（2026-09-06）：新增 namespace 参数，默认空串（单机行为不变）。
-#   多台车在同网段运行时各自传 namespace:=leader / follower1 / follower2，
-#   全部节点话题（odom/imu/cmd_vel/…）自动落到 /<ns>/…，避免互相覆盖。
+# - 多机编队：namespace 隔离各车话题；serial_only 可跳过 EKF/TF/URDF/IMU 滤波；
+#   enable_downlink=false 用于主车 STM32 自主运行时的纯上行监听。
 import os
 from pathlib import Path
 
@@ -18,6 +17,8 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction
 from launch.substitutions import LaunchConfiguration
+from launch.conditions import UnlessCondition
+from launch_ros.parameter_descriptions import ParameterValue
 import launch_ros.actions
 from launch_ros.actions import PushRosNamespace
 
@@ -28,6 +29,8 @@ def generate_launch_description():
     imu_config = Path(bringup_dir, 'config', 'imu.yaml')
 
     namespace = LaunchConfiguration('namespace')
+    serial_only = LaunchConfiguration('serial_only')
+    enable_downlink = LaunchConfiguration('enable_downlink')
 
     urdf_path = os.path.join(
         get_package_share_directory('k7_description'), 'urdf', 'k7_robot.urdf')
@@ -46,6 +49,7 @@ def generate_launch_description():
             'robot_frame_id': 'base_footprint',
             'gyro_frame_id': 'gyro_link',
             'cmd_vel_timeout_ms': 500,
+            'enable_downlink': ParameterValue(enable_downlink, value_type=bool),
         }],
     )
 
@@ -54,6 +58,7 @@ def generate_launch_description():
         package='robot_state_publisher',
         executable='robot_state_publisher',
         parameters=[{'robot_description': robot_description}],
+        condition=UnlessCondition(serial_only),
     )
 
     # base_footprint -> base_link：平移 z=0.0625（轮半径），无旋转
@@ -64,6 +69,7 @@ def generate_launch_description():
         arguments=['--x', '0', '--y', '0', '--z', '0.0625',
                    '--roll', '0', '--pitch', '0', '--yaw', '0',
                    '--frame-id', 'base_footprint', '--child-frame-id', 'base_link'],
+        condition=UnlessCondition(serial_only),
     )
 
     # base_footprint -> gyro_link：单位变换（IMU 位于旋转中心）
@@ -74,6 +80,7 @@ def generate_launch_description():
         arguments=['--x', '0', '--y', '0', '--z', '0',
                    '--roll', '0', '--pitch', '0', '--yaw', '0',
                    '--frame-id', 'base_footprint', '--child-frame-id', 'gyro_link'],
+        condition=UnlessCondition(serial_only),
     )
 
     # EKF 融合 odom + imu/data_raw，输出 /odometry/filtered remap 到 odom_combined（与 wheeltec 一致）
@@ -83,6 +90,7 @@ def generate_launch_description():
         name='ekf_filter_node',
         parameters=[ekf_config],
         remappings=[('/odometry/filtered', 'odom_combined')],
+        condition=UnlessCondition(serial_only),
     )
 
     # Madgwick 滤波：订阅 imu/data_raw，发布 imu/data（无 remap，与 wheeltec 一致）
@@ -90,12 +98,21 @@ def generate_launch_description():
         package='imu_filter_madgwick',
         executable='imu_filter_madgwick_node',
         parameters=[imu_config],
+        condition=UnlessCondition(serial_only),
     )
 
     ld = LaunchDescription()
     ld.add_action(DeclareLaunchArgument(
         'namespace', default_value='',
         description='节点命名空间：单机留空；多机编队传 leader/follower1/follower2 等',
+    ))
+    ld.add_action(DeclareLaunchArgument(
+        'serial_only', default_value='false',
+        description='只启动串口节点，适合主车STM32自跑或轻量状态上行',
+    ))
+    ld.add_action(DeclareLaunchArgument(
+        'enable_downlink', default_value='true',
+        description='是否向STM32下发cmd_vel；主车自主运行时设为false',
     ))
     ld.add_action(GroupAction(
         actions=[PushRosNamespace(namespace),

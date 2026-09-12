@@ -1,112 +1,285 @@
-/**
- * apf_task.c — APF + Stanley 循迹避障 FreeRTOS 任务（50Hz）
+/*
+ * APF + Stanley differential-drive controller.
  *
- * 数据流：
- *   三路测距(s21c_board.rangerA/B/C) ──┐
- *   编码器里程计(robot.MOTOR_A/B.Encoder) ─┤→ Stanley循迹 + APF避障 → robot_control.Vx/Vz
- *                                        └→ balance_task 的 Drive_Motor 直接执行
+ * Data flow:
  *
- * 前提：
- *   - ControlMode 保持 0（不设 PS2/APP 模式），balance_task 走 else 分支直接
- *     Drive_Motor(robot_control.Vx, Vz)。故测试时不要同时下发 RK3576 的 cmd_vel。
- *   - 参考路径为 stanley.c 里硬编码的直线段（沿 +x 走 STANLEY_LINE_LEN=3m，到点停车；
- *     后续可改由 RK3576 下发路点）。
+ *   GY-53 distances
+ *       |
+ *       +--> APF obstacle angular velocity
+ *
+ *   encoder wheel velocities
+ *       |
+ *       +--> odometry x/y/theta
+ *       |
+ *       +--> Stanley angular velocity
+ *
+ *   obstacle-limited forward speed
+ *       |
+ *       +--> joint Vx/Vz limiting
+ *       |
+ *       +--> robot_control.Vx/Vz
+ *       |
+ *       +--> Balance_task -> differential-drive inverse kinematics
  */
 
 #include "apf_task.h"
 #include "apf.h"
 #include "stanley.h"
+#include "balance_task.h"
+
 #include <math.h>
 
-static float clampf(float v, float lo, float hi)
+static float clampf(float value, float low, float high)
 {
-    if (v < lo) return lo;
-    if (v > hi) return hi;
-    return v;
+    if (value < low)
+    {
+        return low;
+    }
+
+    if (value > high)
+    {
+        return high;
+    }
+
+    return value;
 }
 
 static float min3(float a, float b, float c)
 {
-    float m = (a < b) ? a : b;
-    return (m < c) ? m : c;
+    float minimum = (a < b) ? a : b;
+
+    return (minimum < c) ? minimum : c;
 }
 
-/* ---- 调参调试数据（0xFB 上行帧数据源，见 apf.h）---- */
-APF_Debug_t  g_apf_debug;
-uint8_t      g_apf_debug_valid = 0;
+/*
+ * Limit the differential-drive command jointly.
+ *
+ * Differential-drive wheel speeds are:
+ *
+ *   v_left  = Vx - omega * track_width / 2
+ *   v_right = Vx + omega * track_width / 2
+ *
+ * The first limit guarantees that the inner wheel does not reverse:
+ *
+ *   |omega| <= 2 * Vx / track_width
+ *
+ * The second limit keeps the faster outer wheel below the configured
+ * maximum speed. Vx and omega are scaled together so that the curvature
+ * is preserved.
+ */
+static void limit_diff_drive_command(float *v_cmd, float *omega_cmd)
+{
+    float omega_limit;
+    float outer_wheel_speed;
+    float scale;
+
+    if (v_cmd == 0 || omega_cmd == 0)
+    {
+        return;
+    }
+
+    if (*v_cmd <= 0.0f)
+    {
+        *v_cmd = 0.0f;
+        *omega_cmd = 0.0f;
+        return;
+    }
+
+    /*
+     * Keep both wheels moving forward:
+     *
+     *   Vx - |Vz| * track_width / 2 >= 0
+     */
+    omega_limit = 2.0f * (*v_cmd) / APF_TRACK_WIDTH;
+
+    if (omega_limit > APF_W_MAX)
+    {
+        omega_limit = APF_W_MAX;
+    }
+
+    *omega_cmd = clampf(*omega_cmd,
+                        -omega_limit,
+                         omega_limit);
+
+    /*
+     * With the inner wheel constrained to be non-negative, the faster
+     * wheel speed is Vx + |Vz| * track_width / 2.
+     */
+    outer_wheel_speed = (*v_cmd) +
+                        fabsf(*omega_cmd) *
+                        APF_TRACK_WIDTH *
+                        0.5f;
+
+    if (outer_wheel_speed > APF_WHEEL_SPEED_MAX &&
+        outer_wheel_speed > 0.0f)
+    {
+        scale = APF_WHEEL_SPEED_MAX / outer_wheel_speed;
+
+        *v_cmd *= scale;
+        *omega_cmd *= scale;
+    }
+}
+
+APF_Debug_t g_apf_debug;
+uint8_t g_apf_debug_valid = 0;
 
 void APF_task(void *pvParameters)
 {
     u32 lastWakeTime = getSysTickCnt();
-    const float dt = 1.0f / (float)APF_TASK_RATE;   /* 0.02s */
+    const float dt = 1.0f / (float)APF_TASK_RATE;
 
     APF_Car car;
+
+    int done = 0;
+
+    (void)pvParameters;
+
     car.x = 0.0f;
     car.y = 0.0f;
     car.theta = 0.0f;
     car.v = 0.0f;
 
-    float dist = 0.0f;   /* 已行驶里程 (m)，直线行驶到 STANLEY_LINE_LEN 后停车 */
-    int   done  = 0;     /* 1=已走完参考直线段，停车 */
-
     while (1)
     {
+        float d_front;
+        float d_left;
+        float d_right;
+
+        float v_left;
+        float v_right;
+        float v_act;
+        float omega_act;
+
+        float omega_stanley;
+        float omega_apf;
+        float omega_cmd;
+
+        float v_cmd;
+        float v_out;
+        float w_out;
+
         vTaskDelayUntil(&lastWakeTime, F2T(APF_TASK_RATE));
 
-        /* ---- 1. 三路测距（米，5.0=无遮挡）---- */
-        float d_front = s21c_board.rangerA;   /* 前方 0°   */
-        float d_left  = s21c_board.rangerB;   /* 左前 +45° */
-        float d_right = s21c_board.rangerC;   /* 右前 -45° */
-
-        /* ---- 2. 编码器里程计：轮速 → v/omega → 积分位姿 ---- */
-        float v_left  = robot.MOTOR_A.Encoder;   /* 左轮 m/s */
-        float v_right = robot.MOTOR_B.Encoder;   /* 右轮 m/s */
-        float v       = (v_left + v_right) * 0.5f;
-        float omega   = (v_right - v_left) / APF_WHEEL_BASE;   /* 正=左转 */
-
-        car.theta += omega * dt;
-        car.x     += v * cosf(car.theta) * dt;
-        car.y     += v * sinf(car.theta) * dt;
-        car.v      = v;
-
-        /* ---- 2b. 里程累计：沿直线走到 STANLEY_LINE_LEN(m) 后置 done 停车 ---- */
-        if (!done)
+        /*
+         * Do not control or integrate odometry during the chassis
+         * self-check. Balance_task drives the motors during this period.
+         * This prevents self-check motion from shifting the APF origin.
+         */
+        if (robot_check.check_end == 0)
         {
-            dist += v * dt;
-            if (dist >= STANLEY_LINE_LEN) done = 1;
+            robot_control.Vx = 0.0f;
+            robot_control.Vy = 0.0f;
+            robot_control.Vz = 0.0f;
+            robot_control.ControlMode = 0;
+
+            car.v = 0.0f;
+
+            continue;
         }
 
-        /* ---- 3. Stanley 循迹 + APF 避障（转向叠加，分量分开保存供调试）---- */
-        float omega_stanley = stanley_steering(&car);
-        float omega_apf     = apf_repulsive(d_front, d_left, d_right);
-        float omega_cmd     = omega_stanley + omega_apf;
+        /*
+         * Three GY-53 distance sensors.
+         */
+        d_front = s21c_board.rangerA;
+        d_left  = s21c_board.rangerB;
+        d_right = s21c_board.rangerC;
 
-        /* ---- 4. 速度：遇障减速 ---- */
-        float v_cmd = apf_speed_limit(min3(d_front, d_left, d_right));
+        /*
+         * Encoder odometry.
+         *
+         * MOTOR_A is the left wheel.
+         * MOTOR_B is the right wheel.
+         */
+        v_left  = robot.MOTOR_A.Encoder;
+        v_right = robot.MOTOR_B.Encoder;
 
-        /* 已到终点：清掉一切指令（原地停住，不再循迹/避障） */
-        if (done) { v_cmd = 0.0f; omega_cmd = 0.0f; }
+        v_act = (v_left + v_right) * 0.5f;
 
-        /* ---- 5. 写控制（ControlMode=0 → balance_task 直接 Drive_Motor(Vx,Vz)）---- */
-        float v_out = clampf(v_cmd, -APF_V_MAX, APF_V_MAX);
-        float w_out = clampf(omega_cmd, -APF_W_MAX, APF_W_MAX);
+        omega_act = (v_right - v_left) /
+                    APF_TRACK_WIDTH;
+
+        car.theta += omega_act * dt;
+        car.x += v_act * cosf(car.theta) * dt;
+        car.y += v_act * sinf(car.theta) * dt;
+        car.v = v_act;
+
+        /*
+         * The endpoint is determined by x coordinate, not accumulated
+         * travel distance. This remains correct when the robot takes a
+         * lateral detour around an obstacle.
+         */
+        if (!done && car.x >= STANLEY_LINE_LEN)
+        {
+            done = 1;
+        }
+
+        /*
+         * First reduce forward speed according to the closest obstacle.
+         * Stanley uses this same speed for its current-cycle calculation.
+         */
+        v_cmd = apf_speed_limit(min3(d_front,
+                                     d_left,
+                                     d_right));
+
+        omega_stanley = stanley_steering(&car, v_cmd);
+        omega_apf = apf_repulsive(d_front,
+                                  d_left,
+                                  d_right);
+
+        /*
+         * Both steering components are combined before the final
+         * differential-drive feasibility limits.
+         */
+        omega_cmd = omega_stanley + omega_apf;
+
+        if (done)
+        {
+            v_cmd = 0.0f;
+            omega_cmd = 0.0f;
+        }
+
+        v_out = clampf(v_cmd,
+                       0.0f,
+                       APF_V_MAX);
+
+        w_out = clampf(omega_cmd,
+                       -APF_W_MAX,
+                        APF_W_MAX);
+
+        /*
+         * Vx and Vz are constrained together. The resulting command is
+         * still sent as simultaneous linear and angular velocity.
+         */
+        limit_diff_drive_command(&v_out, &w_out);
+
         robot_control.Vx = v_out;
+        robot_control.Vy = 0.0f;
         robot_control.Vz = w_out;
         robot_control.ControlMode = 0;
 
-        /* ---- 6. 调试数据采样（50Hz，data_task 每 20Hz 组装 0xFB 帧上行）---- */
-        g_apf_debug.x        = car.x;
-        g_apf_debug.y        = car.y;
-        g_apf_debug.theta    = car.theta;
-        g_apf_debug.v_cmd    = v_out;
-        g_apf_debug.w_cmd    = w_out;
+        /*
+         * Debug data.
+         *
+         * w_stanley and w_apf are the controller components before the
+         * final joint differential-drive limiting.
+         * w_cmd is the actual final angular command.
+         */
+        g_apf_debug.x = car.x;
+        g_apf_debug.y = car.y;
+        g_apf_debug.theta = car.theta;
+
+        g_apf_debug.v_cmd = v_out;
+        g_apf_debug.w_cmd = w_out;
         g_apf_debug.w_stanley = omega_stanley;
-        g_apf_debug.w_apf    = omega_apf;
-        g_apf_debug.v_act    = v;
-        g_apf_debug.w_act    = omega;
-        g_apf_debug.dA       = d_front;
-        g_apf_debug.dB       = d_left;
-        g_apf_debug.dC       = d_right;
-        g_apf_debug_valid    = 1;
+        g_apf_debug.w_apf = omega_apf;
+
+        g_apf_debug.v_act = v_act;
+        g_apf_debug.w_act = omega_act;
+
+        g_apf_debug.dA = d_front;
+        g_apf_debug.dB = d_left;
+        g_apf_debug.dC = d_right;
+
+        g_apf_debug_valid = 1;
     }
 }
