@@ -12,7 +12,7 @@
   <link name="base_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><box size="0.30 0.24 0.08"/></geometry>
+      <geometry><box size="0.37 0.28 0.08"/></geometry>
       <material name="grey"><color rgba="0.5 0.5 0.5 1.0"/></material>
     </visual>
   </link>
@@ -21,28 +21,28 @@
   <link name="left_wheel_link">
     <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
-      <geometry><cylinder radius="0.0625" length="0.03"/></geometry>
+      <geometry><cylinder radius="0.06" length="0.04"/></geometry>
       <material name="black"><color rgba="0.1 0.1 0.1 1.0"/></material>
     </visual>
   </link>
   <joint name="left_wheel_joint" type="continuous">
     <parent link="base_link"/>
     <child link="left_wheel_link"/>
-    <origin xyz="0 0.1645 -0.0625" rpy="0 0 0"/>
+    <origin xyz="-0.115 0.175 -0.02" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
   </joint>
 
   <link name="right_wheel_link">
     <visual>
       <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
-      <geometry><cylinder radius="0.0625" length="0.03"/></geometry>
+      <geometry><cylinder radius="0.06" length="0.04"/></geometry>
       <material name="black"><color rgba="0.1 0.1 0.1 1.0"/></material>
     </visual>
   </link>
   <joint name="right_wheel_joint" type="continuous">
     <parent link="base_link"/>
     <child link="right_wheel_link"/>
-    <origin xyz="0 -0.1645 -0.0625" rpy="0 0 0"/>
+    <origin xyz="-0.115 -0.175 -0.02" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
   </joint>
 
@@ -50,14 +50,14 @@
   <link name="caster_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><sphere radius="0.03"/></geometry>
+      <geometry><sphere radius="0.07"/></geometry>
       <material name="dark_grey"><color rgba="0.3 0.3 0.3 1.0"/></material>
     </visual>
   </link>
   <joint name="caster_joint" type="fixed">
     <parent link="base_link"/>
     <child link="caster_link"/>
-    <origin xyz="-0.13 0 -0.0325" rpy="0 0 0"/>
+    <origin xyz="0.085 0 -0.01" rpy="0 0 0"/>
   </joint>
 
   <!-- ================= 双目相机 ================= -->

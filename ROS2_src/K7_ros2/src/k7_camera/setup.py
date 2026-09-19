@@ -13,6 +13,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         # 标定 yaml 装到 share/k7_camera/config/，splitter 节点从这里读 camera_info
         ('share/' + package_name + '/config', glob.glob('config/*.yaml')),
+        ('share/' + package_name + '/launch', glob.glob('launch/*.launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -24,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'stereo_splitter = k7_camera.stereo_splitter_node:main',
+            'stereo_depth = k7_camera.stereo_depth_node:main',
         ],
     },
 )
