@@ -48,7 +48,6 @@
 #include "MPU6050.h"
 #include "ICM20948.h"
 #include "remote.h"
-#include "gy53_pwm.h"
 #include "usb_host.h"
 
 /* Diagnostic build controls. Set the delay to 0 after troubleshooting. */
@@ -65,8 +64,6 @@ typedef enum
     SYSTEM_DIAG_STAGE_USB_START         = 0x0140U,
     SYSTEM_DIAG_STAGE_USB_READY         = 0x0141U,
     SYSTEM_DIAG_STAGE_BASIC_IO_READY    = 0x0200U,
-    SYSTEM_DIAG_STAGE_GY53_START        = 0x0210U,
-    SYSTEM_DIAG_STAGE_GY53_READY        = 0x0211U,
     SYSTEM_DIAG_STAGE_OLED_START        = 0x0220U,
     SYSTEM_DIAG_STAGE_OLED_READY        = 0x0221U,
     SYSTEM_DIAG_STAGE_UARTS_READY       = 0x0230U,
@@ -95,20 +92,17 @@ typedef enum
 #define SYSTEM_DIAG_ERROR_UART_TIMEOUT       (1UL << 11)
 
 #define SYSTEM_DIAG_RUNTIME_SHOW_TASK        (1UL << 0)
-#define SYSTEM_DIAG_RUNTIME_PWM_CAPTURE      (1UL << 1)
 
 #define SYSTEM_DIAG_TASK_START               (1UL << 0)
 #define SYSTEM_DIAG_TASK_BALANCE             (1UL << 1)
 #define SYSTEM_DIAG_TASK_SHOW                (1UL << 2)
 #define SYSTEM_DIAG_TASK_LED                 (1UL << 3)
 #define SYSTEM_DIAG_TASK_DATA                (1UL << 4)
-#define SYSTEM_DIAG_TASK_GY53                (1UL << 5)
 #define SYSTEM_DIAG_TASK_D50A                (1UL << 6)
 #define SYSTEM_DIAG_TASK_IMU                 (1UL << 7)
 #define SYSTEM_DIAG_TASK_PS2                 (1UL << 8)
 #define SYSTEM_DIAG_TASK_REPORT              (1UL << 9)
 #define SYSTEM_DIAG_TASK_USB                 (1UL << 10)
-#define SYSTEM_DIAG_TASK_APF                 (1UL << 11)
 
 typedef struct
 {
@@ -131,11 +125,7 @@ typedef struct
     volatile u32 show_step;
     volatile u32 oled_refresh_enter;
     volatile u32 oled_refresh_exit;
-    volatile u32 pwm_task_heartbeat;
-    volatile u32 pwm_irq_count;
-    volatile u32 pwm_spurious_irq_count;
     volatile u32 show_stack_min_words;
-    volatile u32 pwm_stack_min_words;
     volatile u32 uart1_timeout_count;
     volatile u32 assert_line;
     const char * volatile assert_file;
@@ -177,7 +167,6 @@ void SystemDiag_CaptureFault(u32 fault_type);
 #include "ps2_task.h"
 #include "data_task.h"
 #include "uartx_callback.h"
-#include "apf_task.h"
 
 //Check the multiple vehicle model definitions and ensure that only one model is allowed to exist at a time.
 //�Զ��س��Ͷ�����,�������������ͬʱ����.

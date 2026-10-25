@@ -1,0 +1,8 @@
+uint8 NONE=0
+uint8 MANUAL=1
+uint8 AUTO=2
+uint8 source
+---
+bool success
+unique_identifier_msgs/UUID permission_id
+string reason

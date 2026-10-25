@@ -2,7 +2,7 @@
 # coding=utf-8
 """双目立体匹配 + 视差图（SGBM + WLS 滤波）—— 参考丁先生《保姆级双目重建原理及代码》。
 
-前置：stereo.py 已完成标定，config/left.yaml、right.yaml 含校正参数（rectification/projection 矩阵）。
+前置：已完成本车双目标定，config/left.yaml、right.yaml 含校正参数（rectification/projection 矩阵）。
 流程：读标定参数 → remap 极线校正 → SGBM 左/右视差 → WLS 滤波后处理 → 视差图 + 深度图。
 
 产出（默认输出到脚本目录）：

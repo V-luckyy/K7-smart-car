@@ -1,5 +1,6 @@
 #include "uartx_callback.h"
 #include "data_task.h"
+#include "k7_config.h"
 
 //用于接收数据的结构体
 RECEIVE_DATA Receive_Data;
@@ -26,6 +27,10 @@ Author: WHEELTEC
 **************************************************************************/
 static void UartxControll_Callback(USART_TypeDef* USARTx,uint8_t Usart_Receive)
 {
+#if K7_ROS_ONLY
+    /* Other UARTs must not interleave bytes into the shared ROS parser. */
+    if (USARTx != USART3) return;
+#endif
 	static uint16_t Count = 0;
 	static USART_TypeDef* Last_Uartx;
 	//禁止多串口同时共用函数,一个时间只能有一个接口对机器人进行控制.
@@ -55,7 +60,15 @@ static void UartxControll_Callback(USART_TypeDef* USARTx,uint8_t Usart_Receive)
 			if(Receive_Data.buffer[9] ==Check_BCC(Receive_Data.buffer,9))
 			{	
 				//串口、CAN控制命令丢失计数清零
-				robot_control.command_lostcount = 0;
+#if K7_ROS_ONLY
+                if (USARTx != USART3 || Receive_Data.buffer[1] != 0 ||
+                    Receive_Data.buffer[2] != 0 || Receive_Data.buffer[5] != 0 ||
+                    Receive_Data.buffer[6] != 0) return;
+                K7_ReceiveMotion(
+                    XYZ_Target_Speed_transition(Receive_Data.buffer[3], Receive_Data.buffer[4]),
+                    XYZ_Target_Speed_transition(Receive_Data.buffer[7], Receive_Data.buffer[8]));
+                return;
+#endif
 
 				if(Receive_Data.buffer[1]==0)
 				{
@@ -69,6 +82,9 @@ static void UartxControll_Callback(USART_TypeDef* USARTx,uint8_t Usart_Receive)
 					robot_control.Vx = XYZ_Target_Speed_transition(Receive_Data.buffer[3],Receive_Data.buffer[4]);
 					robot_control.Vy = XYZ_Target_Speed_transition(Receive_Data.buffer[5],Receive_Data.buffer[6]);
 					robot_control.Vz = XYZ_Target_Speed_transition(Receive_Data.buffer[7],Receive_Data.buffer[8]);
+                    if (USARTx == USART3)
+                        K7_ReceiveMotion(robot_control.Vx, robot_control.Vz);
+                    robot_control.command_lostcount = 0;
 					
 					#if defined AKM_CAR 
 					//Convert the Z-axis speed to the Ackerman left front wheel steering angle \

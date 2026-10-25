@@ -81,7 +81,6 @@ void SystemDiag_Init(void)
     g_system_diag.hardware_version_bits = 0xFFFFFFFFUL;
     g_system_diag.icm20948_id = 0xFFFFFFFFUL;
     g_system_diag.show_stack_min_words = 0xFFFFFFFFUL;
-    g_system_diag.pwm_stack_min_words = 0xFFFFFFFFUL;
 
     RCC_ClearFlag();
     SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk |
@@ -314,10 +313,6 @@ void systemInit(void)
     KEY_Init();
     SystemDiag_SetStage(SYSTEM_DIAG_STAGE_BASIC_IO_READY);
 	
-    SystemDiag_SetStage(SYSTEM_DIAG_STAGE_GY53_START);
-    GY53_PWM_Init(); //GPIO/EXTI are configured here; IRQ remains disabled until the RTOS task starts.
-    SystemDiag_SetStage(SYSTEM_DIAG_STAGE_GY53_READY);
-    SystemDiag_Log("[BOOT] GY53 configured; capture IRQ is OFF\r\n");
     //Initialize the hardware interface connected to the OLED display
     //初始化与OLED显示屏连接的硬件接口
     SystemDiag_SetStage(SYSTEM_DIAG_STAGE_OLED_START);

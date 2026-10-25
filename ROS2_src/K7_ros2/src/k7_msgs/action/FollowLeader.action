@@ -1,0 +1,14 @@
+string leader_topic
+float32 gap
+float32 max_speed
+---
+uint8 OK=0
+uint8 CANCELED=1
+uint8 FAULT=2
+uint8 code
+string reason
+---
+float32 gap_error
+float32 lateral_error
+float32 leader_age
+string state

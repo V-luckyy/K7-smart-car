@@ -1,0 +1,12 @@
+std_msgs/Header header
+unique_identifier_msgs/UUID session_id
+float64 x
+float64 y
+float64 yaw
+float32 linear_speed
+float32 angular_speed
+uint8 IDLE=0
+uint8 RUNNING=1
+uint8 STOPPING=2
+uint8 FAULT=3
+uint8 state

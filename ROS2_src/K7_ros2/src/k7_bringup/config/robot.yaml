@@ -1,0 +1,91 @@
+# Launch reads this single file. Values are initial commissioning limits, not measured tuning.
+common:
+  track: 0.329
+  wheel_limit: 0.35
+  sensor_timeout: 0.4
+  stop_distance: 0.30
+serial_bridge:
+  device: /dev/k7_controller
+  baud: 115200
+  command_timeout: 0.25
+  publish_tf: true
+usb_cam:
+  video_device: /dev/k7_camera
+  image_width: 3840
+  image_height: 1080
+  framerate: 10.0
+  pixel_format: mjpeg2rgb
+  camera_name: stereo
+  image_raw.enable_pub_plugins: []
+stereo_obstacles:
+  calibration_confirmed: false
+  # Empty uses k7_camera/config; set absolute paths for each vehicle's calibration.
+  left_calibration: ''
+  right_calibration: ''
+  scale: 0.25
+  rate: 10.0
+  num_disparities: 64
+  block_size: 5
+  sectors: 21
+  half_fov: 0.50
+  range_min: 0.05
+  range_max: 4.0
+  min_valid_fraction: 0.60
+  min_samples: 8
+  camera_x: 0.0
+  camera_height: 0.20
+  camera_pitch: 0.0
+  camera_yaw: 0.0
+  roi_top: 0.25
+  roi_bottom: 0.65
+  obstacle_min_height: 0.05
+  obstacle_max_height: 0.70
+  publish_depth: false
+  opencv_threads: 2
+controller_node:
+  rate: 20.0
+  control_point: 0.25
+  stanley_gain: 1.0
+  soft_speed: 0.1
+  max_steer: 0.8
+  slow_distance: 0.9
+  influence_distance: 1.2
+  apf_gain: 0.4
+  max_repulsion: 8.0
+  bypass_side: 1.0
+  max_solve_ms: 40.0
+  reference_timeout: 0.5
+  max_path_points: 512
+  debug: false
+  debug_fields: [cte, heading_error, w_stanley, w_apf, solve_ms]
+command_guard:
+  rate: 30.0
+  candidate_timeout: 0.25
+  task_timeout: 2.5
+  max_angular: 1.2
+  test_speed_limit: 0.05
+  standstill_speed: 0.02
+  standstill_time: 0.3
+task_manager:
+  formation_alignment_confirmed: false
+  fleet_frame: fleet
+  fleet_x: 0.0
+  fleet_y: 0.0
+  fleet_yaw: 0.0
+  leader_timeout: 0.5
+  manual_timeout: 0.25
+  stop_timeout: 3.0
+  standstill_time: 0.3
+  standstill_speed: 0.02
+  initial_lateral_tolerance: 0.15
+  initial_yaw_tolerance: 0.35
+  max_path_points: 512
+  max_task_time: 300.0
+  gap_gain: 0.5
+experiment_recorder:
+  output_dir: logs
+  rate: 5.0
+  max_seconds: 1800.0
+  min_free_mb: 512
+  variables: [x, y, v, w, v_cmd, w_cmd]
+  topics: [odom, cmd_vel, task/status, control/status]

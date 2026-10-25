@@ -8,11 +8,19 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(unique_identifier_msgs REQUIRED)
+find_package(action_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/IrDistances.msg"
-  "msg/ApfDebug.msg"
-  DEPENDENCIES std_msgs
+  "msg/FleetState.msg"
+  "msg/ControlReference.msg"
+  "msg/MotionCommand.msg"
+  "srv/SelectSource.srv"
+  "action/FollowPath.action"
+  "action/FollowLeader.action"
+  DEPENDENCIES std_msgs geometry_msgs nav_msgs unique_identifier_msgs action_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)

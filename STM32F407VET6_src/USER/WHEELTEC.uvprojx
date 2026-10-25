@@ -644,11 +644,6 @@
               <FilePath>..\HARDWARE\uartx.c</FilePath>
             </File>
             <File>
-              <FileName>gy53_pwm.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\gy53_pwm.c</FilePath>
-            </File>
-            <File>
               <FileName>driver_d50a.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\driver_d50a.c</FilePath>
@@ -956,21 +951,6 @@
               <FileName>reportErr_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\reportErr_task.c</FilePath>
-            </File>
-            <File>
-              <FileName>apf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\apf.c</FilePath>
-            </File>
-            <File>
-              <FileName>stanley.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\stanley.c</FilePath>
-            </File>
-            <File>
-              <FileName>apf_task.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\apf_task.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -1700,11 +1680,6 @@
               <FilePath>..\HARDWARE\uartx.c</FilePath>
             </File>
             <File>
-              <FileName>gy53_pwm.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\gy53_pwm.c</FilePath>
-            </File>
-            <File>
               <FileName>driver_d50a.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\driver_d50a.c</FilePath>
@@ -2012,21 +1987,6 @@
               <FileName>reportErr_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\reportErr_task.c</FilePath>
-            </File>
-            <File>
-              <FileName>apf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\apf.c</FilePath>
-            </File>
-            <File>
-              <FileName>stanley.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\stanley.c</FilePath>
-            </File>
-            <File>
-              <FileName>apf_task.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\apf_task.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2755,11 +2715,6 @@
               <FilePath>..\HARDWARE\uartx.c</FilePath>
             </File>
             <File>
-              <FileName>gy53_pwm.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\gy53_pwm.c</FilePath>
-            </File>
-            <File>
               <FileName>driver_d50a.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\driver_d50a.c</FilePath>
@@ -3067,21 +3022,6 @@
               <FileName>reportErr_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\reportErr_task.c</FilePath>
-            </File>
-            <File>
-              <FileName>apf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\apf.c</FilePath>
-            </File>
-            <File>
-              <FileName>stanley.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\stanley.c</FilePath>
-            </File>
-            <File>
-              <FileName>apf_task.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\apf_task.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -3810,11 +3750,6 @@
               <FilePath>..\HARDWARE\uartx.c</FilePath>
             </File>
             <File>
-              <FileName>gy53_pwm.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\gy53_pwm.c</FilePath>
-            </File>
-            <File>
               <FileName>driver_d50a.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\driver_d50a.c</FilePath>
@@ -4122,21 +4057,6 @@
               <FileName>reportErr_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\reportErr_task.c</FilePath>
-            </File>
-            <File>
-              <FileName>apf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\apf.c</FilePath>
-            </File>
-            <File>
-              <FileName>stanley.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\stanley.c</FilePath>
-            </File>
-            <File>
-              <FileName>apf_task.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\apf_task.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -4865,11 +4785,6 @@
               <FilePath>..\HARDWARE\uartx.c</FilePath>
             </File>
             <File>
-              <FileName>gy53_pwm.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\HARDWARE\gy53_pwm.c</FilePath>
-            </File>
-            <File>
               <FileName>driver_d50a.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\driver_d50a.c</FilePath>
@@ -5177,21 +5092,6 @@
               <FileName>reportErr_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\reportErr_task.c</FilePath>
-            </File>
-            <File>
-              <FileName>apf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\apf.c</FilePath>
-            </File>
-            <File>
-              <FileName>stanley.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\stanley.c</FilePath>
-            </File>
-            <File>
-              <FileName>apf_task.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BALANCE\apf_task.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -3,18 +3,20 @@
 <package format="3">
   <name>k7_camera</name>
   <version>0.1.0</version>
-  <description>LRCP 2MV 双目相机包：左右图拆分（splitter）节点、双目标定文件、相机 launch（Phase 3）</description>
+  <description>Calibrated local stereo obstacle sectors and offline camera utilities</description>
   <maintainer email="user@todo.todo">k7</maintainer>
   <license>MIT</license>
 
+  <buildtool_depend>ament_python</buildtool_depend>
   <depend>rclpy</depend>
+  <exec_depend>rcl_interfaces</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
   <depend>sensor_msgs</depend>
-  <depend>sensor_msgs_py</depend>
   <depend>cv_bridge</depend>
-  <depend>message_filters</depend>
-  <depend>camera_info_manager</depend>
   <depend>usb_cam</depend>
-  <depend>stereo_image_proc</depend>
 
   <export>
     <build_type>ament_python</build_type>

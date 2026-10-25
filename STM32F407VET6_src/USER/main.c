@@ -129,8 +129,7 @@ void start_task(void *pvParameters)
 	CreateTaskChecked(show_task,     "show_task",    SHOW_STK_SIZE,    NULL, SHOW_TASK_PRIO,    &show_TaskHandle,    SYSTEM_DIAG_TASK_SHOW);
 	CreateTaskChecked(led_task,      "led_task",     LED_STK_SIZE,     NULL, LED_TASK_PRIO,     NULL,                 SYSTEM_DIAG_TASK_LED);
 	CreateTaskChecked(data_task,     "DATA_task",    DATA_STK_SIZE,    NULL, DATA_TASK_PRIO,    &data_TaskHandle,     SYSTEM_DIAG_TASK_DATA);
-	CreateTaskChecked(GY53_PWM_task, "GY53_PWM_task",GY53_PWM_STK_SIZE,NULL, GY53_PWM_TASK_PRIO,NULL,                 SYSTEM_DIAG_TASK_GY53);
-	CreateTaskChecked(APF_task,      "APF_task",     APF_STK_SIZE,       NULL, APF_TASK_PRIO,    NULL,                 SYSTEM_DIAG_TASK_APF);
+    /* IR and autonomous APF tasks are retired; ROS owns motion. */
 
 	if(SysVal.HardWare_Ver == V1_2)
 	{

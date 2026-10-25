@@ -1,4 +1,42 @@
 #include "balance_task.h"
+#include "k7_config.h"
+
+static volatile u32 k7_tick, k7_last_command;
+static volatile u8 k7_received;
+static volatile float k7_vx, k7_wz;
+static u8 k7_motion_fresh;
+
+void K7_ReceiveMotion(float vx, float wz)
+{
+    /* ISR mailbox; no RTOS calls at USART3 interrupt priority zero. */
+    if (!(vx >= 0 && vx <= K7_MAX_LINEAR_SPEED &&
+          wz >= -K7_MAX_ANGULAR_SPEED && wz <= K7_MAX_ANGULAR_SPEED)) return;
+    k7_vx = vx;
+    k7_wz = wz;
+    k7_last_command = k7_tick;
+    k7_received = 1;
+}
+
+static void K7_UpdateMotion(void)
+{
+    u32 primask = __get_PRIMASK();
+    float vx, wz;
+    /* A priority-zero ISR is not masked by the FreeRTOS critical section. */
+    __disable_irq();
+    ++k7_tick;
+    k7_motion_fresh = k7_received &&
+        (u32)(k7_tick-k7_last_command) <= K7_COMMAND_TIMEOUT_TICKS;
+    if (!k7_motion_fresh) k7_received = 0;
+    vx = k7_motion_fresh ? k7_vx : 0;
+    wz = k7_motion_fresh ? k7_wz : 0;
+    __set_PRIMASK(primask);
+    Set_Control_Mode(_ROS_Control);
+    charger.AllowRecharge = 0;
+    robot_control.Vx = vx;
+    robot_control.Vy = 0;
+    robot_control.Vz = wz;
+    Drive_Motor(vx, 0, wz);
+}
 
 //与小车控制相关
 ROBOT_CONTROL_t robot_control;
@@ -60,6 +98,7 @@ void Balance_task(void *pvParameters)
 		//机器人上电自检
         //等陀螺仪初始化完成后,检测机器人型号是否选择错误
         //When the gyroscope is initialized, check whether the robot model is selected incorrectly
+#if !K7_ROS_ONLY
         if(CONTROL_DELAY<SysVal.Time_count && SysVal.Time_count<CONTROL_DELAY+200)
         {
             Drive_Motor(0.2f,0,0);//低速前进测试
@@ -134,7 +173,15 @@ void Balance_task(void *pvParameters)
 		if there are any self-test errors, and if the emergency stop switch has been pressed.   \
 		The robot will not be allowed to be controlled if any of these conditions are not met.
 		//机器人运行状态检测.检测内容：电压是否过低、自检是否出错、急停开关是否被按下.不符合条件时将不允许机器人被控制
+#else
+        /* No automatic wheel motion at boot, remote source or charger override. */
+        robot_check.check_end = 1;
+        K7_UpdateMotion();
+#endif
 		robot_control.FlagStop = Turn_Off();
+#if K7_ROS_ONLY
+        if (!k7_motion_fresh) robot_control.FlagStop = 1;
+#endif
 		
 		#if defined AKM_CAR
 			Servo_UnLock_Check(robot_control.FlagStop);//舵机非自锁模式监测
@@ -858,6 +905,40 @@ Output  : none
 **************************************************************************/
 static void Drive_Motor(float T_Vx,float T_Vy,float T_Vz)
 {
+#if K7_ROS_ONLY && defined DIFF_CAR
+    static float previous_left, previous_right;
+    float left, right, peak, scale, limit, track, step;
+    track = robot.HardwareParam.WheelSpacing;
+    limit = K7_MAX_LINEAR_SPEED;
+    if (robot_control.limt_max_speed < limit) limit = robot_control.limt_max_speed;
+    if (!(track > 0 && limit > 0)) {
+        robot.MOTOR_A.Target = robot.MOTOR_B.Target = 0;
+        return;
+    }
+    T_Vx = target_limit_float(T_Vx, 0, limit);
+    T_Vz = target_limit_float(T_Vz, -K7_MAX_ANGULAR_SPEED, K7_MAX_ANGULAR_SPEED);
+    T_Vz = target_limit_float(T_Vz, -2*T_Vx/track, 2*T_Vx/track);
+    InverseKinematics_diff(T_Vx, T_Vz);
+    left = robot.MOTOR_A.Target * wheelCoefficient(robot_control.LineDiffParam, 1);
+    right = robot.MOTOR_B.Target * wheelCoefficient(robot_control.LineDiffParam, 0);
+    left = left > 0 ? left : 0;
+    right = right > 0 ? right : 0;
+    peak = left > right ? left : right;
+    scale = peak > limit ? limit/peak : 1;
+    left *= scale;
+    right *= scale;
+    /* Limit acceleration per wheel; deceleration and a stop are immediate. */
+    step = robot_control.smooth_MotorStep;
+    if (robot_control.FlagStop) previous_left = previous_right = 0;
+    if (left > previous_left + step) left = previous_left + step;
+    if (right > previous_right + step) right = previous_right + step;
+    robot.MOTOR_A.Target = previous_left = left;
+    robot.MOTOR_B.Target = previous_right = right;
+    robot_control.smooth_Vx = (left+right)/2;
+    robot_control.smooth_Vz = (right-left)/track;
+    robot_control.smooth_Vy = 0;
+    return;
+#endif
 	// Function to Limit Maximum Target Speed Input 
 	//对输入的目标速度进行最大值限幅,单位m/s
 	T_Vx = target_limit_float( T_Vx, -robot_control.limt_max_speed , robot_control.limt_max_speed );

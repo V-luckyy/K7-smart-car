@@ -41,3 +41,12 @@ __pycache__/
 .vscode-server/
 .vscode/
 .claude/
+
+# Generated build, recording and architecture-check artifacts
+**/build/
+**/install/
+**/log/
+logs/*/
+.archify/
+/docs/k7-architecture.delivery.json
+.pytest_cache/

@@ -48,8 +48,6 @@ void show_task(void *pvParameters)
 	OLED_ShowNumber(72,16,g_system_diag.task_fail_mask,4,12);
 	OLED_ShowString(0,32,(const u8 *)"FREE HEAP:");
 	OLED_ShowNumber(80,32,g_system_diag.free_heap_after_create,5,12);
-	OLED_ShowString(0,48,(const u8 *)"PWM:");
-	OLED_ShowNumber(32,48,gy53_pwm_capture_enabled,1,12);
 	g_system_diag.oled_refresh_enter++;
 	OLED_Refresh_Gram();
 	g_system_diag.oled_refresh_exit++;
@@ -394,41 +392,8 @@ static void OLED_ShowTask(void)
 		OLED_ShowNumber(96,48,Received_IP[3],3,12);
 	}
 	
+
 	else if( 4 == oled.page )
-	{
-		/* F/L/R: distance and online state. P/N: pulse width and valid update count. */
-		OLED_ShowString(0,0,(const u8 *)"F:");
-		OLED_ShowNumber(16,0,gy53_pwm_sensor[GY53_PWM_FRONT].distance_mm,5,12);
-		OLED_ShowString(48,0,(const u8 *)"mm");
-		OLED_ShowString(72,0,gy53_pwm_sensor[GY53_PWM_FRONT].online ? (const u8 *)"ON " : (const u8 *)"OFF");
-		OLED_ShowString(0,10,(const u8 *)"P:");
-		OLED_ShowNumber(16,10,gy53_pwm_sensor[GY53_PWM_FRONT].last_pulse_us,5,12);
-		OLED_ShowString(48,10,(const u8 *)"us");
-		OLED_ShowString(72,10,(const u8 *)"N:");
-		OLED_ShowNumber(88,10,gy53_pwm_sensor[GY53_PWM_FRONT].update_count%10000U,4,12);
-
-		OLED_ShowString(0,20,(const u8 *)"L:");
-		OLED_ShowNumber(16,20,gy53_pwm_sensor[GY53_PWM_LEFT].distance_mm,5,12);
-		OLED_ShowString(48,20,(const u8 *)"mm");
-		OLED_ShowString(72,20,gy53_pwm_sensor[GY53_PWM_LEFT].online ? (const u8 *)"ON " : (const u8 *)"OFF");
-		OLED_ShowString(0,30,(const u8 *)"P:");
-		OLED_ShowNumber(16,30,gy53_pwm_sensor[GY53_PWM_LEFT].last_pulse_us,5,12);
-		OLED_ShowString(48,30,(const u8 *)"us");
-		OLED_ShowString(72,30,(const u8 *)"N:");
-		OLED_ShowNumber(88,30,gy53_pwm_sensor[GY53_PWM_LEFT].update_count%10000U,4,12);
-
-		OLED_ShowString(0,40,(const u8 *)"R:");
-		OLED_ShowNumber(16,40,gy53_pwm_sensor[GY53_PWM_RIGHT].distance_mm,5,12);
-		OLED_ShowString(48,40,(const u8 *)"mm");
-		OLED_ShowString(72,40,gy53_pwm_sensor[GY53_PWM_RIGHT].online ? (const u8 *)"ON " : (const u8 *)"OFF");
-		OLED_ShowString(0,50,(const u8 *)"P:");
-		OLED_ShowNumber(16,50,gy53_pwm_sensor[GY53_PWM_RIGHT].last_pulse_us,5,12);
-		OLED_ShowString(48,50,(const u8 *)"us");
-		OLED_ShowString(72,50,(const u8 *)"N:");
-		OLED_ShowNumber(88,50,gy53_pwm_sensor[GY53_PWM_RIGHT].update_count%10000U,4,12);
-	}
-
-	else if( 5 == oled.page )
 	{
 		/* Compact labels avoid overlap on the 128-pixel display. */
 		OLED_ShowString(0,0,(const u8 *)"S:");
@@ -451,10 +416,6 @@ static void OLED_ShowTask(void)
 		OLED_ShowString(64,30,(const u8 *)"ST:");
 		OLED_ShowNumber(88,30,g_system_diag.show_step,1,12);
 
-		OLED_ShowString(0,40,(const u8 *)"PW:");
-		OLED_ShowNumber(24,40,gy53_pwm_capture_enabled,1,12);
-		OLED_ShowString(56,40,(const u8 *)"IQ:");
-		OLED_ShowNumber(80,40,g_system_diag.pwm_irq_count%10000U,4,12);
 
 		OLED_ShowString(0,50,(const u8 *)"AD:");
 		OLED_ShowNumber(24,50,ADC1_TimeoutCount%1000U,3,12);

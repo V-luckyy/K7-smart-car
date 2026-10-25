@@ -1,0 +1,16 @@
+nav_msgs/Path path
+float32 target_speed
+float32 position_tolerance
+float32 yaw_tolerance
+---
+uint8 OK=0
+uint8 CANCELED=1
+uint8 FAULT=2
+uint8 code
+string reason
+---
+float32 progress
+float32 lateral_error
+float32 heading_error
+float32 speed
+string state

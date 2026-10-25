@@ -11,21 +11,19 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        # 标定 yaml 装到 share/k7_camera/config/，splitter 节点从这里读 camera_info
+        # The runtime stereo node loads per-camera calibration here.
         ('share/' + package_name + '/config', glob.glob('config/*.yaml')),
-        ('share/' + package_name + '/launch', glob.glob('launch/*.launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='k7',
     maintainer_email='user@todo.todo',
-    description='LRCP 2MV 双目相机：splitter + 标定 + launch',
+    description='Calibrated local stereo obstacle sectors',
     license='MIT',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'stereo_splitter = k7_camera.stereo_splitter_node:main',
-            'stereo_depth = k7_camera.stereo_depth_node:main',
+            'stereo_obstacles = k7_camera.stereo_obstacles:main',
         ],
     },
 )

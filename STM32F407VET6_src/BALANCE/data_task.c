@@ -1,5 +1,5 @@
 #include "data_task.h"
-#include "apf.h"   /* g_apf_debug / g_apf_debug_valid: APF 0xFB debug uplink frame */
+#include "k7_config.h"
 
 //���ڷ������ݵĽṹ��
 SEND_DATA Send_Data;
@@ -20,14 +20,6 @@ S21C_SensorData_t s21c_board = {
 #define RangerFRAME_LEN 19
 static uint8_t rangerbuffer[RangerFRAME_LEN];
 
-/* ---- APF/Stanley debug uplink frame (0xFB), 27 bytes, sent @20Hz by Usart3_SendTask.
- *      1 header + 12 * int16(BE, x1000) + 1 BCC + 1 tail = 27.
- *      Only sent while g_apf_debug_valid==1 (i.e. APF task is actually running). */
-#define APFDBG_HEAD 0xFB
-#define APFDBG_TAIL 0x7D
-#define APFDBG_LEN  27
-#define APFDBG_NFIELD 12
-static uint8_t apfdbgbuffer[APFDBG_LEN];
 
 /**************************************************************************
 Function: Robot Data Transmission Task: Sending robot status, IMU, speed, and other information to various interfaces.
@@ -51,9 +43,11 @@ void data_task(void *pvParameters)
 			//Assign the data to be sent
 			//��Ҫ���з��͵����ݽ��и�ֵ
 			data_transition(); 
-			Usart1_SendTask();
 			Usart3_SendTask();
-			CAN1_SendTask();
+#if !K7_ROS_ONLY
+            Usart1_SendTask();
+            CAN1_SendTask();
+#endif
 		}
 }
 
@@ -206,33 +200,6 @@ static void data_transition(void)
 	rangerbuffer[16] = 0;
 	rangerbuffer[17] = Check_BCC(rangerbuffer,17);
 
-	////////////// APF/Stanley debug frame (0xFB) /////////////
-	if( g_apf_debug_valid )
-	{
-		int i;
-		short f[APFDBG_NFIELD];
-		f[0] = (short)(g_apf_debug.x        * 1000);
-		f[1] = (short)(g_apf_debug.y        * 1000);
-		f[2] = (short)(g_apf_debug.theta    * 1000);
-		f[3] = (short)(g_apf_debug.v_cmd    * 1000);
-		f[4] = (short)(g_apf_debug.w_cmd    * 1000);
-		f[5] = (short)(g_apf_debug.w_stanley * 1000);
-		f[6] = (short)(g_apf_debug.w_apf    * 1000);
-		f[7] = (short)(g_apf_debug.v_act    * 1000);
-		f[8] = (short)(g_apf_debug.w_act    * 1000);
-		f[9] = (short)(g_apf_debug.dA * 1000);   /* m -> mm, 5000 = no obstacle */
-		f[10] = (short)(g_apf_debug.dB * 1000);
-		f[11] = (short)(g_apf_debug.dC * 1000);
-		apfdbgbuffer[0] = APFDBG_HEAD;
-		for(i = 0; i < APFDBG_NFIELD; i++)
-		{
-			apfdbgbuffer[1 + 2*i] = (uint8_t)(f[i] >> 8);
-			apfdbgbuffer[2 + 2*i] = (uint8_t)(f[i]);
-		}
-		apfdbgbuffer[25] = Check_BCC(apfdbgbuffer, 25);   /* BCC over bytes 0..24 */
-		apfdbgbuffer[26] = APFDBG_TAIL;
-	}
-	////////////// end APF debug frame /////////////
 	////////////// ����������֡ /////////////
 }
 
@@ -286,6 +253,9 @@ static void Usart3_SendTask(void)
 	{
 		uart3_send(Send_Data.buffer[i]);
 	}	 
+#if K7_ROS_ONLY
+    return; /* Only base feedback: 24 B at 20 Hz. No retired IR/debug traffic. */
+#endif
 	
 	if( SysVal.HardWare_Ranger==1 )
 	{
@@ -304,14 +274,6 @@ static void Usart3_SendTask(void)
 		}
 	}
 
-	/* APF/Stanley debug frame (0xFB) — sent @20Hz to K7 for tuning */
-	if( g_apf_debug_valid )
-	{
-		for(i=0; i<APFDBG_LEN; i++)
-		{
-			uart3_send(apfdbgbuffer[i]);
-		}
-	}
 }
 
 /**************************************************************************

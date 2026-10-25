@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>k7_experiment</name><version>0.2.0</version>
+  <description>Opt-in experiment recording and configuration snapshots</description>
+  <maintainer email="k7@example.com">k7</maintainer><license>MIT</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend><exec_depend>std_srvs</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend><exec_depend>nav_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend><exec_depend>rosbag2_transport</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

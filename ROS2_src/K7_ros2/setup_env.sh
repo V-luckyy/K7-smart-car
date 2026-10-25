@@ -35,20 +35,16 @@ echo "[2/3] 安装项目依赖 ..."
 sudo apt install -y \
   python3-colcon-common-extensions \
   python3-numpy \
-  python3-scipy \
+  python3-opencv \
+  python3-yaml \
   v4l-utils \
   ros-jazzy-usb-cam \
-  ros-jazzy-stereo-image-proc \
   ros-jazzy-camera-calibration \
-  ros-jazzy-joy \
-  ros-jazzy-teleop-twist-joy \
+  ros-jazzy-cv-bridge \
+  ros-jazzy-rosbag2 \
   ros-jazzy-teleop-twist-keyboard \
-  ros-jazzy-twist-mux \
-  ros-jazzy-robot-localization \
-  ros-jazzy-imu-filter-madgwick \
-  ros-jazzy-depthimage-to-laserscan \
-  ros-jazzy-web-video-server \
-  ros-jazzy-navigation2
+  ros-jazzy-robot-state-publisher \
+  ros-jazzy-xacro
 
 # ========== 3. bashrc 自动 source ROS 环境 ==========
 if ! grep -q "source /opt/ros/jazzy/setup.bash" ~/.bashrc; then

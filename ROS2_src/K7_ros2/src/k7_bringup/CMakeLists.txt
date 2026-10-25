@@ -13,15 +13,12 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
-find_package(turtlesim REQUIRED)
-find_package(k7_msgs REQUIRED)
 
 # wjwwood serial 库（MIT）已 vendor 到 third_party/serial，不再依赖系统 serial 包
 add_library(k7_serial_lib STATIC
@@ -31,17 +28,15 @@ add_library(k7_serial_lib STATIC
 )
 target_include_directories(k7_serial_lib PUBLIC third_party/serial/include)
 
-# k7_serial_node: 移植自 wheeltec_ros2 turn_on_wheeltec_robot 的 wheeltec_robot_node
-# 改动点：设备名 /dev/k7_controller、新增 cmd_vel 看门狗(cmd_vel_timeout_ms 默认 500，超时发零速)、删 v650 死代码
-add_executable(k7_serial_node src/k7_serial_node.cpp src/Quaternion_Solution.cpp)
-target_include_directories(k7_serial_node PRIVATE include)
-ament_target_dependencies(k7_serial_node
-  rclcpp std_msgs sensor_msgs nav_msgs geometry_msgs
-  tf2 tf2_ros tf2_geometry_msgs turtlesim k7_msgs
+# ROS-only 11/24-byte bridge.
+add_executable(serial_bridge src/serial_bridge.cpp)
+ament_target_dependencies(serial_bridge
+  rclcpp rcl_interfaces std_msgs sensor_msgs nav_msgs geometry_msgs
+  tf2_ros
 )
-target_link_libraries(k7_serial_node k7_serial_lib)
+target_link_libraries(serial_bridge k7_serial_lib)
 
-install(TARGETS k7_serial_node
+install(TARGETS serial_bridge
   DESTINATION lib/${PROJECT_NAME}
 )
 
