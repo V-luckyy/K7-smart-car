@@ -18,10 +18,22 @@ for package in ('k7_control', 'k7_tasks', 'k7_camera'):
 from k7_control.core import (Authority, apf_stanley, control_ready, limit_drive, project,
                              stanley_only, valid_scan)
 from k7_tasks.formation import LeaderTrail
+from k7_tasks.ref_path import outward_spiral
 from k7_camera.stereo_geometry import depth_from_disparity, obstacle_sectors
 
 
 class ControlTests(unittest.TestCase):
+    def test_outward_spiral_starts_at_origin_and_ends_at_three_meter_diameter(self):
+        points = outward_spiral()
+        self.assertEqual(len(points), 500)
+        self.assertAlmostEqual(points[0][0], 0.0)
+        self.assertAlmostEqual(points[0][1], 0.0)
+        self.assertAlmostEqual(points[0][2], 0.0)
+        self.assertAlmostEqual(math.hypot(*points[-1][:2]), 1.5)
+        self.assertAlmostEqual(points[-1][0], 1.5)
+        self.assertAlmostEqual(points[-1][1], 0.0, places=9)
+        self.assertAlmostEqual(points[-1][2], math.atan2(1.5, 1.5 / (4 * math.pi)))
+
     def test_wheel_limits_preserve_curvature(self):
         v, w = limit_drive(0.8, 1.0, 0.329, 0.35)
         self.assertAlmostEqual(w / v, 1 / 0.8)
