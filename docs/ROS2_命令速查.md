@@ -1,6 +1,6 @@
 # K7 常用命令
 
-以下在 K7 的 Bash 执行，假定工作区为 `~/Code/K7_ros2`，车辆 namespace 为 `car1`。命令与当前源码接口对应，尚未在目标板执行验收。完整定义见 [架构手册](K7_开发架构方案.md)。
+以下在 K7 的 Bash 执行，假定工作区为 `~/Code/K7_ros2`，车辆 namespace 为 `car1`。2026-10-25 已验证全量构建、无感知单车架空运行、停车与记录；感知、落地循迹和编队待验收。完整定义见 [架构手册](K7_开发架构方案.md)。
 
 ## 1. 环境与构建
 
@@ -12,7 +12,7 @@ colcon build --symlink-install --parallel-workers 2
 source install/setup.bash
 ```
 
-新终端也要 source 系统与本工作区。`colcon list` 应只有架构手册列出的 7 个自有包；旧算法包和节点已从源码删除。出现旧包/旧节点时，按[升级清理](K7_上手操作指南.md#2-k7-软件部署)替换旧 src、清理 build/install/log 并使用新终端，不要混用历史 overlay。任务统一用 launch，已删除旧 run/ 脚本。
+新终端也要 source 系统与本工作区。`colcon list` 应只有架构手册列出的 7 个自有包；旧算法包和节点已从源码删除。出现旧包/旧节点时，按[升级清理](K7_上手操作指南.md#3-k7-软件部署)替换旧 src、清理 build/install/log 并使用新终端，不要混用历史 overlay。任务统一用 launch，已删除旧 run/ 脚本。
 
 断电后先保留日志、检查磁盘空间和源码，再尝试 `colcon build --symlink-install --cmake-clean-cache --parallel-workers 2`。仍有旧目标时，可在确认当前目录后将 `build`、`install`、`log` 重命名备份，在只 source 系统 ROS 的新终端重建；不要删除源码。日志中的 undefined reference 不能仅凭“曾断电”判为硬件故障。
 
@@ -83,6 +83,10 @@ ros2 run k7_tasks ref_path --ros-args -r __ns:=/car1
 
 终点位于约 `(1.5, 0)`，末端航向沿螺线切线（约 `+85.5` 度）。全程约 9.65 m，按 0.05 m/s 匀速约需 193 秒，实际耗时取决于转向减速；任务超时位于统一配置 `robot.yaml` 的 `task_manager.max_task_time`，默认 300 秒。无感知模式没有避障能力；正常感知模式需完成双目标定后再运行。
 
+当前螺线中心的曲率半径约 0.06 m；控制器按 `control_point / tan(max_steer)` 计算的最小半径约 0.24 m，双轮不倒转也限制转弯半径。因此默认路径的中心段尚不满足跟踪能力，任务成功返回不代表完整跟踪两圈。2026-10-25 架空运行已观察到内圈偏离和换圈；落地前先用直线、较大半径圆弧验收，再确认螺线几何与控制约束。
+
+架空时 odom 的位姿与航向来自轮速积分，车身不必实际移动或旋转。架空只验证指令、差速执行、反馈和停车，不能用于判定落地误差、轮距标定或轮速 PID 效果。
+
 ## 5. 手动速度
 
 启动 `manual`。先在另一终端持续发送带时间戳的零速，再授权，避免授权后 0.25 s 没有遥控输入而退出：
@@ -135,6 +139,8 @@ ros2 node info /car1/command_guard
 
 自有节点参数只读，更改统一 YAML 后重启，不使用 `ros2 param set` 进行半生效调参。图像带宽检查和远程图像订阅本身会增加负载，测完退出。编队命令见 [编队说明](多机编队_LeaderFollower_说明.md)。
 
+重启前先停车并退出旧 launch；同一底盘只能有一个串口桥，namespace 不隔离串口硬件。可用 `ros2 node list` 和 `fuser -v /dev/k7_controller` 检查残留进程。当前源码已修复 Jazzy diagnostic level 类型、记录变量 `y` 的参数序列化及退出时上下文关闭报错；仍遇到相同报错时先核对部署版本、重建并重新 source，保留完整日志再排查。
+
 ## 9. 停机采集与离线双目检查
 
 以下命令从 `~/Code/K7_ros2` 执行，先停止车辆 launch，避免占用相机。`--dev` 是核对后的 video 数字编号；左右图片与本车标定路径替换成实际位置。
@@ -147,3 +153,7 @@ python3 src/k7_camera/scripts/stereo_match.py --left "$HOME/calibration_images/l
 ```
 
 采集工具自带 8888 端口预览，启动后按终端提示采集；不完成标定求解。离线匹配使用 OpenCV contrib 的 WLS，不是运行节点；运行时通过统一配置 `stereo_obstacles.publish_depth` 开关深度输出，不另起旧 depth/splitter 节点。
+
+## 10. SSH 多终端（tmux）
+
+SSH 调试需要多个终端时可用 `tmux new -s k7`；掉线重连用 `tmux attach -t k7`，列出会话用 `tmux ls`。会话内先按 `Ctrl+b`，再按 `c` 新建窗口、`%` 左右分屏、`d` 脱离；脱离后节点仍在运行，实验结束要逐车停车并检查残留进程。
