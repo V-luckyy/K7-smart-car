@@ -1,5 +1,7 @@
 # K7 多车编队
 
+本文默认车间 DDS 和逐车跟随。**ESP-NOW 一主两从**的完整固件、K7 USB 桥和启动命令见 [ESP-NOW 工程说明](ESP_NOW_三车通信.md)：car2、car3 均接主车状态，以不同 gap 跟随 car1；每车可用独立 ROS_DOMAIN_ID，跟随输入改为本车 `/carN/fleet/leader_state`。
+
 正常模式下每车独立运行双目、控制器、guard 和串口桥。主车执行路径，从车订阅前车 `FleetState`，由 `k7_tasks/task_manager` 构造短轨迹并用自己的 APF + Stanley 跟踪。若只验证路径/编队功能，可对每辆车分别设置 `test_mode:=no_perception`：跳过相机/双目节点，改为 Stanley-only，最终速度限制为 0.05 m/s。该模式无避障和近障保护，只能在封闭空旷场地测试，现场急停必须可用。统一从 `k7_bringup/launch/robot.launch.py` 启动；当前实现限前进队列，未完成目标机/实车验收。
 
 ## 1. 坐标和网络前提

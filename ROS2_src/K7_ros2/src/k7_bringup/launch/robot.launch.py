@@ -12,6 +12,9 @@ from launch_ros.actions import Node
 def build(context):
     arg = lambda key: LaunchConfiguration(key).perform(context)
     profile, algorithm, namespace = arg('profile'), arg('algorithm'), arg('namespace').strip('/')
+    espnow_role = arg('espnow_role')
+    if espnow_role not in ('off', 'leader', 'follower'):
+        raise ValueError('espnow_role must be off, leader or follower')
     test_mode = arg('test_mode')
     if profile not in ('manual', 'trajectory', 'formation'):
         raise ValueError('profile must be manual, trajectory or formation')
@@ -53,6 +56,8 @@ def build(context):
          ('track', 'wheel_limit', 'sensor_timeout', 'stop_distance'))
     node('k7_tasks', 'task_manager', dict(profile=profile, base_frame=base, odom_frame=odom,
         publish_fleet=arg('publish_fleet').lower() == 'true'), ('wheel_limit', 'sensor_timeout'))
+    if espnow_role != 'off':
+        node('k7_tasks', 'espnow_bridge', dict(role=espnow_role, vehicle_id=int(arg('vehicle_id'))))
     if profile != 'manual':
         node('k7_control', 'controller_node', dict(algorithm=algorithm, base_frame=base, odom_frame=odom,
              no_perception_test=no_perception_test, test_speed_limit=config['command_guard']['test_speed_limit']),
@@ -66,6 +71,7 @@ def build(context):
 def generate_launch_description():
     default = os.path.join(get_package_share_directory('k7_bringup'), 'config', 'robot.yaml')
     arguments = dict(profile='trajectory', algorithm='apf_stanley', namespace='car1',
-                     config=default, publish_fleet='false', record='false', test_mode='none')
+                     config=default, publish_fleet='false', record='false', test_mode='none',
+                     espnow_role='off', vehicle_id='1')
     return LaunchDescription([DeclareLaunchArgument(key, default_value=value) for key, value in arguments.items()]
                              + [OpaqueFunction(function=build)])

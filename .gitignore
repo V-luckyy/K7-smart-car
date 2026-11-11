@@ -50,3 +50,8 @@ logs/*/
 .archify/
 /docs/k7-architecture.delivery.json
 .pytest_cache/
+
+# Windows ESP-NOW test runtime and generated delivery bundle
+ESP32_src/windows_test/.runtime/
+ESP32_src/windows_test/results/
+ESP32_src/windows_test/k7-espnow-windows-test.zip

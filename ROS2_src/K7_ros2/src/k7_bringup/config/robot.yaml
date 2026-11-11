@@ -9,6 +9,13 @@ serial_bridge:
   baud: 115200
   command_timeout: 0.25
   publish_tf: true
+espnow_bridge:
+  device: /dev/k7_espnow
+  baud: 115200
+  leader_id: 1
+  channel: 6
+  fleet_frame: fleet
+  max_age: 0.35
 usb_cam:
   video_device: /dev/k7_camera
   image_width: 3840

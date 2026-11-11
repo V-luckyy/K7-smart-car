@@ -15,6 +15,8 @@ RK3576 / Ubuntu 24.04 / ROS 2 Jazzy + STM32F407 两轮差速底盘。正常模�
 | 部署与首次测试 | [上手指南](docs/K7_上手操作指南.md) |
 | 找启动、任务、停车、记录命令 | [命令速查](docs/ROS2_命令速查.md) |
 | 测试多车编队 | [编队说明](docs/多机编队_LeaderFollower_说明.md) |
+| 一主两从 ESP-NOW 通信与完整源码 | [ESP-NOW 工程说明](docs/ESP_NOW_三车通信.md) |
+| Windows 连接两块 ESP32 测试无线通信 | [一键测试说明](ESP32_src/windows_test/README.md) |
 | 配置实验记录 | [logs/README.md](logs/README.md) |
 | 领取尚未完成的模块任务 | [开发任务清单](docs/开发任务清单.md) |
 
@@ -30,6 +32,8 @@ ROS2_src/K7_ros2/src/
   k7_experiment/   可选 CSV / rosbag 记录
   k7_description/ 模型资源，不默认启动
 STM32F407VET6_src/  Keil 工程，底盘执行及保护
+ESP32_src/espnow_bridge/  ESP-NOW 一主两从固件、板配置与线协议
+ESP32_src/windows_test/   Windows 双板测试入口、串口核对与打包脚本
 docs/              当前操作手册与架构图
 logs/              实验数据（不提交生成内容）
 tests/             回归检查

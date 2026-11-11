@@ -7,4 +7,5 @@ setup(name='k7_tasks', version='0.2.0', packages=['k7_tasks'],
       maintainer_email='k7@example.com', description='Exclusive motion task actions',
       license='MIT', entry_points={'console_scripts': [
           'task_manager = k7_tasks.task_manager:main',
+          'espnow_bridge = k7_tasks.espnow_bridge:main',
           'ref_path = k7_tasks.ref_path:main']})

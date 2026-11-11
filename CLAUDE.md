@@ -1,6 +1,6 @@
 # K7 项目入口与当前约定
 
-更新：2026-10-25。此文件只保留当前事实、决策、入口和待验证事项；操作细节见 docs，不在此累计工作日志。
+更新：2026-11-11。此文件只保留当前事实、决策、入口和待验证事项；操作细节见 docs，不在此累计工作日志。
 
 ## 1. 硬件与边界
 
@@ -26,10 +26,13 @@
 - 一次只运行一个控制算法；正常模式目前仅 `apf_stanley`。无感知测试模式切换到 Stanley-only。旧 MPC、follower、APF recorder 包及旧串口/相机节点、旧 launch/脚本、红外消息已删除，工作区只有上述 7 包和一个车辆启动入口；历史实现查 Git。
 - 当前仅支持前进，禁止倒车和原地旋转。未知/失效双目不当作自由空间；软件 hold 不是硬件急停。
 - 编队只交换紧凑 `FleetState`，每车独立避障；必须确认各车 odom 到共同 fleet 坐标的初始变换并同步时钟。未实现全局定位、漂移修正或自动重定位。
+- 可选 ESP-NOW 一主两从：`ESP32_src/espnow_bridge/` 共用固件，主车广播，两从车无线只接收。K7 `k7_tasks/espnow_bridge` 经第二条 USB 串口桥接本车 `fleet/state` 与从车本地 `fleet/leader_state`；保持原时间戳/session，96 字节协议，默认最多 10 Hz。统一 launch 以 `espnow_role:=leader/follower vehicle_id:=1/2/3` 启动，默认 off；两从车均跟随主车并设置不同 gap。部署详见 ESP-NOW 工程说明。
 
 ## 3. 配置与日志
 
 - 运行参数统一入口：`ROS2_src/K7_ros2/src/k7_bringup/config/robot.yaml`；launch 用 `config:=绝对路径` 选择车辆配置。
+- ESP-NOW 串口、信道、源编号、时效参数在 robot.yaml 的 `espnow_bridge`；默认 `/dev/k7_espnow` 需配置本车真实 by-id/by-path 路径或自行建立 udev 别名。固件 `board_config.h` 配角色、编号、信道和主车 ESP32 STA MAC。ESP32 使用 Arduino-ESP32 3.3.0；K7 依赖 python3-serial。
+- Windows 双板台架测试入口 `ESP32_src/windows_test/run.sh` / `run.cmd`，Python 3.9+，缺少 pyserial 时自动安装到工具本地目录。识别主从串口、注入模拟 FleetState、核对收发与暂停/恢复，并可换另一从车复测；下载包协议副本由 `build_bundle.py` 从 K7 协议源文件生成。
 - 正常模式双目标定：`k7_camera/config/left.yaml`、`right.yaml` 或配置中的绝对路径；`calibration_confirmed` 默认 false，确认前不授权运动。无感知测试模式不启动相机节点，不提供避障保护。
 - STM32 固定安全上限：`STM32F407VET6_src/USER/k7_config.h`。不能只提高 ROS 参数来突破固件限幅。
 - 自有 Python 节点和串口桥参数启动时只读；更改配置须停车后重启 launch，禁止实验中改文件冒充当前生效配置。
@@ -45,6 +48,7 @@
 - 架空验证：无感知模式启动、0.35 m 直线、半径 0.7 m 短圆弧、运动中 task/stop、螺线任务返回、CSV/bag 关闭和节点退出通过；全程无相机/APF。odom 是轮速积分，不是真实位姿；螺线内圈偏离且存在换圈，不算两圈跟踪合格。起点曲率半径约 0.06 m，小于当前控制器约 0.24 m 的转向下限，不能靠架空数据调参验收。
 - 待验收：Keil Diff_Car 构建/刷写核对、双目标定/遮挡/纹理不足测试、断链停车、落地单车跟踪与螺线适配、多车对齐和失联测试、完整 CPU/延迟/带宽基准。本次实验数据保存在被忽略的 logs/debug-20261025/。
 - SGBM 是主要算力/图像传输负担；配置频率不是性能测量结果。MPC 接入、动态规划、GUI 是扩展点，不是当前完成项。
+- ESP-NOW 示例已写入源码，本机新增协议与桥接测试通过（含真实 C++ 协议头交叉编解码、Linux PTY）；Windows 测试工具覆盖内容/顺序/缓存重播/比例/间隔检查，并经两组 Linux PTY 串口跑通完整收发、暂停、恢复与报告；当前共 54 项回归通过。Arduino-ESP32 3.3.0 / ESP32 Dev Module 下主车、car2、car3 三份配置实际编译通过（主车 Flash 906063 B / RAM 43612 B；从车 Flash 901035 B / RAM 43396 B）。Windows 实机、ROS Jazzy 新节点构建、ESP32 刷写与三车无线/实车仍待验收。广播未加密、MAC 白名单仅筛选来源；严格单向通信使主车无法获知从车在线/故障，也无法依据从车状态执行全队停车。
 
 ## 5. 文档导航
 
@@ -55,6 +59,8 @@
 | 安装、标定、STM32、首次验收 | [上手指南](docs/K7_上手操作指南.md) |
 | 启动、路径、遥控、停车、日志、排错 | [命令速查](docs/ROS2_命令速查.md) |
 | 多车坐标、启动顺序、网络与风险 | [编队说明](docs/多机编队_LeaderFollower_说明.md) |
+| 一主两从 ESP-NOW 固件、K7 桥与部署 | [ESP-NOW 工程说明](docs/ESP_NOW_三车通信.md) |
+| Windows 双板 USB/无线收发验证 | [一键测试说明](ESP32_src/windows_test/README.md) |
 | 实验记录文件 | [日志说明](logs/README.md) |
 | 待办任务、负责边界、交付验收 | [开发任务清单](docs/开发任务清单.md) |
 | 当前工作区重构示意，非固定 commit 证据图 | [架构图](docs/k7-architecture.html) |
@@ -64,6 +70,8 @@
 ```text
 ROS2_src/K7_ros2/         自有 colcon 工作区、setup_env.sh
 STM32F407VET6_src/        固件；USER/WHEELTEC.uvprojx
+ESP32_src/espnow_bridge/  ESP-NOW 固件、板级配置、96 字节线协议
+ESP32_src/windows_test/   Windows 双板一键测试、报告与独立打包
 docs/                    当前手册与架构图
 logs/                    实验输出（与 colcon log/ 区分）
 tests/                   无 ROS 依赖的回归与静态检查
