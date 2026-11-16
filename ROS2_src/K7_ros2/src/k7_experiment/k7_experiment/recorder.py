@@ -9,6 +9,7 @@ import time
 import uuid
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from diagnostic_msgs.msg import DiagnosticArray
 from geometry_msgs.msg import TwistStamped
 from nav_msgs.msg import Odometry
@@ -156,6 +157,8 @@ def main(args=None):
     node = Recorder()
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
         node.stop('shutdown')
         node.destroy_node()

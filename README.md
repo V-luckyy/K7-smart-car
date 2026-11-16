@@ -2,49 +2,38 @@
 
 RK3576 / Ubuntu 24.04 / ROS 2 Jazzy + STM32F407 两轮差速底盘。正常模式使用每车 USB 双目感知和 ROS APF + Stanley；可选无感知低速测试模式用于单车路径/多车编队功能验证。STM32 执行底盘控制。
 
-**状态：K7 的 7 包构建和无感知架空链路验证通过；Keil 构建/刷写及落地循迹待验收。启动默认不运动，正常感知模式标定未确认时拒绝授权。**
+**状态：7 包构建与无感知三车编队验证通过；Keil 构建/刷写、双目标定和落地循迹待验收。启动默认不运动。**
 
-## 从哪里开始
+## 文档
 
-| 要做什么 | 文档 |
+| 要查什么 | 入口 |
 |---|---|
-| 浏览当前文档目录 | [docs/README.md](docs/README.md) |
-| 掌握当前约定和进度 | [CLAUDE.md](CLAUDE.md) |
-| 查看整体数据流 | [交互架构图](docs/k7-architecture.html) |
-| 查看包、节点、接口和扩展方式 | [架构手册](docs/K7_开发架构方案.md) |
-| 部署与首次测试 | [上手指南](docs/K7_上手操作指南.md) |
-| 找启动、任务、停车、记录命令 | [命令速查](docs/ROS2_命令速查.md) |
-| 测试多车编队 | [编队说明](docs/多机编队_LeaderFollower_说明.md) |
-| 一主两从 ESP-NOW 通信与完整源码 | [ESP-NOW 工程说明](docs/ESP_NOW_三车通信.md) |
-| Windows 连接两块 ESP32 测试无线通信 | [一键测试说明](ESP32_src/windows_test/README.md) |
-| 配置实验记录 | [logs/README.md](logs/README.md) |
-| 领取尚未完成的模块任务 | [开发任务清单](docs/开发任务清单.md) |
+| 当前事实、约定与索引 | [CLAUDE.md](CLAUDE.md) |
+| 包、节点、话题、服务、Action、ESP-NOW、负载 | [架构手册](docs/K7_开发架构方案.md) |
+| 整体数据流 | [架构图](docs/k7-architecture.html) |
+| 安装、升级清理、标定、STM32、验收 | [上手指南](docs/K7_上手操作指南.md) |
+| 启动、路径、遥控、停车、记录、排错 | [命令速查](docs/ROS2_命令速查.md) |
+| 多车坐标、启动顺序、失联处理 | [编队说明](docs/多机编队_LeaderFollower_说明.md) |
+| Windows 双板 ESP-NOW 收发测试 | [测试说明](ESP32_src/windows_test/README.md) |
+| 实验记录格式、共用分析脚本 | [日志说明](logs/README.md) |
+| 未完成任务与交付边界 | [开发任务清单](docs/开发任务清单.md) |
+| 开发规范 | [AGENTS.md](AGENTS.md) |
 
 ## 目录
 
 ```text
-ROS2_src/K7_ros2/src/
-  k7_msgs/         消息、服务和 Action
-  k7_bringup/      launch、统一配置、串口桥、udev
-  k7_camera/       双目感知及标定工具
-  k7_control/      APF/Stanley 和 command_guard
-  k7_tasks/        手动、路径和编队任务
-  k7_experiment/   可选 CSV / rosbag 记录
-  k7_description/ 模型资源，不默认启动
-STM32F407VET6_src/  Keil 工程，底盘执行及保护
-ESP32_src/espnow_bridge/  ESP-NOW 一主两从固件、板配置与线协议
-ESP32_src/windows_test/   Windows 双板测试入口、串口核对与打包脚本
-docs/              当前操作手册与架构图
-logs/              实验数据（不提交生成内容）
-tests/             回归检查
-work_logs/         历史开发记录
+ROS2_src/K7_ros2/src/  7 个自有包（msgs/bringup/camera/control/tasks/experiment/description）
+STM32F407VET6_src/     Keil 工程，底盘执行与保护
+ESP32_src/             ESP-NOW 固件与 Windows 双板测试
+docs/                  当前手册与架构图
+logs/                  实验数据（生成内容不提交）
+tools/                 共用小工具（编队分析/绘图、odom 记录）
+tests/                 无 ROS 依赖的回归与静态检查
+work_logs/             历史开发记录
+K7/、rk3576_data/、stm32_data/、sensor_data/  板卡、底盘与历史资料
 ```
 
-硬件参考仍在 `K7/`、`rk3576_data/`、`stm32_data/`、`sensor_data/`；不需要每次读取。旧方案不再是运行说明。
-
-## 最短启动路径
-
-在 K7 的 `ROS2_src/K7_ros2` 工作区执行，先完成上手指南中的依赖、udev、固件和标定检查：
+## 最短启动
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -53,31 +42,11 @@ source install/setup.bash
 ros2 launch k7_bringup robot.launch.py namespace:=car1 profile:=trajectory
 ```
 
-单车路径或编队功能测试可在对应车辆启动命令增加 `test_mode:=no_perception`。该模式不启动相机处理、不做避障，软件限速 0.05 m/s；仅限封闭空旷场地，并保留现场急停。
+多车编队见[编队说明](docs/多机编队_LeaderFollower_说明.md)，ESP-NOW 一主两从见[架构手册](docs/K7_开发架构方案.md)第 8 节。功能测试可加 `test_mode:=no_perception`：跳过相机、Stanley-only、guard 限速；无避障，仅封闭空旷场地并保留现场急停。
 
-这里只启动节点。确认传感器、静止及场地安全后再发送任务 Action；停止使用 `task/stop` 或 `control/hold`。不要直接向 `cmd_vel` 发命令绕过门控。
+## 协作
 
-开发规范见 [AGENTS.md](AGENTS.md)。本机回归：`python -m unittest discover -s tests -v`。
-
-## 板卡资料与协作
-
-快速协作命令（从仓库根目录执行；占位符执行前替换）：
-
-```bash
-git clone https://github.com/V-luckyy/K7-smart-car.git
-cd K7-smart-car
-git pull --ff-only origin main
-git switch -c 'feat/<task-name>'
-git add '<changed-file-paths>'
-git diff --cached --check
-git diff --cached
-git commit -m 'feat: 简述改动'
-git push -u origin 'feat/<task-name>'
-```
-
-已有远端分支先 `git fetch origin`，再 `git switch --track origin/<branch>`；尖括号部分均为占位符。推送后提交 PR。
-
-- KICKPI：[中文站](https://kickpi.cn)、[英文站](https://www.kickpi.com)、[K7 官方上手文档](https://doc.kickpi.cn/Products/Beginner-Guide/KICKPI-K7/)；本地原理图/工具在 `K7/`、`rk3576_data/`。烧录、调试串口、网线及 VS Code Remote-SSH 的步骤见[上手指南](docs/K7_上手操作指南.md)。
-- 底盘固件/协议资料在 `stm32_data/`；第三方 wheeltec ROS 参考在 `ROS2_src/wheeltec_ros2/`（不作为当前运行代码）。
-- 仓库主副本在本地工作区；板端 `~/Code/K7_ros2` 负责构建和实验。先核对两端源码版本，保存板端自改配置与标定，再同步；不要把旧 `src/` 合并进新源码或把编译产物复制回来。
-- 协作流程：从 `main` 拉取最新代码，在独立分支完成清单中的一项，运行相关测试和目标机检查，提交 PR 并附实验记录/未验证项。提交格式为 `docs / feat / fix / refactor / chore: 简述`；不要用 `git add .` 把固件产物、密钥或日志带进提交。
+- 从 `main` 拉分支，完成一项后运行 `python -m unittest discover -s tests -v`，提交 PR 并附未验证项。
+- 提交格式 `<docs|feat|fix|refactor|chore>: <简述>`；不要把固件产物、密钥或日志带进提交。
+- 板端 `~/Code/K7_ros2` 只放源码与标定；先核对两端源码版本再同步，不要把构建产物复制回来。
+- KICKPI 资料：[中文站](https://kickpi.cn) · [英文站](https://www.kickpi.com) · [K7 上手文档](https://doc.kickpi.cn/Products/Beginner-Guide/KICKPI-K7/)

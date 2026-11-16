@@ -1,6 +1,6 @@
 # Windows 双板一键通信测试
 
-三块 ESP32 已按 `docs/ESP_NOW_三车通信.md` 烧录，两个从车的 LEADER_MAC 已填实际主车地址后使用。这个工具在 Windows 电脑运行，测试链路为：电脑 → 主车 USB → ESP-NOW → 从车 USB → 电脑。
+三块 ESP32 已按 `docs/K7_开发架构方案.md` 第 8 节烧录，两个从车的 LEADER_MAC 已填实际主车地址后使用。这个工具在 Windows 电脑运行，测试链路为：电脑 → 主车 USB → ESP-NOW → 从车 USB → 电脑。
 
 ## 使用
 

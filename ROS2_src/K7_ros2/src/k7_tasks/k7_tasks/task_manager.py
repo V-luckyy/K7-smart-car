@@ -3,6 +3,7 @@ import time
 import uuid
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
@@ -103,7 +104,9 @@ class TaskManager(Node):
     def leader_goal(self, request):
         ok = (self.p['formation_alignment_confirmed'] and request.leader_topic.startswith('/') and
               request.leader_topic != self.resolve_topic_name('fleet/state') and
-              finite(request.gap, request.max_speed) and 0.3 <= request.gap <= 5.0 and
+              finite(request.gap, request.lateral_offset, request.max_speed) and
+              0 <= request.gap <= 5.0 and abs(request.lateral_offset) <= 2.0 and
+              math.hypot(request.gap, request.lateral_offset) >= 0.3 and
               0 < request.max_speed <= self.p['wheel_limit'])
         return GoalResponse.ACCEPT if ok and self.reserve('formation') else GoalResponse.REJECT
 
@@ -256,16 +259,24 @@ class TaskManager(Node):
         c, s = math.cos(self.p['fleet_yaw']), math.sin(self.p['fleet_yaw'])
         dx, dy = msg.x-self.p['fleet_x'], msg.y-self.p['fleet_y']
         point = (c*dx+s*dy, -s*dx+c*dy)
+        goal = self.goal.request
+        slot_forward = msg.linear_speed-msg.angular_speed*goal.lateral_offset
+        if slot_forward < -0.01:
+            self.begin_stop(2, 'formation offset requires reverse motion; reduce curvature or offset')
+            return
         try:
             if not self.trail.points and self.pose:
                 self.trail.seed(self.pose, point, wrap(msg.yaw-self.p['fleet_yaw']),
-                    bytes(msg.session_id.uuid), self.p['initial_lateral_tolerance'],
+                    bytes(msg.session_id.uuid), self.goal.request.gap,
+                    self.goal.request.lateral_offset, self.p['initial_lateral_tolerance'],
                     self.p['initial_yaw_tolerance'])
-            self.trail.append(point, bytes(msg.session_id.uuid))
+            self.trail.append(point, bytes(msg.session_id.uuid),
+                wrap(msg.yaw-self.p['fleet_yaw']), goal.gap, goal.lateral_offset)
         except ValueError as exc:
             self.begin_stop(2, str(exc))
             return
-        self.leader_time, self.leader_speed = time.monotonic(), msg.linear_speed
+        self.leader_time = time.monotonic()
+        self.leader_speed = math.hypot(slot_forward, msg.angular_speed*goal.gap)
 
     def publish_reference(self, path, speed):
         msg = ControlReference(path=path, speed_limit=float(speed))
@@ -310,7 +321,10 @@ class TaskManager(Node):
         tangent = math.atan2(end[1]-prev[1], end[0]-prev[0])
         crossed = ((self.pose[0]-end[0])*math.cos(tangent) +
                    (self.pose[1]-end[1])*math.sin(tangent)) >= 0
-        arrived = math.dist(self.pose[:2], end) <= goal.position_tolerance or (crossed and abs(cte) <= goal.position_tolerance)
+        # Earlier turns can cross the terminal tangent while still far along the path.
+        arrived = total-arc <= goal.position_tolerance and (
+            math.dist(self.pose[:2], end) <= goal.position_tolerance or
+            (crossed and abs(cte) <= goal.position_tolerance))
         heading_error = wrap(yaw(goal.path.poses[-1].pose.orientation)-self.pose[2])
         if arrived:
             ok = abs(heading_error) <= goal.yaw_tolerance
@@ -330,15 +344,30 @@ class TaskManager(Node):
             self.last_feedback = now
 
     def formation_tick(self, now):
+        if self.leader_time == -math.inf:
+            if now-self.started > self.p['stop_timeout']:
+                self.begin_stop(2, 'leader acquisition timeout')
+            return
         if now-self.leader_time > self.p['leader_timeout']:
-            if now-self.started > self.p['leader_timeout']:
-                self.begin_stop(2, 'leader timeout')
+            self.begin_stop(2, 'leader timeout')
             return
         if now-self.last_reference < 0.1:
             return
+        if len(self.trail.points) < 2:
+            path = Path()
+            path.header.frame_id = self.p['odom_frame']
+            x, y, heading = self.pose
+            for px, py in ((x, y), (x+0.01*math.cos(heading), y+0.01*math.sin(heading))):
+                pose = PoseStamped()
+                pose.pose.position.x, pose.pose.position.y = px, py
+                pose.pose.orientation.w = 1.0
+                path.poses.append(pose)
+            self.publish_reference(path, 0.0)
+            self.last_reference = now
+            return
         goal = self.goal.request
         try:
-            points, speed, error = self.trail.reference(self.pose[:2], goal.gap,
+            points, speed, error = self.trail.reference(self.pose[:2], 0.0,
                 self.leader_speed, goal.max_speed, self.p['gap_gain'])
         except ValueError:
             return
@@ -396,6 +425,8 @@ def main(args=None):
     node = TaskManager()
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
         node.destroy_node()
         rclpy.try_shutdown()

@@ -24,3 +24,12 @@
 要记录控制误差，需同时设置 `controller_node.debug: true`、对应 `debug_fields` 和 recorder 的 `variables`；否则字段留空。未记录时移除数据订阅，开启后也只订阅所选标量对应的话题。默认不录图像、深度或点云。CSV 接收超过 0.5 s 未更新的量留空；接收时效不等于传感器采集时延，请结合 bag 原始时间戳分析。
 
 关闭记录后检查 manifest 的 status/reason 和 rosbag.log。断电或强制终止可能留下未关闭的 manifest、CSV 尾部或不完整 bag，不当作完整实验。数据目录已被 Git 忽略，勿强制提交大包。启动和开关示例见 [命令速查](../docs/ROS2_命令速查.md)。
+
+## 多车编队数据分析
+
+分析/记录脚本放在 `tools/`：
+
+- `tools/analyze_formation.py`：统一的量化分析与绘图。用法 `python tools/analyze_formation.py <data_dir>`；读取 `<data_dir>/odom_car1..3.csv` 与 `follow_car2/3.log`，打印 gap/lateral/leader_age 统计、路径长度与平均速度、leader 跟踪误差，并生成 `formation_plot.png`（含参考螺旋、fleet 系三车轨迹、误差曲线）。
+- `tools/odom_logger.py`：板端 odom CSV 记录器。`python3 tools/odom_logger.py carN`（在对应 ROS_DOMAIN_ID 下运行），写 `/tmp/odom_carN.csv`（t, x, y, yaw）。
+
+历史运行约定：每个运行目录只保留原始数据（odom CSV、follow 日志）和 `formation_plot.png`，共用 `tools/` 脚本，不再复制脚本副本。

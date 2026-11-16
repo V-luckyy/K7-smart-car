@@ -1,8 +1,8 @@
 # K7 多车编队
 
-本文默认车间 DDS 和逐车跟随。**ESP-NOW 一主两从**的完整固件、K7 USB 桥和启动命令见 [ESP-NOW 工程说明](ESP_NOW_三车通信.md)：car2、car3 均接主车状态，以不同 gap 跟随 car1；每车可用独立 ROS_DOMAIN_ID，跟随输入改为本车 `/carN/fleet/leader_state`。
+本文默认车间 DDS 和逐车跟随。**ESP-NOW 一主两从**的完整固件、K7 USB 桥和启动命令见 [架构手册](K7_开发架构方案.md) 第 8 节：car2、car3 均接主车状态，以不同 gap 跟随 car1；每车可用独立 ROS_DOMAIN_ID，跟随输入改为本车 `/carN/fleet/leader_state`。
 
-正常模式下每车独立运行双目、控制器、guard 和串口桥。主车执行路径，从车订阅前车 `FleetState`，由 `k7_tasks/task_manager` 构造短轨迹并用自己的 APF + Stanley 跟踪。若只验证路径/编队功能，可对每辆车分别设置 `test_mode:=no_perception`：跳过相机/双目节点，改为 Stanley-only，最终速度限制为 0.05 m/s。该模式无避障和近障保护，只能在封闭空旷场地测试，现场急停必须可用。统一从 `k7_bringup/launch/robot.launch.py` 启动；当前实现限前进队列，未完成目标机/实车验收。
+正常模式下每车独立运行双目、控制器、guard 和串口桥。主车执行路径，从车订阅前车 `FleetState`，由 `k7_tasks/task_manager` 构造短轨迹并用自己的 APF + Stanley 跟踪。`FollowLeader` 的 `gap` 沿前车航向退后、`lateral_offset` 向左偏移，因此支持纵向队列和带横向偏移的并排队形。若只验证路径/编队功能，可对每辆车分别设置 `test_mode:=no_perception`：跳过相机/双目节点，改为 Stanley-only，最终速度限制为配置的 `test_speed_limit`（代码默认 0.05 m/s，本仓库测试配置为 0.35 m/s）。该模式无避障和近障保护，只能在封闭空旷场地测试，现场急停必须可用。统一从 `k7_bringup/launch/robot.launch.py` 启动；未完成目标机/实车验收。
 
 ## 1. 坐标和网络前提
 
@@ -30,13 +30,13 @@ export ROS_DOMAIN_ID=7
 ros2 launch k7_bringup robot.launch.py profile:=formation namespace:=car2 config:=$HOME/k7/car2.yaml
 ```
 
-仅做无感知低速验证时，上面每条车辆启动命令都加 `test_mode:=no_perception`；不需要图像标定，但仍须每车确认里程计、底盘禁能状态和编队坐标。car1 用 `profile:=trajectory publish_fleet:=true`，car2 用 `profile:=formation publish_fleet:=true`，car3 用 `profile:=formation` 并跟随 car2。测试模式下的 `FollowPath` 目标速度还会被限制到 0.05 m/s。
+仅做无感知低速验证时，上面每条车辆启动命令都加 `test_mode:=no_perception`；不需要图像标定，但仍须每车确认里程计、编队坐标。car1 用 `profile:=trajectory publish_fleet:=true`，car2/car3 用 `profile:=formation`，两从车都跟随 car1 并设置不同 gap（ESP-NOW 方案见架构手册第 8 节）。测试模式下的 `FollowPath` 目标速度还会被限制到 `test_speed_limit`（代码默认 0.05 m/s，本仓库测试配置 0.35 m/s）。
 
 正常模式先检查各车 IDLE、scan 和 odom 有效；无感知测试模式检查 IDLE、odom 与底盘状态。在 car2 检查 `/car1/fleet/state` 确实可达。确认初始队列后，先给从车跟随任务，再给主车路径：
 
 ```bash
 ros2 topic echo /car1/fleet/state --once
-ros2 action send_goal /car2/task/follow_leader k7_msgs/action/FollowLeader "{leader_topic: /car1/fleet/state, gap: 0.8, max_speed: 0.10}" --feedback
+ros2 action send_goal /car2/task/follow_leader k7_msgs/action/FollowLeader "{leader_topic: /car1/fleet/state, gap: 0.8, lateral_offset: 0.0, max_speed: 0.10}" --feedback
 ```
 
 主车路径命令见 [命令速查](ROS2_命令速查.md)。跟随 Action 持续到取消、停车或故障，不以主车暂时静止结束。需要 car3 时，让 car2 也以 `publish_fleet:=true` 启动；car3 跟随 `/car2/fleet/state`，并配置自己的初始变换。

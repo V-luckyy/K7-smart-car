@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'ROS2_src/K7_ros2/src'
 for package in ('k7_control', 'k7_tasks', 'k7_camera'):
     sys.path.insert(0, str(SRC / package))
-from k7_control.core import (Authority, apf_stanley, control_ready, limit_drive, project,
+from k7_control.core import (Authority, apf_stanley, limit_drive, project,
                              stanley_only, valid_scan)
 from k7_tasks.formation import LeaderTrail
 from k7_tasks.ref_path import outward_spiral
@@ -59,13 +59,6 @@ class ControlTests(unittest.TestCase):
         for value in (math.nan, -math.inf, 0, 5):
             self.assertFalse(valid_scan([value], .05, 4))
         self.assertFalse(valid_scan([], .05, 4))
-
-    def test_no_perception_test_still_requires_odom_and_hardware(self):
-        self.assertTrue(control_ready(True, True, True, False, False, True))
-        self.assertFalse(control_ready(False, True, True, False, False, True))
-        self.assertFalse(control_ready(True, False, True, False, False, True))
-        self.assertFalse(control_ready(True, True, False, False, False, True))
-        self.assertFalse(control_ready(True, True, True, False, False, False))
 
     def test_stanley_corrects_heading_before_crossing(self):
         config = yaml.safe_load((SRC/'k7_bringup/config/robot.yaml').read_text())

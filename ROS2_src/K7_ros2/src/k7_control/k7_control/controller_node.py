@@ -18,6 +18,7 @@ class Controller(Node):
         self.p = parameters(self, dict(algorithm='apf_stanley', rate=20.0,
             sensor_timeout=0.4, control_point=0.25, stanley_gain=1.0,
             soft_speed=0.1, max_steer=0.8, track=0.329, wheel_limit=0.35,
+            speed_gain=1.0,
             stop_distance=0.3, slow_distance=0.9, influence_distance=1.2,
             max_repulsion=8.0, apf_gain=0.4, bypass_side=1.0,
             debug=False, debug_fields=['cte', 'heading_error', 'solve_ms'],

@@ -2,13 +2,15 @@ import math
 
 
 def outward_spiral():
-    turns, outer_radius, count = 2, 1.5, 500
+    # Gentle spiral: inner radius 0.5 m (above the ~0.24 m steering limit),
+    # so the leader can hold its target speed without turning-rate saturation.
+    inner_radius, outer_radius, turns, count = 0.5, 1.5, 2, 500
     end_angle = turns * 2 * math.pi
-    growth = outer_radius / end_angle
-    points = []
+    growth = (outer_radius - inner_radius) / end_angle
+    points = [(0.0, 0.0, 0.0)]  # straight lead-in from the origin
     for i in range(count):
         angle = end_angle * i / (count - 1)
-        radius = growth * angle
+        radius = inner_radius + growth * angle
         x, y = radius * math.cos(angle), radius * math.sin(angle)
         dx = growth * (math.cos(angle) - angle * math.sin(angle))
         dy = growth * (math.sin(angle) + angle * math.cos(angle))
@@ -39,7 +41,7 @@ def main(args=None):
             pose.pose.orientation.w = math.cos(yaw / 2)
             path.poses.append(pose)
 
-        goal = FollowPath.Goal(path=path, target_speed=0.05,
+        goal = FollowPath.Goal(path=path, target_speed=0.10,
                                position_tolerance=0.10, yaw_tolerance=0.15)
         client.wait_for_server()
         accepted = client.send_goal_async(goal)

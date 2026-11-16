@@ -50,11 +50,6 @@ def valid_scan(ranges, minimum, maximum):
         for r in ranges)
 
 
-def control_ready(odom_fresh, hardware_fresh, enabled, scan_fresh, scan_ok, no_perception_test):
-    return odom_fresh and hardware_fresh and enabled and (
-        no_perception_test or (scan_fresh and scan_ok))
-
-
 class Authority:
     def __init__(self, candidate_timeout=0.25):
         self.source = 0

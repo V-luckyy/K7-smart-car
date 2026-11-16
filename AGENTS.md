@@ -6,17 +6,16 @@
 
 ## 关键规则
 
-1. 每次对该项目有新的了解、决策或变更，**必须更新 `CLAUDE.md`**
-2. 更新项目目录结构时，必须同步更新 `README.md`、`AGENTS.md`、`CLAUDE.md` 及 `docs/` 下所有 `.md` 文件中的目录路径
-3. 大文件/第三方代码需通过 `.gitignore` 排除，添加新文件前确认不会被误提交
-4. Commit 格式：`<类型>: <简述>`（docs / feat / fix / refactor / chore）
+1. 更新项目目录结构时，必须同步更新 `README.md`、`AGENTS.md`、`CLAUDE.md` 及 `docs/` 下所有 `.md` 文件中的目录路径
+2. 大文件/第三方代码需通过 `.gitignore` 排除，添加新文件前确认不会被误提交
+3. Commit 格式：`<类型>: <简述>`（docs / feat / fix / refactor / chore）
 
 ## 当前入口
 
 - 活动 ROS 工作区：`ROS2_src/K7_ros2/`；统一启动 `src/k7_bringup/launch/robot.launch.py`，统一参数 `src/k7_bringup/config/robot.yaml`。
 - `src/` 只保留当前 7 个自有包；旧算法包、旧 launch 和兼容消息已删除，不在活动工作区归档副本。
 - 固件：`STM32F407VET6_src/USER/WHEELTEC.uvprojx`，当前只验收 `Diff_Car` / ROS-only。
-- ESP-NOW 示例：`ESP32_src/espnow_bridge/`；K7 桥在 `k7_tasks/k7_tasks/espnow_bridge.py`，说明见 `docs/ESP_NOW_三车通信.md`。仍为 7 个活动包和一个统一车辆 launch。
+- ESP-NOW 示例：`ESP32_src/espnow_bridge/`；K7 桥在 `k7_tasks/k7_tasks/espnow_bridge.py`，说明见 `docs/K7_开发架构方案.md` 第 8 节。仍为 7 个活动包和一个统一车辆 launch。
 - Windows 双板通信测试：`ESP32_src/windows_test/run.sh`（Git Bash）或 `run.cmd`（双击）；自动识别主从、注入模拟状态并验证收发，独立于 ROS。
 - 当前手册与架构图放 `docs/`；实验数据放 `logs/`，生成数据不提交；回归放 `tests/`。
 - `CLAUDE.md` 只维护现状和索引，修改对应条目，不追加流水日志；历史资料不作为当前行为依据。

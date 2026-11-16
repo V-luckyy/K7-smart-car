@@ -27,7 +27,9 @@ def parameters(node, defaults):
 def diagnostic(node, name, values, level=0, message=''):
     result = DiagnosticArray()
     result.header.stamp = node.get_clock().now().to_msg()
-    result.status = [DiagnosticStatus(name=name, level=level, message=message,
+    # DiagnosticStatus.level is a single octet; the Jazzy Python binding rejects a
+    # bare int, so wrap it as a one-byte sequence.
+    result.status = [DiagnosticStatus(name=name, level=bytes([level]), message=message,
                                      values=[KeyValue(key=str(k), value=str(v))
                                              for k, v in values.items()])]
     return result
