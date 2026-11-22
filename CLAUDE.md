@@ -33,7 +33,7 @@
 - ESP-NOW 串口/信道/编号/时效在 `espnow_bridge` 段，`device` 用本车 by-id/by-path；固件 `board_config.h` 配角色/编号/信道/主车 STA MAC；Arduino-ESP32 3.3.0，K7 需 python3-serial。
 - 双目标定 `k7_camera/config/{left,right}.yaml`；`calibration_confirmed` 默认 false，确认前不授权运动。
 - STM32 固定安全上限 `STM32F407VET6_src/USER/k7_config.h`，ROS 参数不能突破。
-- 参考螺线在 `k7_tasks/ref_path.py`（`ros2 run k7_tasks ref_path`）：原点 +x 起步、两圈、内径 0.5 m、外径 1.5 m、500 点、`target_speed` 0.10 m/s。
+- 参考路径在 `k7_tasks/ref_path.py`（`ros2 run k7_tasks ref_path`）：`SHAPES` 提供 `spiral`（原点 +x 起步、两圈、内径 1.0 m、外径 2.2 m、500 点）和 `figure8`（8 m × 4 m）；每车按 `formation_path` 跑自己的路径，初始/目标编队见 `INITIAL_FORMATION`/`TARGET_FORMATION`（纵队 0.5/1.0 m → 三角形，后车后退 0.9 m、横向 ±0.5 m），`target_speed` 0.10 m/s。
 - 记录器随 launch 启动但默认不写盘；`record:=true` 或记录服务启停；格式见 `logs/README.md`，分析/记录脚本见 `tools/`。
 
 ## 4. 当前状态与验收边界

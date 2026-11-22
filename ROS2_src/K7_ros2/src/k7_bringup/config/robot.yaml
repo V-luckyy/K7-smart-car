@@ -87,7 +87,7 @@ task_manager:
   initial_lateral_tolerance: 0.15
   initial_yaw_tolerance: 0.35
   max_path_points: 512
-  max_task_time: 300.0
+  max_task_time: 1200.0
   gap_gain: 0.5
 experiment_recorder:
   output_dir: logs

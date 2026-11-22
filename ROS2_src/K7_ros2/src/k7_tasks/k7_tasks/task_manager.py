@@ -27,7 +27,7 @@ class TaskManager(Node):
             odom_frame='odom', fleet_frame='fleet', publish_fleet=False,
             sensor_timeout=0.4, leader_timeout=0.5, manual_timeout=0.25,
             stop_timeout=3.0, standstill_time=0.3, standstill_speed=0.02,
-            wheel_limit=0.35, max_path_points=512, max_task_time=300.0,
+            wheel_limit=0.35, max_path_points=512, max_task_time=1200.0,
             formation_alignment_confirmed=False,
             initial_lateral_tolerance=0.15, initial_yaw_tolerance=0.35,
             fleet_x=0.0, fleet_y=0.0, fleet_yaw=0.0, gap_gain=0.5))

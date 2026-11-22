@@ -8,7 +8,7 @@ from diagnostic_msgs.msg import DiagnosticArray
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 from k7_msgs.msg import ControlReference, MotionCommand
-from .core import apf_stanley, finite, project, stanley_only, valid_scan
+from .core import finite, project, stanley, valid_scan
 from .ros_utils import diagnostic, fields, parameters, permission, stamp_fresh, yaw
 
 
@@ -104,11 +104,12 @@ class Controller(Node):
             if not stamp_fresh(self, self.ref.header.stamp, self.p['reference_timeout']):
                 return
             if self.p['no_perception_test']:
-                v, w, debug = stanley_only(self.path, self.pose, speed, self.measured_speed, self.p)
+                angles = ranges = None
             else:
                 angles = [self.scan.angle_min+i*self.scan.angle_increment for i in range(len(self.scan.ranges))]
-                v, w, debug = apf_stanley(self.path, self.pose, speed, self.measured_speed,
-                                         angles, self.scan.ranges, self.p)
+                ranges = self.scan.ranges
+            v, w, debug = stanley(self.path, self.pose, speed, self.measured_speed,
+                                  angles, ranges, self.p)
             debug['solve_ms'] = (time.monotonic()-start)*1000
             if debug['solve_ms'] > self.p['max_solve_ms']:
                 raise ValueError('controller exceeded solve budget')

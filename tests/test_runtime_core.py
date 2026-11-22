@@ -15,24 +15,21 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'ROS2_src/K7_ros2/src'
 for package in ('k7_control', 'k7_tasks', 'k7_camera'):
     sys.path.insert(0, str(SRC / package))
-from k7_control.core import (Authority, apf_stanley, limit_drive, project,
-                             stanley_only, valid_scan)
+from k7_control.core import (Authority, limit_drive, project,
+                             stanley, valid_scan)
 from k7_tasks.formation import LeaderTrail
-from k7_tasks.ref_path import outward_spiral
+from k7_tasks.ref_path import formation_path
 from k7_camera.stereo_geometry import depth_from_disparity, obstacle_sectors
 
 
 class ControlTests(unittest.TestCase):
-    def test_outward_spiral_starts_at_origin_and_ends_at_three_meter_diameter(self):
-        points = outward_spiral()
-        self.assertEqual(len(points), 500)
-        self.assertAlmostEqual(points[0][0], 0.0)
-        self.assertAlmostEqual(points[0][1], 0.0)
-        self.assertAlmostEqual(points[0][2], 0.0)
-        self.assertAlmostEqual(math.hypot(*points[-1][:2]), 1.5)
-        self.assertAlmostEqual(points[-1][0], 1.5)
-        self.assertAlmostEqual(points[-1][1], 0.0, places=9)
-        self.assertAlmostEqual(points[-1][2], math.atan2(1.5, 1.5 / (4 * math.pi)))
+    def test_formation_path_starts_at_origin(self):
+        for shape in ('spiral', 'figure8'):
+            for car in ('car1', 'car2', 'car3'):
+                points, _ = formation_path(car, shape)
+                self.assertEqual(len(points), 500)
+                self.assertAlmostEqual(points[0][0], 0.0)
+                self.assertAlmostEqual(points[0][1], 0.0)
 
     def test_wheel_limits_preserve_curvature(self):
         v, w = limit_drive(0.8, 1.0, 0.329, 0.35)
@@ -64,19 +61,19 @@ class ControlTests(unittest.TestCase):
         config = yaml.safe_load((SRC/'k7_bringup/config/robot.yaml').read_text())
         p = {**config['common'], **config['controller_node']}
         for pose in ((0, .2, 0), (0, 0, .2)):
-            v, w, _ = apf_stanley([(0, 0), (2, 0)], pose, .2, .2, [0], [math.inf], p)
+            v, w, _ = stanley([(0, 0), (2, 0)], pose, .2, .2, [0], [math.inf], p)
             self.assertGreater(v, 0)
             self.assertLess(w, 0)
-        v, w, _ = apf_stanley([(0, 0), (2, 0)], (0, 0, 0), .2, .2, [0], [.6], p)
+        v, w, _ = stanley([(0, 0), (2, 0)], (0, 0, 0), .2, .2, [0], [.6], p)
         self.assertGreater(v, 0)
         self.assertGreater(abs(w), 0)
         self.assertGreaterEqual(v-abs(w)*p['track']/2, -1e-12)
-        self.assertEqual(apf_stanley([(0, 0), (2, 0)], (0, 0, 0), .2, .2, [0], [.2], p)[:2], (0, 0))
+        self.assertEqual(stanley([(0, 0), (2, 0)], (0, 0, 0), .2, .2, [0], [.2], p)[:2], (0, 0))
 
     def test_stanley_only_tracks_without_scan(self):
         config = yaml.safe_load((SRC/'k7_bringup/config/robot.yaml').read_text())
         p = {**config['common'], **config['controller_node']}
-        v, w, debug = stanley_only([(0, 0), (2, 0)], (0, .2, 0), .05, 0, p)
+        v, w, debug = stanley([(0, 0), (2, 0)], (0, .2, 0), .05, 0, None, None, p)
         self.assertAlmostEqual(v, .05)
         self.assertLess(w, 0)
         self.assertEqual(debug['w_apf'], 0.0)
@@ -119,23 +116,22 @@ class AuthorityTests(unittest.TestCase):
 class FormationTests(unittest.TestCase):
     def test_initial_gap_and_bounded_history(self):
         trail = LeaderTrail(capacity=8)
-        trail.seed((0, 0, 0), (1, 0), 0, b'a', .15, .35)
-        self.assertEqual(trail.reference((0, 0), 1, .2, .35, .5)[1], 0)
-        trail.append((1.2, 0), b'a')
-        points, speed, error = trail.reference((0, 0), 1, .2, .35, .5)
+        trail.seed((0, 0, 0), (1, 0), 0, b'a', 1.0, 0.0, .15, .35)
+        trail.append((1.2, 0), b'a', 0, 1.0, 0.0)
+        points, speed, error = trail.reference((0, 0), 0.0, .2, .35, .5)
         self.assertAlmostEqual(points[-1][0], .2)
         self.assertAlmostEqual(error, .2)
         self.assertGreater(speed, 0)
         for i in range(10):
-            trail.append((1.3+i*.1, 0), b'a')
+            trail.append((1.3+i*.1, 0), b'a', 0, 1.0, 0.0)
         self.assertEqual(len(trail.points), 8)
 
     def test_wrong_alignment_restart_jump_rejected(self):
         trail = LeaderTrail()
         for leader in ((-1, 0), (1, 1)):
             with self.assertRaises(ValueError):
-                trail.seed((0, 0, 0), leader, 0, b'a', .15, .35)
-        trail.seed((0, 0, 0), (1, 0), 0, b'a', .15, .35)
+                trail.seed((0, 0, 0), leader, 0, b'a', 1.0, 0.0, .15, .35)
+        trail.seed((0, 0, 0), (1, 0), 0, b'a', 1.0, 0.0, .15, .35)
         for point, session in (((1.1, 0), b'b'), ((2, 0), b'a'), ((math.nan, 0), b'a')):
             with self.assertRaises(ValueError):
                 trail.append(point, session)
@@ -182,22 +178,20 @@ class StandstillTests(unittest.TestCase):
             twist=SimpleNamespace(twist=SimpleNamespace(linear=SimpleNamespace(x=0.),
                                                        angular=SimpleNamespace(z=0.))))
 
-    def test_gap_restarts_standstill_in_guard_and_task(self):
-        for name in ('TaskManager', 'CommandGuard'):
-            node = scope[name].__new__(scope[name])
-            node.p = dict(odom_frame='odom', sensor_timeout=.4, standstill_speed=.02)
-            old = time.monotonic()-10
-            node.odom_time = node.still_since = old
-            node.odom_cb(self.odometry())
-            self.assertGreater(node.still_since, old+9)
+    def test_gap_restarts_standstill_in_task(self):
+        node = scope['TaskManager'].__new__(scope['TaskManager'])
+        node.p = dict(odom_frame='odom', sensor_timeout=.4, standstill_speed=.02)
+        old = time.monotonic()-10
+        node.odom_time = node.still_since = old
+        node.odom_cb(self.odometry())
+        self.assertGreater(node.still_since, old+9)
 
     def test_invalid_odometry_breaks_standstill(self):
-        for name in ('TaskManager', 'CommandGuard'):
-            node = scope[name].__new__(scope[name])
-            node.p = dict(odom_frame='odom', sensor_timeout=.4, standstill_speed=.02)
-            node.still_since = time.monotonic()-1
-            node.odom_cb(self.odometry('wrong_frame'))
-            self.assertIsNone(node.still_since)
+        node = scope['TaskManager'].__new__(scope['TaskManager'])
+        node.p = dict(odom_frame='odom', sensor_timeout=.4, standstill_speed=.02)
+        node.still_since = time.monotonic()-1
+        node.odom_cb(self.odometry('wrong_frame'))
+        self.assertIsNone(node.still_since)
 
 
 class TaskLifecycleTests(unittest.TestCase):

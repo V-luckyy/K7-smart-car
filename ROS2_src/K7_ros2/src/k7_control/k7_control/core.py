@@ -111,30 +111,25 @@ def stanley_turn(path, pose, speed, measured_speed, p):
     return w_track, cte, heading_error
 
 
-def stanley_only(path, pose, speed, measured_speed, p):
+def stanley(path, pose, speed, measured_speed, angles, ranges, p):
+    """Stanley tracking; APF is applied only when angles/ranges are provided."""
     w_track, cte, heading_error = stanley_turn(path, pose, speed, measured_speed, p)
-    v, w = limit_drive(speed, w_track, p['track'], p['wheel_limit'], True)
-    return v, w, {'cte': cte, 'heading_error': heading_error,
-                   'w_stanley': w_track, 'w_apf': 0.0}
-
-
-def apf_stanley(path, pose, speed, measured_speed, angles, ranges, p):
-    w_track, cte, heading_error = stanley_turn(path, pose, speed, measured_speed, p)
-    repulsion = 0.0
-    nearest = p['slow_distance']
-    for angle, r in zip(angles, ranges):
-        if math.isfinite(r):
-            nearest = min(nearest, r)
-            if r < p['influence_distance']:
-                strength = min(p['max_repulsion'],
-                               (1/max(r, 0.05)-1/p['influence_distance']) / max(r*r, 0.01))
-                # Break head-on symmetry with one configured bypass direction.
-                side = -math.sin(angle) if abs(angle) > 0.03 else -p['bypass_side']
-                repulsion += strength * side / max(1, len(ranges))
-    factor = max(0.0, min(1.0, (nearest-p['stop_distance']) /
-                          (p['slow_distance']-p['stop_distance'])))
+    repulsion, factor = 0.0, 1.0
+    if angles is not None and ranges is not None:
+        nearest = p['slow_distance']
+        for angle, r in zip(angles, ranges):
+            if math.isfinite(r):
+                nearest = min(nearest, r)
+                if r < p['influence_distance']:
+                    strength = min(p['max_repulsion'],
+                                   (1/max(r, 0.05)-1/p['influence_distance']) / max(r*r, 0.01))
+                    # Break head-on symmetry with one configured bypass direction.
+                    side = -math.sin(angle) if abs(angle) > 0.03 else -p['bypass_side']
+                    repulsion += strength * side / max(1, len(ranges))
+        factor = max(0.0, min(1.0, (nearest-p['stop_distance']) /
+                              (p['slow_distance']-p['stop_distance'])))
     v = speed * factor
     w = w_track * factor + p['apf_gain'] * repulsion
     v, w = limit_drive(v, w, p['track'], p['wheel_limit'], True)
     return v, w, {'cte': cte, 'heading_error': heading_error,
-                   'w_stanley': w_track, 'w_apf': p['apf_gain']*repulsion}
+                  'w_stanley': w_track, 'w_apf': p['apf_gain'] * repulsion}

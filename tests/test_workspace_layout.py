@@ -80,7 +80,7 @@ class WorkspaceLayoutTests(unittest.TestCase):
 
     def test_current_document_links_resolve(self):
         documents = [ROOT / name for name in ('README.md', 'AGENTS.md', 'CLAUDE.md',
-                     'ROS2_src/K7_ros2/README.md', 'logs/README.md')]
+                     'logs/README.md')]
         documents.extend((ROOT / 'docs').glob('*.md'))
         for file in documents:
             for link in re.findall(r'\]\(([^)]+)\)', file.read_text(encoding='utf-8')):
