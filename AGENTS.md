@@ -18,5 +18,6 @@
 - ESP-NOW 示例：`ESP32_src/espnow_bridge/`；K7 桥在 `k7_tasks/k7_tasks/espnow_bridge.py`，说明见 `docs/K7_开发架构方案.md` 第 8 节。仍为 7 个活动包和一个统一车辆 launch。
 - Windows 双板通信测试：`ESP32_src/windows_test/run.sh`（Git Bash）或 `run.cmd`（双击）；自动识别主从、注入模拟状态并验证收发，独立于 ROS。
 - 当前手册与架构图放 `docs/`；实验数据放 `logs/`，生成数据不提交；回归放 `tests/`。
+- 交互架构图源头是 `docs/k7-architecture.json` 和 `docs/k7-architecture.template.html`，通过 `tools/build_architecture.py` 重新生成 `docs/k7-architecture.html`。Archify 候选和验收产物放被忽略的 `.archify/`。
 - `CLAUDE.md` 只维护现状和索引，修改对应条目，不追加流水日志；历史资料不作为当前行为依据。
 - 必须区分源码实现、本机检查、目标机编译、刷写和实车验收，未执行不得宣称完成。

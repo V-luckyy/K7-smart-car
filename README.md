@@ -10,7 +10,7 @@ RK3576 / Ubuntu 24.04 / ROS 2 Jazzy + STM32F407 两轮差速底盘。正常模�
 |---|---|
 | 当前事实、约定与索引 | [CLAUDE.md](CLAUDE.md) |
 | 包、节点、话题、服务、Action、ESP-NOW、负载 | [架构手册](docs/K7_开发架构方案.md) |
-| 整体数据流 | [架构图](docs/k7-architecture.html) |
+| 节点话题、控制时序、服务、Action 与字段样例 | [交互架构图](docs/k7-architecture.html) |
 | 安装、升级清理、标定、STM32、验收 | [上手指南](docs/K7_上手操作指南.md) |
 | 启动、路径、遥控、停车、记录、排错 | [命令速查](docs/ROS2_命令速查.md) |
 | 多车坐标、启动顺序、失联处理 | [编队说明](docs/多机编队_LeaderFollower_说明.md) |

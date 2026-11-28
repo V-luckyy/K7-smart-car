@@ -1,0 +1,2902 @@
+{
+  "title": "K7 小车 · 架构与接口",
+  "repository": {
+    "url": "https://github.com/V-luckyy/K7-smart-car.git",
+    "revision": "9a41541354f8bb1e8773fce7db418406a1039f94"
+  },
+  "date": "2026-11-26",
+  "scope": "依据当前源码整理的节点、话题和交互。频率为代码或配置周期，消息样例使用示意值。",
+  "diagrams": [
+    {
+      "id": "overview",
+      "label": "节点与话题",
+      "note": "沿图中的速度控制链路阅读，辅助输出在接口字典展开。",
+      "spec": {
+        "schema_version": 1,
+        "diagram_type": "architecture",
+        "meta": {
+          "title": "单车节点与话题",
+          "locale": "zh-CN",
+          "output": "placeholder.html",
+          "quality_profile": "showcase",
+          "repository": {
+            "url": "https://github.com/V-luckyy/K7-smart-car.git",
+            "revision": "9a41541354f8bb1e8773fce7db418406a1039f94"
+          }
+        },
+        "components": [
+          {
+            "id": "camera",
+            "type": "external",
+            "label": "双目相机",
+            "sublabel": "USB MJPEG · 左右并排",
+            "pos": [
+              40,
+              40
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/config/robot.yaml",
+                "line": 19,
+                "end_line": 26
+              }
+            ]
+          },
+          {
+            "id": "usb",
+            "type": "backend",
+            "label": "usb_cam",
+            "sublabel": "外部包 · 采集和 RGB 解码",
+            "pos": [
+              430,
+              40
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/launch/robot.launch.py",
+                "line": 46,
+                "end_line": 53
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/config/robot.yaml",
+                "line": 19,
+                "end_line": 26
+              }
+            ]
+          },
+          {
+            "id": "stereo",
+            "type": "backend",
+            "label": "stereo_obstacles",
+            "sublabel": "灰度 → 校正 → 视差 → 深度",
+            "pos": [
+              820,
+              40
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_camera/k7_camera/stereo_obstacles.py",
+                "line": 71,
+                "end_line": 119
+              }
+            ]
+          },
+          {
+            "id": "operator",
+            "type": "external",
+            "label": "任务客户端",
+            "sublabel": "ref_path / CLI / 遥控节点",
+            "pos": [
+              40,
+              200
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/ref_path.py",
+                "line": 117,
+                "end_line": 156
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 60,
+                "end_line": 71
+              }
+            ]
+          },
+          {
+            "id": "tasks",
+            "type": "backend",
+            "label": "task_manager",
+            "sublabel": "任务管理 · 参考轨迹",
+            "pos": [
+              40,
+              390
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 51,
+                "end_line": 75
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 200,
+                "end_line": 232
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 279,
+                "end_line": 420
+              }
+            ]
+          },
+          {
+            "id": "control",
+            "type": "backend",
+            "label": "controller_node",
+            "sublabel": "Stanley · 20 Hz",
+            "pos": [
+              430,
+              390
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+                "line": 42,
+                "end_line": 78
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+                "line": 80,
+                "end_line": 129
+              }
+            ]
+          },
+          {
+            "id": "guard",
+            "type": "security",
+            "label": "command_guard",
+            "sublabel": "UUID 授权 · 候选时效 · 限幅",
+            "pos": [
+              820,
+              390
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/command_guard.py",
+                "line": 29,
+                "end_line": 82
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/core.py",
+                "line": 53,
+                "end_line": 98
+              }
+            ]
+          },
+          {
+            "id": "odom",
+            "type": "messagebus",
+            "label": "odom",
+            "sublabel": "Odometry · 位置与速度",
+            "pos": [
+              430,
+              680
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 106,
+                "end_line": 136
+              }
+            ]
+          },
+          {
+            "id": "serial",
+            "type": "backend",
+            "label": "serial_bridge",
+            "sublabel": "USB 串口 · 115200 / 8N1",
+            "pos": [
+              820,
+              680
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 26,
+                "end_line": 61
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 77,
+                "end_line": 103
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 106,
+                "end_line": 163
+              }
+            ]
+          },
+          {
+            "id": "bridge",
+            "type": "backend",
+            "label": "espnow_bridge",
+            "sublabel": "可选 · 主车发送 / 从车接收",
+            "pos": [
+              40,
+              680
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+                "line": 35,
+                "end_line": 42
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+                "line": 82,
+                "end_line": 133
+              }
+            ]
+          },
+          {
+            "id": "esp",
+            "type": "external",
+            "label": "ESP32",
+            "sublabel": "ESP-NOW · 96 B",
+            "pos": [
+              40,
+              980
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ESP32_src/espnow_bridge/espnow_bridge.ino",
+                "line": 81,
+                "end_line": 154
+              },
+              {
+                "path": "ESP32_src/espnow_bridge/wire_protocol.h",
+                "line": 12,
+                "end_line": 52
+              }
+            ]
+          },
+          {
+            "id": "record",
+            "type": "backend",
+            "label": "experiment_recorder",
+            "sublabel": "按需记录 · CSV + rosbag",
+            "pos": [
+              430,
+              980
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_experiment/k7_experiment/recorder.py",
+                "line": 21,
+                "end_line": 48
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_experiment/k7_experiment/recorder.py",
+                "line": 50,
+                "end_line": 84
+              }
+            ]
+          },
+          {
+            "id": "stm32",
+            "type": "external",
+            "label": "STM32 底盘",
+            "sublabel": "速度执行与传感反馈",
+            "pos": [
+              820,
+              980
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 77,
+                "end_line": 86
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 106,
+                "end_line": 163
+              }
+            ]
+          },
+          {
+            "id": "logs",
+            "type": "database",
+            "label": "实验文件",
+            "sublabel": "metrics.csv / bag / 配置快照",
+            "pos": [
+              430,
+              1200
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_experiment/k7_experiment/recorder.py",
+                "line": 62,
+                "end_line": 84
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_experiment/k7_experiment/recorder.py",
+                "line": 137,
+                "end_line": 149
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "capture",
+            "from": "camera",
+            "to": "usb",
+            "label": "USB MJPEG",
+            "variant": "default"
+          },
+          {
+            "id": "image",
+            "from": "usb",
+            "to": "stereo",
+            "label": "camera/image_raw",
+            "variant": "default"
+          },
+          {
+            "id": "scan",
+            "from": "stereo",
+            "to": "control",
+            "label": "perception/scan",
+            "variant": "default",
+            "fromSide": "bottom",
+            "toSide": "top"
+          },
+          {
+            "id": "request",
+            "from": "operator",
+            "to": "tasks",
+            "label": "Action / teleop",
+            "variant": "default"
+          },
+          {
+            "id": "reference",
+            "from": "tasks",
+            "to": "control",
+            "label": "control/reference",
+            "variant": "emphasis"
+          },
+          {
+            "id": "candidate",
+            "from": "control",
+            "to": "guard",
+            "label": "control/candidate",
+            "variant": "emphasis"
+          },
+          {
+            "id": "velocity",
+            "from": "guard",
+            "to": "serial",
+            "label": "cmd_vel · 30 Hz",
+            "variant": "emphasis"
+          },
+          {
+            "id": "uart-command",
+            "from": "serial",
+            "to": "stm32",
+            "label": "11 B · 约 30 Hz",
+            "variant": "emphasis"
+          },
+          {
+            "id": "uart-feedback",
+            "from": "stm32",
+            "to": "serial",
+            "label": "24 B · 20 Hz",
+            "variant": "default"
+          },
+          {
+            "id": "odometry",
+            "from": "serial",
+            "to": "odom",
+            "label": "odom · 20 Hz",
+            "variant": "default"
+          },
+          {
+            "id": "pose-control",
+            "from": "odom",
+            "to": "control",
+            "label": "位姿与实测速度",
+            "variant": "default"
+          },
+          {
+            "id": "pose-task",
+            "from": "odom",
+            "to": "tasks",
+            "label": "odom",
+            "variant": "default",
+            "fromSide": "left",
+            "toSide": "bottom"
+          },
+          {
+            "id": "fleet",
+            "from": "tasks",
+            "to": "bridge",
+            "label": "fleet/state · 主车",
+            "variant": "default"
+          },
+          {
+            "id": "bridge-usb",
+            "from": "bridge",
+            "to": "esp",
+            "label": "主车帧 · USB 96 B",
+            "variant": "default"
+          },
+          {
+            "id": "csv",
+            "from": "odom",
+            "to": "record",
+            "label": "x / y / v / w",
+            "variant": "default"
+          },
+          {
+            "id": "files",
+            "from": "record",
+            "to": "logs",
+            "label": "写入实验文件",
+            "variant": "default"
+          },
+          {
+            "id": "leader-input",
+            "from": "bridge",
+            "to": "tasks",
+            "label": "fleet/leader_state · 从车",
+            "variant": "default"
+          },
+          {
+            "id": "board-input",
+            "from": "esp",
+            "to": "bridge",
+            "label": "从车帧 / 本板状态",
+            "variant": "default"
+          }
+        ],
+        "cards": [
+          {
+            "dot": "cyan",
+            "title": "运行条件",
+            "items": [
+              "正常 trajectory/formation 启动 7 个节点，启用 ESP-NOW 后增加 espnow_bridge。7 个自有包与节点数分别统计。",
+              "no_perception 跳过 usb_cam、stereo_obstacles，控制器使用纯 Stanley。manual 模式由 task_manager 发布候选速度。"
+            ]
+          },
+          {
+            "dot": "emerald",
+            "title": "状态、调试与记录",
+            "items": [
+              "command_guard 的 control/status 供 task_manager 和 controller_node 读取授权。task/status 供观察和记录。",
+              "recorder 按 variables 订阅 odom、cmd_vel、control/debug。默认 rosbag 录制 odom、cmd_vel、task/status、control/status。",
+              "stereo_obstacles 可选发布 480×270 深度图，usb_cam 同时发布 camera/camera_info。"
+            ]
+          },
+          {
+            "dot": "amber",
+            "title": "底盘观测接口",
+            "items": [
+              "serial_bridge 还发布 imu/data_raw、battery/voltage、chassis/disabled 和可选 tf。当前自有控制节点只消费 odom。",
+              "cmd_vel 的线速度单位 m/s，角速度 rad/s。串口发送时乘 1000，编码为大端 int16。"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "control",
+      "label": "控制时序",
+      "note": "ESP-NOW FollowLeader 从车的代表性交互，包含服务授权和停车。",
+      "spec": {
+        "schema_version": 1,
+        "diagram_type": "sequence",
+        "meta": {
+          "title": "跟随任务的授权、控制与停车",
+          "locale": "zh-CN",
+          "output": "placeholder.html",
+          "quality_profile": "showcase",
+          "repository": {
+            "url": "https://github.com/V-luckyy/K7-smart-car.git",
+            "revision": "9a41541354f8bb1e8773fce7db418406a1039f94"
+          }
+        },
+        "participants": [
+          {
+            "id": "cli",
+            "type": "external",
+            "label": "客户端",
+            "sublabel": "Action / 服务",
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 60,
+                "end_line": 71
+              }
+            ]
+          },
+          {
+            "id": "task",
+            "type": "backend",
+            "label": "任务",
+            "sublabel": "task_manager",
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 104,
+                "end_line": 194
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 200,
+                "end_line": 232
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 279,
+                "end_line": 420
+              }
+            ]
+          },
+          {
+            "id": "guard",
+            "type": "security",
+            "label": "授权",
+            "sublabel": "command_guard",
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/command_guard.py",
+                "line": 29,
+                "end_line": 82
+              }
+            ]
+          },
+          {
+            "id": "ctrl",
+            "type": "backend",
+            "label": "控制",
+            "sublabel": "controller_node",
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+                "line": 42,
+                "end_line": 78
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+                "line": 80,
+                "end_line": 129
+              }
+            ]
+          },
+          {
+            "id": "serial",
+            "type": "backend",
+            "label": "串口",
+            "sublabel": "serial_bridge",
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 41,
+                "end_line": 61
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 77,
+                "end_line": 86
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 106,
+                "end_line": 144
+              }
+            ]
+          },
+          {
+            "id": "stm32",
+            "type": "external",
+            "label": "底盘",
+            "sublabel": "STM32",
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 77,
+                "end_line": 86
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+                "line": 106,
+                "end_line": 136
+              }
+            ]
+          }
+        ],
+        "segments": [
+          {
+            "from": 140,
+            "to": 425,
+            "label": "接受跟随任务并取得本车权限"
+          },
+          {
+            "from": 435,
+            "to": 850,
+            "label": "循环更新参考与速度"
+          },
+          {
+            "from": 860,
+            "to": 1190,
+            "label": "请求停车、撤销权限与结果"
+          }
+        ],
+        "messages": [
+          {
+            "id": "goal",
+            "from": "cli",
+            "to": "task",
+            "y": 170,
+            "label": "FollowLeader goal",
+            "variant": "emphasis",
+            "note": "formation 模式校验 goal，接受时创建 leader_topic 订阅。"
+          },
+          {
+            "id": "grant",
+            "from": "task",
+            "to": "guard",
+            "y": 245,
+            "label": "select_source(2)",
+            "variant": "security"
+          },
+          {
+            "id": "token",
+            "from": "guard",
+            "to": "task",
+            "y": 295,
+            "label": "success + permission_id",
+            "variant": "return"
+          },
+          {
+            "id": "status-ctrl",
+            "from": "guard",
+            "to": "ctrl",
+            "y": 345,
+            "label": "control/status · AUTO + UUID",
+            "variant": "default"
+          },
+          {
+            "id": "status-task",
+            "from": "guard",
+            "to": "task",
+            "y": 395,
+            "label": "control/status · UUID",
+            "variant": "default"
+          },
+          {
+            "id": "feedback-uart",
+            "from": "stm32",
+            "to": "serial",
+            "y": 470,
+            "label": "24 B 反馈 · 20 Hz",
+            "variant": "default"
+          },
+          {
+            "id": "odom-task",
+            "from": "serial",
+            "to": "task",
+            "y": 520,
+            "label": "odom · 位姿与速度",
+            "variant": "default"
+          },
+          {
+            "id": "odom-ctrl",
+            "from": "serial",
+            "to": "ctrl",
+            "y": 570,
+            "label": "odom · 位姿与速度",
+            "variant": "default"
+          },
+          {
+            "id": "ref",
+            "from": "task",
+            "to": "ctrl",
+            "y": 620,
+            "label": "control/reference · ≤10 Hz",
+            "variant": "emphasis",
+            "note": "接收本地 fleet/leader_state，生成跟随参考。"
+          },
+          {
+            "id": "candidate",
+            "from": "ctrl",
+            "to": "guard",
+            "y": 690,
+            "label": "control/candidate · 20 Hz",
+            "variant": "emphasis"
+          },
+          {
+            "id": "cmd",
+            "from": "guard",
+            "to": "serial",
+            "y": 740,
+            "label": "cmd_vel · 30 Hz",
+            "variant": "emphasis"
+          },
+          {
+            "id": "bytes",
+            "from": "serial",
+            "to": "stm32",
+            "y": 790,
+            "label": "11 B 控制帧 · 约30 Hz",
+            "variant": "emphasis"
+          },
+          {
+            "id": "fb",
+            "from": "task",
+            "to": "cli",
+            "y": 835,
+            "label": "Action feedback · ≤2 Hz",
+            "variant": "return"
+          },
+          {
+            "id": "stop",
+            "from": "cli",
+            "to": "task",
+            "y": 890,
+            "label": "task/stop · Trigger",
+            "variant": "default"
+          },
+          {
+            "id": "revoke",
+            "from": "task",
+            "to": "guard",
+            "y": 940,
+            "label": "select_source(0)",
+            "variant": "security"
+          },
+          {
+            "id": "zero",
+            "from": "guard",
+            "to": "serial",
+            "y": 990,
+            "label": "cmd_vel · 零速度",
+            "variant": "default"
+          },
+          {
+            "id": "ack",
+            "from": "guard",
+            "to": "task",
+            "y": 1040,
+            "label": "撤权响应 success",
+            "variant": "return"
+          },
+          {
+            "id": "stopped",
+            "from": "serial",
+            "to": "task",
+            "y": 1090,
+            "label": "odom · 连续静止 ≥0.3 s",
+            "variant": "default"
+          },
+          {
+            "id": "result",
+            "from": "task",
+            "to": "cli",
+            "y": 1150,
+            "label": "Action result · code / reason",
+            "variant": "return"
+          }
+        ],
+        "cards": [
+          {
+            "dot": "cyan",
+            "title": "时序的读法",
+            "items": [
+              "本图为 ESP-NOW 从车 FollowLeader 的代表性交互，启动时已有 odom 和主车状态。异步话题在运行中并行更新，竖向间距表示先后关系。",
+              "接受 Action 时会并行申请授权和订阅 leader_topic。主车与从车各自取得本车的 permission_id。"
+            ]
+          },
+          {
+            "dot": "amber",
+            "title": "停车与任务结果",
+            "items": [
+              "正常路径结束、取消、task/stop、主车状态超时或 FAULT 都进入撤权与静止确认流程。",
+              "FollowLeader 持续到取消或故障。主车暂时静止时可继续等待和跟随。task/stop 返回受理，Action 返回本次停止结果。"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "services",
+      "label": "服务与 Action",
+      "note": "每段展示一次独立请求，箭头指向服务端，返回箭头指向客户端。",
+      "spec": {
+        "schema_version": 1,
+        "diagram_type": "sequence",
+        "meta": {
+          "title": "服务与 Action 的请求和响应",
+          "locale": "zh-CN",
+          "output": "placeholder.html",
+          "quality_profile": "showcase",
+          "repository": {
+            "url": "https://github.com/V-luckyy/K7-smart-car.git",
+            "revision": "9a41541354f8bb1e8773fce7db418406a1039f94"
+          }
+        },
+        "participants": [
+          {
+            "id": "client",
+            "type": "external",
+            "label": "客户端节点",
+            "sublabel": "CLI / ref_path / GUI",
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/ref_path.py",
+                "line": 117,
+                "end_line": 156
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 60,
+                "end_line": 71
+              }
+            ]
+          },
+          {
+            "id": "tasks",
+            "type": "backend",
+            "label": "任务服务端",
+            "sublabel": "task_manager",
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 60,
+                "end_line": 75
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 113,
+                "end_line": 211
+              }
+            ]
+          },
+          {
+            "id": "guard",
+            "type": "security",
+            "label": "授权服务端",
+            "sublabel": "command_guard",
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/command_guard.py",
+                "line": 29,
+                "end_line": 52
+              }
+            ]
+          },
+          {
+            "id": "recorder",
+            "type": "backend",
+            "label": "记录服务端",
+            "sublabel": "experiment_recorder",
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_experiment/k7_experiment/recorder.py",
+                "line": 45,
+                "end_line": 48
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_experiment/k7_experiment/recorder.py",
+                "line": 112,
+                "end_line": 118
+              }
+            ]
+          }
+        ],
+        "segments": [
+          {
+            "from": 140,
+            "to": 385,
+            "label": "手动任务和内部授权"
+          },
+          {
+            "from": 395,
+            "to": 585,
+            "label": "路径与跟随 Action"
+          },
+          {
+            "from": 595,
+            "to": 800,
+            "label": "锁定与记录服务"
+          },
+          {
+            "from": 810,
+            "to": 1040,
+            "label": "停车服务"
+          }
+        ],
+        "messages": [
+          {
+            "id": "manual",
+            "from": "client",
+            "to": "tasks",
+            "y": 170,
+            "label": "task/set_manual · data=true",
+            "variant": "default"
+          },
+          {
+            "id": "manual-grant",
+            "from": "tasks",
+            "to": "guard",
+            "y": 220,
+            "label": "control/select_source · source=1",
+            "variant": "security"
+          },
+          {
+            "id": "manual-token",
+            "from": "guard",
+            "to": "tasks",
+            "y": 270,
+            "label": "success / permission_id / reason",
+            "variant": "return"
+          },
+          {
+            "id": "manual-response",
+            "from": "tasks",
+            "to": "client",
+            "y": 330,
+            "label": "success / message",
+            "variant": "return"
+          },
+          {
+            "id": "action",
+            "from": "client",
+            "to": "tasks",
+            "y": 425,
+            "label": "FollowPath 或 FollowLeader goal",
+            "variant": "emphasis"
+          },
+          {
+            "id": "action-grant",
+            "from": "tasks",
+            "to": "guard",
+            "y": 475,
+            "label": "control/select_source · source=2",
+            "variant": "security"
+          },
+          {
+            "id": "action-uuid",
+            "from": "guard",
+            "to": "tasks",
+            "y": 525,
+            "label": "success / permission_id / reason",
+            "variant": "return"
+          },
+          {
+            "id": "hold",
+            "from": "client",
+            "to": "guard",
+            "y": 625,
+            "label": "control/hold · data=true/false",
+            "variant": "security"
+          },
+          {
+            "id": "hold-response",
+            "from": "guard",
+            "to": "client",
+            "y": 670,
+            "label": "success / message",
+            "variant": "return"
+          },
+          {
+            "id": "record",
+            "from": "client",
+            "to": "recorder",
+            "y": 725,
+            "label": "experiment/record · data=true/false",
+            "variant": "default"
+          },
+          {
+            "id": "record-response",
+            "from": "recorder",
+            "to": "client",
+            "y": 770,
+            "label": "success / message",
+            "variant": "return"
+          },
+          {
+            "id": "stop",
+            "from": "client",
+            "to": "tasks",
+            "y": 845,
+            "label": "task/stop · 空请求",
+            "variant": "default"
+          },
+          {
+            "id": "revoke",
+            "from": "tasks",
+            "to": "guard",
+            "y": 895,
+            "label": "control/select_source · source=0",
+            "variant": "security"
+          },
+          {
+            "id": "accepted",
+            "from": "tasks",
+            "to": "client",
+            "y": 945,
+            "label": "success=true / 已受理",
+            "variant": "return"
+          },
+          {
+            "id": "revoke-return",
+            "from": "guard",
+            "to": "tasks",
+            "y": 995,
+            "label": "success / permission_id / reason",
+            "variant": "return"
+          }
+        ],
+        "cards": [
+          {
+            "dot": "cyan",
+            "title": "客户端也是节点",
+            "items": [
+              "ros2 service call 会建立临时 ROS 客户端节点。ref_path 是 FollowPath 的 Action 客户端节点。服务名称的 task/、control/ 是接口命名空间。",
+              "图中各段是独立调用场景。服务 request/response 与 Action goal/feedback/result 的字段可在接口字典查看。"
+            ]
+          },
+          {
+            "dot": "amber",
+            "title": "接口对应关系",
+            "items": [
+              "SetBool 用于 task/set_manual、control/hold 和 experiment/record，data=true/false 对应开启/关闭。",
+              "Trigger 用于 task/stop。SelectSource 由 task_manager 调用，0 撤权、1 手动、2 自动。",
+              "hold=true 会撤销权限并发零速。hold=false 解除锁定，下一次任务需重新申请权限。"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "fleet",
+      "label": "三车通信",
+      "note": "主车广播状态，两辆从车各自生成本车参考与速度。",
+      "spec": {
+        "schema_version": 1,
+        "diagram_type": "architecture",
+        "meta": {
+          "title": "ESP-NOW 一主两从的数据路径",
+          "locale": "zh-CN",
+          "output": "placeholder.html",
+          "quality_profile": "showcase",
+          "repository": {
+            "url": "https://github.com/V-luckyy/K7-smart-car.git",
+            "revision": "9a41541354f8bb1e8773fce7db418406a1039f94"
+          }
+        },
+        "components": [
+          {
+            "id": "lead-task",
+            "type": "backend",
+            "label": "car1 / task_manager",
+            "sublabel": "publish_fleet + 初始对齐确认",
+            "pos": [
+              40,
+              40
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 54,
+                "end_line": 75
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 402,
+                "end_line": 420
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/ref_path.py",
+                "line": 1,
+                "end_line": 27
+              }
+            ]
+          },
+          {
+            "id": "lead-bridge",
+            "type": "backend",
+            "label": "car1 / espnow_bridge",
+            "sublabel": "leader · 订阅 fleet/state",
+            "pos": [
+              450,
+              40
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+                "line": 35,
+                "end_line": 42
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+                "line": 111,
+                "end_line": 133
+              }
+            ]
+          },
+          {
+            "id": "lead-esp",
+            "type": "external",
+            "label": "主车 ESP32",
+            "sublabel": "MAC 白名单 · 广播 96 B",
+            "pos": [
+              450,
+              280
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ESP32_src/espnow_bridge/espnow_bridge.ino",
+                "line": 81,
+                "end_line": 154
+              },
+              {
+                "path": "ESP32_src/espnow_bridge/wire_protocol.h",
+                "line": 12,
+                "end_line": 37
+              }
+            ]
+          },
+          {
+            "id": "esp-two",
+            "type": "external",
+            "label": "car2 / ESP32",
+            "sublabel": "无线只接收 · 本地 USB 状态",
+            "pos": [
+              40,
+              520
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ESP32_src/espnow_bridge/espnow_bridge.ino",
+                "line": 40,
+                "end_line": 55
+              },
+              {
+                "path": "ESP32_src/espnow_bridge/espnow_bridge.ino",
+                "line": 142,
+                "end_line": 154
+              }
+            ]
+          },
+          {
+            "id": "esp-three",
+            "type": "external",
+            "label": "car3 / ESP32",
+            "sublabel": "无线只接收 · 本地 USB 状态",
+            "pos": [
+              860,
+              520
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ESP32_src/espnow_bridge/espnow_bridge.ino",
+                "line": 40,
+                "end_line": 55
+              },
+              {
+                "path": "ESP32_src/espnow_bridge/espnow_bridge.ino",
+                "line": 142,
+                "end_line": 154
+              }
+            ]
+          },
+          {
+            "id": "bridge-two",
+            "type": "backend",
+            "label": "car2 / espnow_bridge",
+            "sublabel": "follower · 校验时效与序号",
+            "pos": [
+              40,
+              760
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+                "line": 35,
+                "end_line": 49
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+                "line": 82,
+                "end_line": 109
+              }
+            ]
+          },
+          {
+            "id": "bridge-three",
+            "type": "backend",
+            "label": "car3 / espnow_bridge",
+            "sublabel": "follower · 校验时效与序号",
+            "pos": [
+              860,
+              760
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+                "line": 35,
+                "end_line": 49
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+                "line": 82,
+                "end_line": 109
+              }
+            ]
+          },
+          {
+            "id": "task-two",
+            "type": "backend",
+            "label": "car2 / task_manager",
+            "sublabel": "FollowLeader · 本车参考路径",
+            "pos": [
+              40,
+              1000
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 104,
+                "end_line": 130
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 238,
+                "end_line": 277
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 346,
+                "end_line": 395
+              }
+            ]
+          },
+          {
+            "id": "task-three",
+            "type": "backend",
+            "label": "car3 / task_manager",
+            "sublabel": "FollowLeader · 本车参考路径",
+            "pos": [
+              860,
+              1000
+            ],
+            "size": [
+              190,
+              70
+            ],
+            "sources": [
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 104,
+                "end_line": 130
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 238,
+                "end_line": 277
+              },
+              {
+                "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+                "line": 346,
+                "end_line": 395
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "source",
+            "from": "lead-task",
+            "to": "lead-bridge",
+            "label": "fleet/state · ≤10 Hz",
+            "variant": "emphasis"
+          },
+          {
+            "id": "lead-usb",
+            "from": "lead-bridge",
+            "to": "lead-esp",
+            "label": "USB · FleetPacket 96 B",
+            "variant": "emphasis"
+          },
+          {
+            "id": "radio-two",
+            "from": "lead-esp",
+            "to": "esp-two",
+            "label": "ESP-NOW 广播",
+            "variant": "emphasis"
+          },
+          {
+            "id": "radio-three",
+            "from": "lead-esp",
+            "to": "esp-three",
+            "label": "ESP-NOW 广播",
+            "variant": "emphasis"
+          },
+          {
+            "id": "usb-two",
+            "from": "esp-two",
+            "to": "bridge-two",
+            "label": "USB · 新无线状态",
+            "variant": "emphasis"
+          },
+          {
+            "id": "usb-three",
+            "from": "esp-three",
+            "to": "bridge-three",
+            "label": "USB · 新无线状态",
+            "variant": "emphasis"
+          },
+          {
+            "id": "fleet-two",
+            "from": "bridge-two",
+            "to": "task-two",
+            "label": "fleet/leader_state",
+            "variant": "emphasis"
+          },
+          {
+            "id": "fleet-three",
+            "from": "bridge-three",
+            "to": "task-three",
+            "label": "fleet/leader_state",
+            "variant": "emphasis"
+          }
+        ],
+        "cards": [
+          {
+            "dot": "cyan",
+            "title": "每车独立控制",
+            "items": [
+              "主车发送自身 FleetState，从车 task_manager 接收后生成 control/reference。本车 controller_node、command_guard、serial_bridge 继续完成本地闭环。",
+              "每车独立配置 fleet 初始变换和 ROS_DOMAIN_ID，保留主车的源时间戳和 session_id。"
+            ]
+          },
+          {
+            "dot": "amber",
+            "title": "链路状态",
+            "items": [
+              "每块 ESP32 通过本地 USB 返回 StatusPacket，每车桥发布 fleet/link，包含 MAC、信道、帧计数、时效与解析错误。",
+              "radio_tx_done 表示主车本地广播发送完成。从车无线仅接收，主车无从车接收确认。"
+            ]
+          },
+          {
+            "dot": "emerald",
+            "title": "另一种路径任务",
+            "items": [
+              "当前 ref_path 也支持为每辆车生成各自的编队变形路径，并分别发送 FollowPath。该入口按预生成轨迹运行，使用此页的实时 FollowLeader 时要显式提交跟随 Action。"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "interfaces": [
+    {
+      "id": "image",
+      "kind": "话题",
+      "name": "camera/image_raw",
+      "type": "sensor_msgs/msg/Image",
+      "owner": "usb_cam",
+      "receivers": "stereo_obstacles",
+      "frequency": "10 Hz",
+      "summary": "左右拼接 RGB 图像，节点内转 mono8 后分割和校正。",
+      "fields": [
+        [
+          "header",
+          "Header",
+          "采样时间与图像坐标系"
+        ],
+        [
+          "height / width",
+          "uint32",
+          "默认 1080 / 3840"
+        ],
+        [
+          "encoding",
+          "string",
+          "mjpeg2rgb 对应 RGB 输出"
+        ],
+        [
+          "is_bigendian / step / data",
+          "uint8 / uint32 / uint8[]",
+          "字节序、行跨度与像素数据"
+        ]
+      ],
+      "sample": "header: {stamp: {sec: 100, nanosec: 200000000}, frame_id: car1/base_link}\nheight: 1080\nwidth: 3840\nencoding: rgb8\nis_bigendian: 0\nstep: 11520\ndata: [...]",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/config/robot.yaml",
+          "line": 19,
+          "end_line": 26
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/launch/robot.launch.py",
+          "line": 46,
+          "end_line": 53
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_camera/k7_camera/stereo_obstacles.py",
+          "line": 103,
+          "end_line": 110
+        }
+      ]
+    },
+    {
+      "id": "camera-info",
+      "kind": "话题",
+      "name": "camera/camera_info",
+      "type": "sensor_msgs/msg/CameraInfo",
+      "owner": "usb_cam",
+      "receivers": "调试客户端",
+      "frequency": "随图像驱动输出",
+      "summary": "驱动相机信息，双目节点实际从 left.yaml / right.yaml 读标定。",
+      "fields": [
+        [
+          "header / height / width",
+          "Header / uint32",
+          "图像时间、坐标系和尺寸"
+        ],
+        [
+          "distortion_model / d",
+          "string / float64[]",
+          "畸变模型与参数"
+        ],
+        [
+          "k / r / p",
+          "float64[9] / [9] / [12]",
+          "内参、校正、投影矩阵"
+        ],
+        [
+          "binning_x / binning_y / roi",
+          "uint32 / RegionOfInterest",
+          "像素合并与 ROI"
+        ]
+      ],
+      "sample": "header: {...}\nheight: 1080\nwidth: 3840\ndistortion_model: ...\nd: [...]\nk: [...]\nr: [...]\np: [...]",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/launch/robot.launch.py",
+          "line": 46,
+          "end_line": 53
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_camera/k7_camera/stereo_obstacles.py",
+          "line": 53,
+          "end_line": 65
+        }
+      ]
+    },
+    {
+      "id": "scan",
+      "kind": "话题",
+      "name": "perception/scan",
+      "type": "sensor_msgs/msg/LaserScan",
+      "owner": "stereo_obstacles",
+      "receivers": "controller_node（正常感知模式）",
+      "frequency": "≤10 Hz",
+      "summary": "21 个方向距离。右侧为负角，车头为零，左侧为正角。NaN 为未知，inf 为有有效测量支持的超量程。",
+      "fields": [
+        [
+          "header",
+          "Header",
+          "沿用图像时间，frame 为 car1/base_link"
+        ],
+        [
+          "angle_min / max / increment",
+          "float32",
+          "默认 −0.50 / +0.50 / 0.05 rad"
+        ],
+        [
+          "range_min / max",
+          "float32",
+          "默认 0.05 / 4.0 m"
+        ],
+        [
+          "scan_time / time_increment",
+          "float32",
+          "0.1 s / 默认 0"
+        ],
+        [
+          "ranges / intensities",
+          "float32[]",
+          "21 个距离值，单位 m。intensities 留空"
+        ]
+      ],
+      "sample": "header: {stamp: {sec: 100, nanosec: 200000000}, frame_id: car1/base_link}\nangle_min: -0.5\nangle_max: 0.5\nangle_increment: 0.05\ntime_increment: 0.0\nscan_time: 0.1\nrange_min: 0.05\nrange_max: 4.0\nranges: [2.4, 2.3, 2.1, 2.0, 1.8, 1.5, 1.2, 1.1, 1.0, 0.9, 0.8, 0.9, 1.0, 1.1, 1.2, 1.5, 1.8, 2.0, 2.1, 2.3, 2.4]\nintensities: []",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_camera/k7_camera/stereo_obstacles.py",
+          "line": 85,
+          "end_line": 119
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+          "line": 45,
+          "end_line": 51
+        }
+      ]
+    },
+    {
+      "id": "depth",
+      "kind": "话题",
+      "name": "camera/depth/image_raw",
+      "type": "sensor_msgs/msg/Image",
+      "owner": "stereo_obstacles",
+      "receivers": "深度调试客户端",
+      "frequency": "≤10 Hz，publish_depth=true 且有订阅者",
+      "summary": "默认单目 1920×1080 乘 scale=0.25，产生 480×270。每像素是光学轴深度 Z。",
+      "fields": [
+        [
+          "header",
+          "Header",
+          "源图像时间，car1/camera_left_optical_frame"
+        ],
+        [
+          "height / width",
+          "uint32",
+          "270 / 480，随标定和 scale 变化"
+        ],
+        [
+          "encoding",
+          "string",
+          "32FC1，单通道 float32"
+        ],
+        [
+          "step / data",
+          "uint32 / uint8[]",
+          "字节跨度和 float32 的字节表示，深度单位 m"
+        ]
+      ],
+      "sample": "header: {stamp: {...}, frame_id: car1/camera_left_optical_frame}\nheight: 270\nwidth: 480\nencoding: 32FC1\nstep: 1920\ndata: [...]  # 读取为 float32 后是每像素米值",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_camera/k7_camera/stereo_obstacles.py",
+          "line": 53,
+          "end_line": 65
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_camera/k7_camera/stereo_obstacles.py",
+          "line": 103,
+          "end_line": 116
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/config/robot.yaml",
+          "line": 27,
+          "end_line": 50
+        }
+      ]
+    },
+    {
+      "id": "odom",
+      "kind": "话题",
+      "name": "odom",
+      "type": "nav_msgs/msg/Odometry",
+      "owner": "serial_bridge",
+      "receivers": "task_manager、controller_node、按需 recorder",
+      "frequency": "20 Hz",
+      "summary": "由 STM32 速度反馈积分得到本车 odom 位姿。",
+      "fields": [
+        [
+          "header / child_frame_id",
+          "Header / string",
+          "car1/odom → car1/base_link"
+        ],
+        [
+          "pose.pose",
+          "Pose",
+          "位置 m、朝向四元数"
+        ],
+        [
+          "pose.covariance",
+          "float64[36]",
+          "位置与姿态协方差"
+        ],
+        [
+          "twist.twist",
+          "Twist",
+          "车体系 vx / vy，m/s 与 wz，rad/s"
+        ],
+        [
+          "twist.covariance",
+          "float64[36]",
+          "速度协方差"
+        ]
+      ],
+      "sample": "header: {stamp: {...}, frame_id: car1/odom}\nchild_frame_id: car1/base_link\npose:\n  pose:\n    position: {x: 1.2, y: 0.0, z: 0.0}\n    orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}\n  covariance: [...]\ntwist:\n  twist:\n    linear: {x: 0.1, y: 0.0, z: 0.0}\n    angular: {x: 0.0, y: 0.0, z: 0.15}\n  covariance: [...]",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+          "line": 106,
+          "end_line": 144
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 51,
+          "end_line": 59
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+          "line": 42,
+          "end_line": 51
+        }
+      ]
+    },
+    {
+      "id": "imu",
+      "kind": "话题",
+      "name": "imu/data_raw",
+      "type": "sensor_msgs/msg/Imu",
+      "owner": "serial_bridge",
+      "receivers": "观测客户端，当前控制链无订阅",
+      "frequency": "20 Hz",
+      "summary": "经比例转换后的加速度和角速度，无融合姿态。",
+      "fields": [
+        [
+          "header",
+          "Header",
+          "car1/gyro_link"
+        ],
+        [
+          "orientation_covariance[0]",
+          "float64",
+          "−1，姿态不可用"
+        ],
+        [
+          "linear_acceleration",
+          "Vector3",
+          "x/y/z，m/s²"
+        ],
+        [
+          "angular_velocity",
+          "Vector3",
+          "x/y/z，rad/s"
+        ],
+        [
+          "三组 covariance",
+          "float64[9]",
+          "各项不确定度"
+        ]
+      ],
+      "sample": "header: {stamp: {...}, frame_id: car1/gyro_link}\norientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}\norientation_covariance: [-1.0, 0, 0, 0, 0, 0, 0, 0, 0]\nangular_velocity: {x: 0.0, y: 0.0, z: 0.15}\nlinear_acceleration: {x: 0.0, y: 0.0, z: 9.8}",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+          "line": 146,
+          "end_line": 158
+        }
+      ]
+    },
+    {
+      "id": "voltage",
+      "kind": "话题",
+      "name": "battery/voltage",
+      "type": "std_msgs/msg/Float32",
+      "owner": "serial_bridge",
+      "receivers": "观测客户端",
+      "frequency": "≤1 Hz",
+      "summary": "电池电压。",
+      "fields": [
+        [
+          "data",
+          "float32",
+          "单位 V"
+        ]
+      ],
+      "sample": "data: 24.1",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+          "line": 159,
+          "end_line": 163
+        }
+      ]
+    },
+    {
+      "id": "disabled",
+      "kind": "话题",
+      "name": "chassis/disabled",
+      "type": "std_msgs/msg/Bool",
+      "owner": "serial_bridge",
+      "receivers": "观测客户端，当前 guard 无订阅",
+      "frequency": "20 Hz",
+      "summary": "STM32 反馈帧第 1 字节 FlagStop 非零时 data=true。",
+      "fields": [
+        [
+          "data",
+          "bool",
+          "底盘上报的停止/软件失能标志"
+        ]
+      ],
+      "sample": "data: false",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+          "line": 120,
+          "end_line": 122
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/command_guard.py",
+          "line": 29,
+          "end_line": 36
+        }
+      ]
+    },
+    {
+      "id": "tf",
+      "kind": "话题",
+      "name": "tf",
+      "type": "tf2_msgs/msg/TFMessage",
+      "owner": "serial_bridge",
+      "receivers": "TF 观测或可视化客户端",
+      "frequency": "20 Hz，publish_tf=true",
+      "summary": "与 odom 同源的坐标变换，launch 将 /tf 重映射到本车 tf。",
+      "fields": [
+        [
+          "transforms[]",
+          "TransformStamped[]",
+          "时间、父坐标系、子坐标系、平移和旋转"
+        ]
+      ],
+      "sample": "transforms:\n- header: {stamp: {...}, frame_id: car1/odom}\n  child_frame_id: car1/base_link\n  transform:\n    translation: {x: 1.2, y: 0.0, z: 0.0}\n    rotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+          "line": 137,
+          "end_line": 144
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/launch/robot.launch.py",
+          "line": 44,
+          "end_line": 45
+        }
+      ]
+    },
+    {
+      "id": "teleop",
+      "kind": "话题",
+      "name": "teleop/cmd_vel",
+      "type": "geometry_msgs/msg/TwistStamped",
+      "owner": "手柄或键盘客户端节点",
+      "receivers": "task_manager（manual）",
+      "frequency": "按输入，需在 0.25 s 内刷新",
+      "summary": "手动模式有效时，task_manager 为输入附加 permission_id，再发布 candidate。",
+      "fields": [
+        [
+          "header",
+          "Header",
+          "当前时间、car1/base_link"
+        ],
+        [
+          "twist.linear.x / angular.z",
+          "float64",
+          "候选前向速度 m/s / 角速度 rad/s"
+        ]
+      ],
+      "sample": "header: {stamp: {sec: 100, nanosec: 200000000}, frame_id: car1/base_link}\ntwist:\n  linear: {x: 0.1, y: 0.0, z: 0.0}\n  angular: {x: 0.0, y: 0.0, z: 0.15}",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 63,
+          "end_line": 64
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 238,
+          "end_line": 248
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "kind": "话题",
+      "name": "control/reference",
+      "type": "k7_msgs/msg/ControlReference",
+      "owner": "task_manager",
+      "receivers": "controller_node",
+      "frequency": "路径 5 Hz，跟随 ≤10 Hz",
+      "summary": "参考路径在本车 odom 坐标系，授权 UUID 与本次任务一致。",
+      "fields": [
+        [
+          "header",
+          "Header",
+          "时间与 car1/odom"
+        ],
+        [
+          "permission_id.uuid",
+          "uint8[16]",
+          "本车本次任务权限"
+        ],
+        [
+          "path.header / poses",
+          "Header / PoseStamped[]",
+          "最多 512 点，位置 m、朝向四元数"
+        ],
+        [
+          "speed_limit",
+          "float32",
+          "m/s"
+        ]
+      ],
+      "sample": "header: {stamp: {...}, frame_id: car1/odom}\npermission_id: {uuid: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]}\npath:\n  header: {frame_id: car1/odom}\n  poses:\n  - pose: {position: {x: 0.0, y: 0.0}, orientation: {w: 1.0}}\n  - pose: {position: {x: 1.0, y: 0.0}, orientation: {w: 1.0}}\nspeed_limit: 0.10",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 279,
+          "end_line": 285
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 336,
+          "end_line": 386
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+          "line": 64,
+          "end_line": 78
+        }
+      ],
+      "definition": "ROS2_src/K7_ros2/src/k7_msgs/msg/ControlReference.msg"
+    },
+    {
+      "id": "candidate",
+      "kind": "话题",
+      "name": "control/candidate",
+      "type": "k7_msgs/msg/MotionCommand",
+      "owner": "controller_node（自动）或 task_manager（手动）",
+      "receivers": "command_guard",
+      "frequency": "自动 20 Hz，手动随输入",
+      "summary": "校验采样时间、车体坐标系和授权后接受 v/w。",
+      "fields": [
+        [
+          "header",
+          "Header",
+          "时间与 car1/base_link"
+        ],
+        [
+          "permission_id.uuid",
+          "uint8[16]",
+          "必须匹配当前授权"
+        ],
+        [
+          "twist.linear.x / angular.z",
+          "float64",
+          "前向 m/s / 偏航 rad/s"
+        ]
+      ],
+      "sample": "header: {stamp: {sec: 100, nanosec: 200000000}, frame_id: car1/base_link}\npermission_id: {uuid: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]}\ntwist:\n  linear: {x: 0.10, y: 0.0, z: 0.0}\n  angular: {x: 0.0, y: 0.0, z: 0.15}",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+          "line": 119,
+          "end_line": 124
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 238,
+          "end_line": 248
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/command_guard.py",
+          "line": 54,
+          "end_line": 72
+        }
+      ],
+      "definition": "ROS2_src/K7_ros2/src/k7_msgs/msg/MotionCommand.msg"
+    },
+    {
+      "id": "cmd-vel",
+      "kind": "话题",
+      "name": "cmd_vel",
+      "type": "geometry_msgs/msg/TwistStamped",
+      "owner": "command_guard",
+      "receivers": "serial_bridge、按需 recorder",
+      "frequency": "30 Hz",
+      "summary": "授权与差速限幅后的速度出口。空闲和候选超时持续发零速。",
+      "fields": [
+        [
+          "header",
+          "Header",
+          "当前 ROS 时间、car1/base_link"
+        ],
+        [
+          "twist.linear.x",
+          "float64",
+          "前进速度，m/s"
+        ],
+        [
+          "twist.angular.z",
+          "float64",
+          "逆时针正的角速度，rad/s"
+        ]
+      ],
+      "sample": "header: {stamp: {sec: 100, nanosec: 200000000}, frame_id: car1/base_link}\ntwist:\n  linear: {x: 0.10, y: 0.0, z: 0.0}\n  angular: {x: 0.0, y: 0.0, z: 0.15}",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/command_guard.py",
+          "line": 60,
+          "end_line": 75
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+          "line": 46,
+          "end_line": 61
+        }
+      ]
+    },
+    {
+      "id": "control-status",
+      "kind": "话题",
+      "name": "control/status",
+      "type": "diagnostic_msgs/msg/DiagnosticArray",
+      "owner": "command_guard",
+      "receivers": "task_manager、controller_node、按需 bag",
+      "frequency": "1 Hz + 服务调用时",
+      "summary": "授权反馈，所有 values[].value 都是字符串。",
+      "fields": [
+        [
+          "header.stamp",
+          "Time",
+          "当前时间"
+        ],
+        [
+          "status[].name / level / message",
+          "string / uint8 / string",
+          "command_guard，hold 时告警，message 为原因"
+        ],
+        [
+          "values.source",
+          "string",
+          "0=NONE，1=MANUAL，2=AUTO"
+        ],
+        [
+          "values.permission",
+          "string",
+          "16 字节 UUID 的 32 位十六进制"
+        ],
+        [
+          "values.held / test_mode",
+          "string",
+          "锁定状态和 no_perception/none"
+        ]
+      ],
+      "sample": "header: {stamp: {...}}\nstatus:\n- name: command_guard\n  level: 0\n  message: ready\n  hardware_id: \"\"\n  values:\n  - {key: source, value: \"2\"}\n  - {key: permission, value: \"0102030405060708090a0b0c0d0e0f10\"}\n  - {key: held, value: \"False\"}\n  - {key: test_mode, value: \"no_perception\"}\n",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/command_guard.py",
+          "line": 77,
+          "end_line": 82
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+          "line": 54,
+          "end_line": 62
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 233,
+          "end_line": 237
+        }
+      ]
+    },
+    {
+      "id": "task-status",
+      "kind": "话题",
+      "name": "task/status",
+      "type": "diagnostic_msgs/msg/DiagnosticArray",
+      "owner": "task_manager",
+      "receivers": "观测客户端、按需 bag",
+      "frequency": "1 Hz + 状态改变",
+      "summary": "任务内部状态。state 的字符串比 FleetState 的四值状态更详细。",
+      "fields": [
+        [
+          "values.state",
+          "string",
+          "IDLE / RESERVED / STARTING / FOLLOW_PATH / FOLLOW_LEADER / STARTING_MANUAL / MANUAL / STOPPING / FAULT"
+        ],
+        [
+          "values.permission",
+          "string",
+          "当前任务授权 UUID"
+        ],
+        [
+          "status[].level / message",
+          "uint8 / string",
+          "FAULT 时 2，其余 0。message 来自 stop_reason"
+        ]
+      ],
+      "sample": "header: {stamp: {...}}\nstatus:\n- name: task_manager\n  level: 0\n  message: \n  hardware_id: \"\"\n  values:\n  - {key: state, value: \"FOLLOW_LEADER\"}\n  - {key: permission, value: \"0102030405060708090a0b0c0d0e0f10\"}\n",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 397,
+          "end_line": 400
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 77,
+          "end_line": 83
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 188,
+          "end_line": 194
+        }
+      ]
+    },
+    {
+      "id": "debug",
+      "kind": "话题",
+      "name": "control/debug",
+      "type": "diagnostic_msgs/msg/DiagnosticArray",
+      "owner": "controller_node",
+      "receivers": "按需 recorder / 调试客户端",
+      "frequency": "≤5 Hz，debug=true",
+      "summary": "只发送 debug_fields 选择的字段。",
+      "fields": [
+        [
+          "values.cte / heading_error",
+          "string",
+          "横向误差 m / 航向误差 rad"
+        ],
+        [
+          "values.w_stanley / w_apf",
+          "string",
+          "跟踪和避障项，rad/s"
+        ],
+        [
+          "values.solve_ms",
+          "string",
+          "本次计算耗时 ms"
+        ],
+        [
+          "values.v / w",
+          "string",
+          "可选候选速度 m/s、rad/s"
+        ]
+      ],
+      "sample": "header: {stamp: {...}}\nstatus:\n- name: controller\n  level: 0\n  message: ready\n  hardware_id: \"\"\n  values:\n  - {key: cte, value: \"0.02\"}\n  - {key: heading_error, value: \"0.05\"}\n  - {key: w_stanley, value: \"0.15\"}\n  - {key: w_apf, value: \"0.0\"}\n  - {key: solve_ms, value: \"1.2\"}\n",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+          "line": 125,
+          "end_line": 129
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/config/robot.yaml",
+          "line": 66,
+          "end_line": 67
+        }
+      ]
+    },
+    {
+      "id": "fleet-state",
+      "kind": "话题",
+      "name": "fleet/state",
+      "type": "k7_msgs/msg/FleetState",
+      "owner": "本车 task_manager",
+      "receivers": "主车 espnow_bridge，或 DDS 后车 task_manager",
+      "frequency": "≤10 Hz，publish_fleet=true 且对齐确认",
+      "summary": "由本车 odom 转到共同 fleet 坐标。",
+      "fields": [
+        [
+          "header",
+          "Header",
+          "原始 odom 时间，frame_id=fleet"
+        ],
+        [
+          "session_id.uuid",
+          "uint8[16]",
+          "task_manager 进程会话"
+        ],
+        [
+          "x / y / yaw",
+          "float64",
+          "共同 fleet 坐标，m / m / rad"
+        ],
+        [
+          "linear_speed / angular_speed",
+          "float32",
+          "车体前向 m/s / 偏航 rad/s"
+        ],
+        [
+          "state",
+          "uint8",
+          "0 IDLE，1 RUNNING，2 STOPPING，3 FAULT"
+        ]
+      ],
+      "sample": "header: {stamp: {...}, frame_id: fleet}\nsession_id: {uuid: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]}\nx: 1.2\ny: 0.0\nyaw: 0.05\nlinear_speed: 0.10\nangular_speed: 0.15\nstate: 1",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 402,
+          "end_line": 420
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+          "line": 35,
+          "end_line": 40
+        }
+      ],
+      "definition": "ROS2_src/K7_ros2/src/k7_msgs/msg/FleetState.msg"
+    },
+    {
+      "id": "leader-state",
+      "kind": "话题",
+      "name": "fleet/leader_state",
+      "type": "k7_msgs/msg/FleetState",
+      "owner": "从车 espnow_bridge",
+      "receivers": "本车 task_manager，接 FollowLeader 后动态订阅",
+      "frequency": "随有效无线新帧，≤10 Hz",
+      "summary": "保留主车采样时间、session_id 和 frame_id。car2 对应 /car2/fleet/leader_state。",
+      "fields": [
+        [
+          "header",
+          "Header",
+          "原始 odom 时间，frame_id=fleet"
+        ],
+        [
+          "session_id.uuid",
+          "uint8[16]",
+          "task_manager 进程会话"
+        ],
+        [
+          "x / y / yaw",
+          "float64",
+          "共同 fleet 坐标，m / m / rad"
+        ],
+        [
+          "linear_speed / angular_speed",
+          "float32",
+          "车体前向 m/s / 偏航 rad/s"
+        ],
+        [
+          "state",
+          "uint8",
+          "0 IDLE，1 RUNNING，2 STOPPING，3 FAULT"
+        ]
+      ],
+      "sample": "header: {stamp: {...}, frame_id: fleet}\nsession_id: {uuid: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]}\nx: 1.2\ny: 0.0\nyaw: 0.05\nlinear_speed: 0.10\nangular_speed: 0.15\nstate: 1",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+          "line": 82,
+          "end_line": 109
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 124,
+          "end_line": 130
+        }
+      ],
+      "definition": "ROS2_src/K7_ros2/src/k7_msgs/msg/FleetState.msg"
+    },
+    {
+      "id": "link",
+      "kind": "话题",
+      "name": "fleet/link",
+      "type": "diagnostic_msgs/msg/DiagnosticArray",
+      "owner": "每车 espnow_bridge",
+      "receivers": "调试客户端，bag 按需加入",
+      "frequency": "1 Hz",
+      "summary": "USB、本板状态与从车主车状态时效。",
+      "fields": [
+        [
+          "role / device / usb_ready",
+          "string",
+          "角色、USB 设备、状态就绪"
+        ],
+        [
+          "usb_tx / fleet_rx / dropped",
+          "string",
+          "桥发出/收到/丢弃车辆帧"
+        ],
+        [
+          "sequence_gaps / framing_errors / receive_age_s",
+          "string",
+          "序号缺口、解析错误、接收年龄 s"
+        ],
+        [
+          "sta_mac / firmware_vehicle_id / channel / uptime_ms",
+          "string",
+          "本板身份、信道、开机 ms"
+        ],
+        [
+          "firmware_usb_rx / radio_tx_done / radio_tx_error / radio_rx / firmware_rejected",
+          "string",
+          "固件各链路计数"
+        ]
+      ],
+      "sample": "header: {stamp: {...}}\nstatus:\n- name: espnow_bridge\n  level: 0\n  message: ready\n  hardware_id: \"\"\n  values:\n  - {key: role, value: \"follower\"}\n  - {key: device, value: \"/dev/k7_espnow\"}\n  - {key: usb_ready, value: \"True\"}\n  - {key: fleet_rx, value: \"120\"}\n  - {key: sequence_gaps, value: \"0\"}\n  - {key: receive_age_s, value: \"0.05\"}\n  - {key: sta_mac, value: \"24:6F:28:00:00:02\"}\n",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+          "line": 151,
+          "end_line": 169
+        }
+      ]
+    },
+    {
+      "id": "srv-select",
+      "kind": "服务",
+      "name": "control/select_source",
+      "type": "k7_msgs/srv/SelectSource",
+      "owner": "task_manager",
+      "receivers": "command_guard",
+      "frequency": "请求时",
+      "summary": "0 撤权，1 手动，2 自动。成功授予新的 UUID。",
+      "fields": [
+        [
+          "request.source",
+          "uint8",
+          "0 / 1 / 2"
+        ],
+        [
+          "response.success",
+          "bool",
+          "授权是否成功"
+        ],
+        [
+          "response.permission_id",
+          "UUID",
+          "本车当前权限"
+        ],
+        [
+          "response.reason",
+          "string",
+          "成功或拒绝原因"
+        ]
+      ],
+      "sample": "# request\nsource: 2\n---\n# response\nsuccess: true\npermission_id: {uuid: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]}\nreason: waiting for candidate",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/command_guard.py",
+          "line": 38,
+          "end_line": 45
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 113,
+          "end_line": 125
+        }
+      ],
+      "definition": "ROS2_src/K7_ros2/src/k7_msgs/srv/SelectSource.srv"
+    },
+    {
+      "id": "srv-manual",
+      "kind": "服务",
+      "name": "task/set_manual",
+      "type": "std_srvs/srv/SetBool",
+      "owner": "CLI / GUI 客户端节点",
+      "receivers": "task_manager",
+      "frequency": "请求时",
+      "summary": "manual profile 下 true 申请手动授权，false 请求停止。",
+      "fields": [
+        [
+          "request.data",
+          "bool",
+          "开启 / 关闭"
+        ],
+        [
+          "response.success / message",
+          "bool / string",
+          "true 开启请求等待授权完成后响应"
+        ]
+      ],
+      "sample": "# request\ndata: true\n---\n# response\nsuccess: true\nmessage: waiting for candidate",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 154,
+          "end_line": 169
+        }
+      ]
+    },
+    {
+      "id": "srv-stop",
+      "kind": "服务",
+      "name": "task/stop",
+      "type": "std_srvs/srv/Trigger",
+      "owner": "CLI / GUI 客户端节点",
+      "receivers": "task_manager",
+      "frequency": "请求时",
+      "summary": "触发 begin_stop，撤权并等待静止。响应表示受理，完成看 task/status。",
+      "fields": [
+        [
+          "request",
+          "空",
+          "Trigger 请求没有字段"
+        ],
+        [
+          "response.success / message",
+          "bool / string",
+          "是否受理"
+        ]
+      ],
+      "sample": "# request\n{}\n---\n# response\nsuccess: true\nmessage: accepted; observe task/status for standstill",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 200,
+          "end_line": 213
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 301,
+          "end_line": 314
+        }
+      ]
+    },
+    {
+      "id": "srv-hold",
+      "kind": "服务",
+      "name": "control/hold",
+      "type": "std_srvs/srv/SetBool",
+      "owner": "CLI / GUI 客户端节点",
+      "receivers": "command_guard",
+      "frequency": "请求时",
+      "summary": "true 锁定并撤权，false 解除锁定后需重新申请任务。",
+      "fields": [
+        [
+          "request.data",
+          "bool",
+          "锁定 / 解除"
+        ],
+        [
+          "response.success / message",
+          "bool / string",
+          "服务结果"
+        ]
+      ],
+      "sample": "# request\ndata: true\n---\n# response\nsuccess: true\nmessage: hold",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/command_guard.py",
+          "line": 47,
+          "end_line": 52
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/core.py",
+          "line": 77,
+          "end_line": 79
+        }
+      ]
+    },
+    {
+      "id": "srv-record",
+      "kind": "服务",
+      "name": "experiment/record",
+      "type": "std_srvs/srv/SetBool",
+      "owner": "CLI / GUI 客户端节点",
+      "receivers": "experiment_recorder",
+      "frequency": "请求时",
+      "summary": "true 创建一次记录，false 结束记录。launch record=true 也可自动开始。",
+      "fields": [
+        [
+          "request.data",
+          "bool",
+          "开始 / 停止"
+        ],
+        [
+          "response.success / message",
+          "bool / string",
+          "成功时 recording 或 disabled"
+        ]
+      ],
+      "sample": "# request\ndata: true\n---\n# response\nsuccess: true\nmessage: recording",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_experiment/k7_experiment/recorder.py",
+          "line": 45,
+          "end_line": 48
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_experiment/k7_experiment/recorder.py",
+          "line": 112,
+          "end_line": 118
+        }
+      ]
+    },
+    {
+      "id": "action-path",
+      "kind": "Action",
+      "name": "task/follow_path",
+      "type": "k7_msgs/action/FollowPath",
+      "owner": "ref_path / CLI / GUI 客户端节点",
+      "receivers": "task_manager（trajectory）",
+      "frequency": "goal 一次，feedback ≤2 Hz，result 一次",
+      "summary": "接收整条本车 odom 路径。可取消，完成停车后返回结果。",
+      "fields": [
+        [
+          "goal.path",
+          "nav_msgs/Path",
+          "2..512 PoseStamped，frame_id=carN/odom"
+        ],
+        [
+          "goal.target_speed",
+          "float32",
+          "m/s"
+        ],
+        [
+          "goal.position_tolerance / yaw_tolerance",
+          "float32",
+          "m / rad"
+        ],
+        [
+          "feedback",
+          "progress / lateral_error / heading_error / speed / state",
+          "进度0..1、m、rad、m/s、任务状态"
+        ],
+        [
+          "result",
+          "code / reason",
+          "0 OK，1 CANCELED，2 FAULT"
+        ]
+      ],
+      "sample": "# goal\npath: {header: {frame_id: car1/odom}, poses: [...]}\ntarget_speed: 0.10\nposition_tolerance: 0.10\nyaw_tolerance: 0.15\n---\n# result\ncode: 0\nreason: path complete\n---\n# feedback\nprogress: 0.4\nlateral_error: 0.02\nheading_error: 0.05\nspeed: 0.1\nstate: FOLLOW_PATH",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 85,
+          "end_line": 102
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 316,
+          "end_line": 344
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/ref_path.py",
+          "line": 125,
+          "end_line": 158
+        }
+      ],
+      "definition": "ROS2_src/K7_ros2/src/k7_msgs/action/FollowPath.action"
+    },
+    {
+      "id": "action-leader",
+      "kind": "Action",
+      "name": "task/follow_leader",
+      "type": "k7_msgs/action/FollowLeader",
+      "owner": "CLI / GUI 客户端节点",
+      "receivers": "task_manager（formation）",
+      "frequency": "goal 一次，feedback ≤2 Hz，持续到取消或故障",
+      "summary": "动态订阅 leader_topic，将主车状态转为本车跟随参考。",
+      "fields": [
+        [
+          "goal.leader_topic",
+          "string",
+          "主车输入绝对话题"
+        ],
+        [
+          "goal.gap / lateral_offset",
+          "float32",
+          "后退距离 m / 左正横向偏移 m"
+        ],
+        [
+          "goal.max_speed",
+          "float32",
+          "m/s"
+        ],
+        [
+          "feedback",
+          "gap_error / lateral_error / leader_age / state",
+          "m / m / s / 任务状态"
+        ],
+        [
+          "result",
+          "code / reason",
+          "0 OK，1 CANCELED，2 FAULT"
+        ]
+      ],
+      "sample": "# goal\nleader_topic: /car2/fleet/leader_state\ngap: 0.8\nlateral_offset: 0.0\nmax_speed: 0.10\n---\n# result（取消示意）\ncode: 1\nreason: canceled\n---\n# feedback\ngap_error: 0.03\nlateral_error: 0.02\nleader_age: 0.08\nstate: FOLLOW_LEADER",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 104,
+          "end_line": 130
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+          "line": 346,
+          "end_line": 395
+        }
+      ],
+      "definition": "ROS2_src/K7_ros2/src/k7_msgs/action/FollowLeader.action"
+    },
+    {
+      "id": "uart-tx",
+      "kind": "串口帧",
+      "name": "K7 → STM32 控制帧",
+      "type": "11 bytes · 大端 int16",
+      "owner": "serial_bridge",
+      "receivers": "STM32 USART3",
+      "frequency": "每33 ms，约30.3 Hz",
+      "summary": "由 cmd_vel 编码。BCC 是前9字节逐字节异或。",
+      "fields": [
+        [
+          "[0]",
+          "uint8",
+          "0x7B 帧头"
+        ],
+        [
+          "[1] / [2]",
+          "uint8",
+          "模式0 / 保留0"
+        ],
+        [
+          "[3..4] Vx / [5..6] Vy",
+          "int16 big-endian",
+          "mm/s，当前 Vy=0"
+        ],
+        [
+          "[7..8] Vz",
+          "int16 big-endian",
+          "mrad/s"
+        ],
+        [
+          "[9] / [10]",
+          "uint8",
+          "BCC / 0x7D"
+        ]
+      ],
+      "sample": "# v=0.10 m/s，w=0.15 rad/s\n7B 00 00 00 64 00 00 00 96 89 7D\n# 0x0064 = 100 mm/s\n# 0x0096 = 150 mrad/s",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+          "line": 57,
+          "end_line": 61
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+          "line": 69,
+          "end_line": 86
+        }
+      ]
+    },
+    {
+      "id": "uart-rx",
+      "kind": "串口帧",
+      "name": "STM32 → K7 反馈帧",
+      "type": "24 bytes · 大端 int16",
+      "owner": "STM32 USART3",
+      "receivers": "serial_bridge",
+      "frequency": "20 Hz",
+      "summary": "速度反馈积分出 odom，IMU 经比例转换为 SI 单位。",
+      "fields": [
+        [
+          "[0] / [1]",
+          "uint8",
+          "0x7B / FlagStop"
+        ],
+        [
+          "[2..3] / [4..5] / [6..7]",
+          "int16",
+          "Vx mm/s / Vy mm/s / Vz mrad/s"
+        ],
+        [
+          "[8..13]",
+          "3×int16",
+          "原始加速度 X/Y/Z"
+        ],
+        [
+          "[14..19]",
+          "3×int16",
+          "原始角速度 X/Y/Z"
+        ],
+        [
+          "[20..21]",
+          "int16",
+          "电池 mV"
+        ],
+        [
+          "[22] / [23]",
+          "uint8",
+          "前22字节 XOR / 0x7D"
+        ]
+      ],
+      "sample": "7B [FlagStop] [Vx:H L] [Vy:H L] [Vz:H L]\n[Ax:H L] [Ay:H L] [Az:H L]\n[Gx:H L] [Gy:H L] [Gz:H L]\n[mV:H L] [BCC] 7D",
+      "sources": [
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+          "line": 94,
+          "end_line": 103
+        },
+        {
+          "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+          "line": 106,
+          "end_line": 163
+        }
+      ]
+    },
+    {
+      "id": "esp-fleet",
+      "kind": "串口帧",
+      "name": "ESP-NOW FleetPacket",
+      "type": "96 bytes · 小端 · CRC16",
+      "owner": "主车 espnow_bridge → 主车 ESP32",
+      "receivers": "从车 ESP32 → 从车 espnow_bridge",
+      "frequency": "≤10 Hz",
+      "summary": "USB 与无线沿用相同字节。原始时间戳、frame 和任务会话透传。",
+      "fields": [
+        [
+          "[0..7]",
+          "Header",
+          "K7 / version / kind=1 / sender_id / size=96"
+        ],
+        [
+          "[8..15] / [16..19]",
+          "uint64 / uint32",
+          "boot_id / sequence"
+        ],
+        [
+          "[20..23] / [24..27]",
+          "int32 / uint32",
+          "原始 sec / nanosec"
+        ],
+        [
+          "[28..43]",
+          "uint8[16]",
+          "task_manager session_id"
+        ],
+        [
+          "[44..67]",
+          "3×float64",
+          "x m / y m / yaw rad"
+        ],
+        [
+          "[68..75]",
+          "2×float32",
+          "linear_speed m/s / angular_speed rad/s"
+        ],
+        [
+          "[76..77] / [78..93]",
+          "uint8 / char[16]",
+          "state / frame_length / frame_id"
+        ],
+        [
+          "[94..95]",
+          "uint16 little-endian",
+          "CRC-16/CCITT-FALSE，前94字节"
+        ]
+      ],
+      "sample": "magic: K7\nversion: 1\nkind: 1\nsender_id: 1\nsize: 96\nboot_id: ...\nsequence: 42\nstamp_sec: ...\nstamp_nsec: ...\nsession_id: [...]\nx: 1.2\ny: 0.0\nyaw: 0.05\nlinear_speed: 0.1\nangular_speed: 0.15\nstate: 1\nframe_length: 5\nframe_id: fleet\ncrc: ...",
+      "sources": [
+        {
+          "path": "ESP32_src/espnow_bridge/wire_protocol.h",
+          "line": 12,
+          "end_line": 37
+        }
+      ]
+    },
+    {
+      "id": "esp-status",
+      "kind": "串口帧",
+      "name": "ESP32 StatusPacket",
+      "type": "96 bytes · kind=2",
+      "owner": "本车 ESP32",
+      "receivers": "本车 espnow_bridge",
+      "frequency": "1 Hz，仅本地 USB",
+      "summary": "本板身份与链路计数。桥转换为 fleet/link。",
+      "fields": [
+        [
+          "[0..7]",
+          "Header",
+          "K7 / version / kind=2 / 本车编号 / 96"
+        ],
+        [
+          "[8..11] / [12..17]",
+          "uint32 / uint8[6]",
+          "uptime_ms / STA MAC"
+        ],
+        [
+          "[18..19]",
+          "2×uint8",
+          "role1=主2=从 / channel"
+        ],
+        [
+          "[20..39]",
+          "5×uint32",
+          "usb_rx / radio_tx_done / radio_tx_error / radio_rx / rejected"
+        ],
+        [
+          "[40..93] / [94..95]",
+          "54 bytes / uint16",
+          "保留 / CRC16"
+        ]
+      ],
+      "sample": "kind: 2\nvehicle_id: 2\nuptime_ms: 120000\nmac: 24:6F:28:00:00:02\nrole: 2\nchannel: 6\nusb_rx: 0\nradio_tx_done: 0\nradio_tx_error: 0\nradio_rx: 120\nrejected: 0",
+      "sources": [
+        {
+          "path": "ESP32_src/espnow_bridge/wire_protocol.h",
+          "line": 39,
+          "end_line": 52
+        },
+        {
+          "path": "ESP32_src/espnow_bridge/espnow_bridge.ino",
+          "line": 65,
+          "end_line": 78
+        },
+        {
+          "path": "ESP32_src/espnow_bridge/espnow_bridge.ino",
+          "line": 149,
+          "end_line": 151
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "task_manager",
+      "text": "Action 服务端、任务状态机、权限客户端和参考路径生产者。",
+      "source": {
+        "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/task_manager.py",
+        "line": 51,
+        "end_line": 75
+      }
+    },
+    {
+      "name": "controller_node",
+      "text": "订阅参考、odom 和授权状态，20 Hz 计算候选速度。正常感知模式另接 scan。",
+      "source": {
+        "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/controller_node.py",
+        "line": 42,
+        "end_line": 51
+      }
+    },
+    {
+      "name": "command_guard",
+      "text": "校验 UUID 和候选时效，限制前进差速轮速，30 Hz 发布 cmd_vel。",
+      "source": {
+        "path": "ROS2_src/K7_ros2/src/k7_control/k7_control/command_guard.py",
+        "line": 29,
+        "end_line": 82
+      }
+    },
+    {
+      "name": "serial_bridge",
+      "text": "在 ROS 与 STM32 帧之间转换，速度反馈积分为 odom。",
+      "source": {
+        "path": "ROS2_src/K7_ros2/src/k7_bringup/src/serial_bridge.cpp",
+        "line": 41,
+        "end_line": 61
+      }
+    },
+    {
+      "name": "usb_cam",
+      "text": "外部包节点。采集 USB MJPEG、解码为 RGB，发布拼接图和 CameraInfo。",
+      "source": {
+        "path": "ROS2_src/K7_ros2/src/k7_bringup/launch/robot.launch.py",
+        "line": 46,
+        "end_line": 53
+      }
+    },
+    {
+      "name": "stereo_obstacles",
+      "text": "转灰度、校正、SGBM 视差和深度，提取21个扇区距离。",
+      "source": {
+        "path": "ROS2_src/K7_ros2/src/k7_camera/k7_camera/stereo_obstacles.py",
+        "line": 103,
+        "end_line": 119
+      }
+    },
+    {
+      "name": "experiment_recorder",
+      "text": "按需创建 CSV 和 rosbag，保存启动配置与实验元信息。",
+      "source": {
+        "path": "ROS2_src/K7_ros2/src/k7_experiment/k7_experiment/recorder.py",
+        "line": 62,
+        "end_line": 84
+      }
+    },
+    {
+      "name": "espnow_bridge",
+      "text": "可选节点。主车 topic→USB，从车 USB→本地 leader_state，发布 fleet/link。",
+      "source": {
+        "path": "ROS2_src/K7_ros2/src/k7_tasks/k7_tasks/espnow_bridge.py",
+        "line": 35,
+        "end_line": 42
+      }
+    }
+  ]
+}

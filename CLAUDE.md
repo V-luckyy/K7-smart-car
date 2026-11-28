@@ -56,7 +56,7 @@
 | Windows 双板 USB/无线收发验证 | [测试说明](ESP32_src/windows_test/README.md) |
 | 实验记录格式与共用分析脚本 | [日志说明](logs/README.md) |
 | 待办任务、负责边界、交付验收 | [开发任务清单](docs/开发任务清单.md) |
-| 整体数据流图 | [架构图](docs/k7-architecture.html) |
+| 节点话题、控制时序、服务/Action、三车通信与30项接口字段 | [交互架构图](docs/k7-architecture.html) |
 
 ## 6. 目录与工作规则
 
@@ -77,3 +77,5 @@ ROS2_src/wheeltec_ros2/   第三方参考，不修改
 ```
 
 工作前完整阅读本文；代码遵循 karpathy-guidelines 和 ponytail，保留用户已有修改。更新事实只修改对应条目，不追加对话流水账。目录变动同步 README、AGENTS 和 docs 引用；大文件、编译产物和实验数据不得误提交。提交格式：`<类型>: <简述>`。
+
+交互架构图由 `docs/k7-architecture.json`（源码快照、图定义与接口字典）和 `docs/k7-architecture.template.html`（阅读界面）生成。`tools/build_architecture.py` 调用 Archify 验证四张图，将通过检查的完整图和 `k7_msgs` 原始定义嵌入 `docs/k7-architecture.html`，可独立离线打开。重新生成步骤见架构手册第 9 节。
